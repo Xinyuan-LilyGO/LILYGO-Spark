@@ -3,6 +3,7 @@ name: Build/release
 on:
   push:
     branches: [main]
+    tags: ["v*"]          # 只有打 tag 时才触发正式发布
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -18,6 +19,9 @@ on:
           - win
           - linux
 
+permissions:
+  contents: write  # 允许发布 Release
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
@@ -31,7 +35,6 @@ jobs:
       - run: npm run build:compile
 
   build-mac:
-    # 逻辑：只要不是手动触发（即 push/pr），或者手动触发选了 mac/all，就跑
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'mac' || inputs.target == 'all' }}
     runs-on: macos-latest
     steps:
@@ -47,7 +50,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/upload-artifact@v4
         with:
-          name: macOS-universal
+          name: macOS-artifacts
           path: |
             release/*.dmg
             release/*.zip
@@ -68,7 +71,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/upload-artifact@v4
         with:
-          name: Windows-x64
+          name: Windows-artifacts
           path: |
             release/*.exe
             release/*.msi
@@ -90,8 +93,61 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/upload-artifact@v4
         with:
-          name: Linux-all
+          name: Linux-artifacts
           path: |
             release/*.AppImage
             release/*.deb
             release/*.rpm
+
+  # ────────────── 新增：发布任务 ──────────────
+  release:
+    needs: [build-mac, build-win, build-linux]
+    # 只有在 (push to main) 或者 (push tag) 时才运行发布，PR 不发
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download macOS artifacts
+        # 使用 continue-on-error 防止某个 job 没跑导致整个 release 失败（比如手动只跑了 win）
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: macOS-artifacts
+          path: dist/
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: Windows-artifacts
+          path: dist/
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: Linux-artifacts
+          path: dist/
+
+      - name: List files to upload
+        run: ls -R dist/
+
+      # 情况 A：推送到 main 分支 -> 发布 Nightly
+      - name: Update Nightly Release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: nightly
+          name: "Nightly Build (Latest)"
+          prerelease: true
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 情况 B：推送到 v* tag -> 发布正式版
+      - name: Create Tagged Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
