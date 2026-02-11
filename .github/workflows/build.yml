@@ -101,7 +101,8 @@ jobs:
 
   release:
     needs: [build-mac, build-win, build-linux]
-    if: ${{ github.event_name == 'push' }}
+    # 只要不是 PR，就进行发布
+    if: ${{ github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
@@ -112,51 +113,60 @@ jobs:
       - name: Prepare files
         run: |
           mkdir -p upload
+          # 递归查找所有构建产物并扁平化移动到 upload 目录
           find dist/ -type f \( -name "*.dmg" -o -name "*.zip" -o -name "*.exe" -o -name "*.msi" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" \) -exec cp {} upload/ \;
-          ls -R upload/
+          echo "Files to upload:"
+          ls -lh upload/
 
       - name: Generate Tag Name
         id: tag
         run: |
+          # 获取当前时间（UTC+8）
+          TIME_STR=$(date -d "+8 hours" +'%Y%m%d-%H%M%S')
+          SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
+          
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             echo "tag_name=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "release_name=${{ github.ref_name }}" >> $GITHUB_OUTPUT
             echo "is_prerelease=false" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "tag_name=manual-${TIME_STR}-${SHA_SHORT}" >> $GITHUB_OUTPUT
+            echo "release_name=Manual Build ${TIME_STR} (${SHA_SHORT})" >> $GITHUB_OUTPUT
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
           else
-            # 使用 build-日期-时间-短哈希 的格式
-            SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
-            echo "tag_name=build-$(date +'%Y%m%d-%H%M')-${SHA_SHORT}" >> $GITHUB_OUTPUT
+            echo "tag_name=build-${TIME_STR}-${SHA_SHORT}" >> $GITHUB_OUTPUT
+            echo "release_name=Build ${TIME_STR} (${SHA_SHORT})" >> $GITHUB_OUTPUT
             echo "is_prerelease=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag_name }}
-          name: ${{ github.ref == 'refs/heads/main' && format('Build {0}', steps.tag.outputs.tag_name) || steps.tag.outputs.tag_name }}
+          name: ${{ steps.tag.outputs.release_name }}
           body: |
             Automated build for commit ${{ github.sha }}
             Triggered by: ${{ github.event_name }}
+            Target: ${{ github.event.inputs.target || 'all' }}
           prerelease: ${{ steps.tag.outputs.is_prerelease }}
           files: upload/*
           generate_release_notes: true
+          make_latest: legacy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # ────────────── 新增：自动清理旧的 Build ──────────────
       - name: Cleanup old builds
-        if: github.ref == 'refs/heads/main'
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         run: |
-          echo "Checking for old builds to cleanup..."
-          # 获取所有以 build- 开头的 tag，按创建时间排序
-          # 使用 gh release list 获取 release 列表
-          # 过滤出 build- 开头的，保留最新的 20 个，剩下的删除
-          RELEASES_TO_DELETE=$(gh release list --limit 100 | grep "^build-" | awk '{print $1}' | tail -n +21)
+          echo "Cleaning up old automated builds..."
+          # 获取所有 build- 或 manual- 开头的 releases，保留最新的 20 个
+          RELEASES_TO_DELETE=$(gh release list --limit 100 | grep -E "^(build-|manual-)" | awk '{print $1}' | tail -n +21)
           
           if [ -z "$RELEASES_TO_DELETE" ]; then
-            echo "No old builds to delete."
+            echo "Nothing to cleanup."
           else
             for TAG in $RELEASES_TO_DELETE; do
-              echo "Deleting old release and tag: $TAG"
+              echo "Deleting $TAG"
               gh release delete "$TAG" --yes --cleanup-tag
             done
           fi
