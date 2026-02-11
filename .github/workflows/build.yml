@@ -1,0 +1,97 @@
+name: Build/release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: '手动编译目标'
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - mac
+          - win
+          - linux
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build:compile
+
+  build-mac:
+    # 逻辑：只要不是手动触发（即 push/pr），或者手动触发选了 mac/all，就跑
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'mac' || inputs.target == 'all' }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build:compile
+      - run: npm run build:mac:all
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macOS-universal
+          path: |
+            release/*.dmg
+            release/*.zip
+
+  build-win:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'win' || inputs.target == 'all' }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build:compile
+      - run: npm run build:win:all
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Windows-x64
+          path: |
+            release/*.exe
+            release/*.msi
+
+  build-linux:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'linux' || inputs.target == 'all' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build:compile
+      - run: sudo apt-get update && sudo apt-get install -y rpm snapd
+      - run: npm run build:linux:all
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Linux-all
+          path: |
+            release/*.AppImage
+            release/*.deb
+            release/*.rpm
