@@ -3,7 +3,7 @@ name: Build/release
 on:
   push:
     branches: [main]
-    tags: ["v*"]          # 只有打 tag 时才触发正式发布
+    tags: ["v*"]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -20,7 +20,7 @@ on:
           - linux
 
 permissions:
-  contents: write  # 允许发布 Release
+  contents: write
 
 jobs:
   smoke:
@@ -99,58 +99,66 @@ jobs:
             release/*.deb
             release/*.rpm
 
-  # ────────────── 新增：发布任务 ──────────────
   release:
     needs: [build-mac, build-win, build-linux]
-    # 只有在 (push to main) 或者 (push tag) 时才运行发布，PR 不发
     if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Download macOS artifacts
-        # 使用 continue-on-error 防止某个 job 没跑导致整个 release 失败（比如手动只跑了 win）
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
-        continue-on-error: true
         with:
-          name: macOS-artifacts
           path: dist/
 
-      - name: Download Windows artifacts
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: Windows-artifacts
-          path: dist/
+      - name: Prepare files
+        run: |
+          mkdir -p upload
+          find dist/ -type f \( -name "*.dmg" -o -name "*.zip" -o -name "*.exe" -o -name "*.msi" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" \) -exec cp {} upload/ \;
+          ls -R upload/
 
-      - name: Download Linux artifacts
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: Linux-artifacts
-          path: dist/
+      - name: Generate Tag Name
+        id: tag
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "tag_name=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+          else
+            # 使用 build-日期-时间-短哈希 的格式
+            SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
+            echo "tag_name=build-$(date +'%Y%m%d-%H%M')-${SHA_SHORT}" >> $GITHUB_OUTPUT
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+          fi
 
-      - name: List files to upload
-        run: ls -R dist/
-
-      # 情况 A：推送到 main 分支 -> 发布 Nightly
-      - name: Update Nightly Release
-        if: github.ref == 'refs/heads/main'
+      - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: nightly
-          name: "Nightly Build (Latest)"
-          prerelease: true
-          files: dist/*
-          # 强制覆盖旧的 release 资产
-          fail_on_unmatched_files: false
+          tag_name: ${{ steps.tag.outputs.tag_name }}
+          name: ${{ github.ref == 'refs/heads/main' && format('Build {0}', steps.tag.outputs.tag_name) || steps.tag.outputs.tag_name }}
+          body: |
+            Automated build for commit ${{ github.sha }}
+            Triggered by: ${{ github.event_name }}
+          prerelease: ${{ steps.tag.outputs.is_prerelease }}
+          files: upload/*
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 情况 B：推送到 v* tag -> 发布正式版
-      - name: Create Tagged Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v1
-        with:
-          files: dist/*
+      # ────────────── 新增：自动清理旧的 Build ──────────────
+      - name: Cleanup old builds
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "Checking for old builds to cleanup..."
+          # 获取所有以 build- 开头的 tag，按创建时间排序
+          # 使用 gh release list 获取 release 列表
+          # 过滤出 build- 开头的，保留最新的 20 个，剩下的删除
+          RELEASES_TO_DELETE=$(gh release list --limit 100 | grep "^build-" | awk '{print $1}' | tail -n +21)
+          
+          if [ -z "$RELEASES_TO_DELETE" ]; then
+            echo "No old builds to delete."
+          else
+            for TAG in $RELEASES_TO_DELETE; do
+              echo "Deleting old release and tag: $TAG"
+              gh release delete "$TAG" --yes --cleanup-tag
+            done
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
