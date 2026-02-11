@@ -149,7 +149,8 @@
       "artifactName": "LILYGO-Spark-${version}-windows-${arch}-setup.${ext}"
     },
     "portable": {
-      "artifactName": "LILYGO-Spark-${version}-windows-${arch}-portable.${ext}"
+      "artifactName": "LILYGO-Spark-${version}-windows-${arch}-portable.${ext}",
+      "compression": "normal"
     },
     "linux": {
       "compression": "maximum",
