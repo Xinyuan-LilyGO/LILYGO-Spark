@@ -41,7 +41,10 @@
     "flasher",
     "lilygo"
   ],
-  "author": "LilyGo Community",
+  "author": {
+    "name": "LilyGo Community",
+    "email": "info@lilygo.cc"
+  },
   "license": "MIT",
   "optionalDependencies": {
     "electron-mac-permissions": "^2.2.2"
