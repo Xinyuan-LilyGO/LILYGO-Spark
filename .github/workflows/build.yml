@@ -48,12 +48,18 @@ jobs:
       - run: npm run build:mac:all
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Rename and Filter macOS artifacts
+        run: |
+          mkdir -p final-artifacts
+          # 规范命名并只保留 dmg
+          cp release/*-arm64.dmg final-artifacts/LILYGO-Spark-0.1.0-macOS-arm64.dmg || true
+          cp release/*-universal.dmg final-artifacts/LILYGO-Spark-0.1.0-macOS-universal.dmg || true
+          # 如果有默认命名的也处理一下
+          cp release/LILYGO\ Spark-0.1.0.dmg final-artifacts/LILYGO-Spark-0.1.0-macOS-x64.dmg || true
       - uses: actions/upload-artifact@v4
         with:
           name: macOS-artifacts
-          path: |
-            release/*.dmg
-            release/*.zip
+          path: final-artifacts/*.dmg
 
   build-win:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'win' || inputs.target == 'all' }}
@@ -69,12 +75,21 @@ jobs:
       - run: npm run build:win:all
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Rename Windows artifacts
+        shell: bash
+        run: |
+          mkdir -p final-artifacts
+          # 规范命名
+          cp release/*arm64*.exe final-artifacts/LILYGO-Spark-0.1.0-Windows-Setup-arm64.exe || true
+          cp release/*x64*.exe final-artifacts/LILYGO-Spark-0.1.0-Windows-Setup-x64.exe || true
+          # 处理可能不带架构名的默认文件
+          if [ ! -f final-artifacts/LILYGO-Spark-0.1.0-Windows-Setup-x64.exe ]; then
+            cp release/*.exe final-artifacts/LILYGO-Spark-0.1.0-Windows-Setup-x64.exe || true
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: Windows-artifacts
-          path: |
-            release/*.exe
-            release/*.msi
+          path: final-artifacts/*.exe
 
   build-linux:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'linux' || inputs.target == 'all' }}
@@ -91,17 +106,22 @@ jobs:
       - run: npm run build:linux:all
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Rename Linux artifacts
+        run: |
+          mkdir -p final-artifacts
+          # AppImage
+          cp release/*arm64.AppImage final-artifacts/LILYGO-Spark-0.1.0-Linux-arm64.AppImage || true
+          cp release/*x86_64.AppImage final-artifacts/LILYGO-Spark-0.1.0-Linux-x64.AppImage || true
+          # deb
+          cp release/*arm64.deb final-artifacts/LILYGO-Spark-0.1.0-Linux-arm64.deb || true
+          cp release/*amd64.deb final-artifacts/LILYGO-Spark-0.1.0-Linux-x64.deb || true
       - uses: actions/upload-artifact@v4
         with:
           name: Linux-artifacts
-          path: |
-            release/*.AppImage
-            release/*.deb
-            release/*.rpm
+          path: final-artifacts/*
 
   release:
     needs: [build-mac, build-win, build-linux]
-    # 只要不是 PR，就进行发布
     if: ${{ github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
@@ -113,15 +133,12 @@ jobs:
       - name: Prepare files
         run: |
           mkdir -p upload
-          # 递归查找所有构建产物并扁平化移动到 upload 目录
-          find dist/ -type f \( -name "*.dmg" -o -name "*.zip" -o -name "*.exe" -o -name "*.msi" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" \) -exec cp {} upload/ \;
-          echo "Files to upload:"
+          find dist/ -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.AppImage" -o -name "*.deb" \) -exec cp {} upload/ \;
           ls -lh upload/
 
       - name: Generate Tag Name
         id: tag
         run: |
-          # 获取当前时间（UTC+8）
           TIME_STR=$(date -d "+8 hours" +'%Y%m%d-%H%M%S')
           SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
           
@@ -130,43 +147,59 @@ jobs:
             echo "release_name=${{ github.ref_name }}" >> $GITHUB_OUTPUT
             echo "is_prerelease=false" >> $GITHUB_OUTPUT
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "tag_name=manual-${TIME_STR}-${SHA_SHORT}" >> $GITHUB_OUTPUT
+            echo "tag_prefix=manual-${TIME_STR}-${SHA_SHORT}" >> $GITHUB_OUTPUT
             echo "release_name=Manual Build ${TIME_STR} (${SHA_SHORT})" >> $GITHUB_OUTPUT
             echo "is_prerelease=true" >> $GITHUB_OUTPUT
           else
-            echo "tag_name=build-${TIME_STR}-${SHA_SHORT}" >> $GITHUB_OUTPUT
+            echo "tag_prefix=build-${TIME_STR}-${SHA_SHORT}" >> $GITHUB_OUTPUT
             echo "release_name=Build ${TIME_STR} (${SHA_SHORT})" >> $GITHUB_OUTPUT
             echo "is_prerelease=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Create Release
+        id: create_release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.tag_name }}
+          # 先用临时 tag 创建，成功后再改名
+          tag_name: ${{ steps.tag.outputs.tag_prefix || steps.tag.outputs.tag_name }}-uploading
           name: ${{ steps.tag.outputs.release_name }}
           body: |
             Automated build for commit ${{ github.sha }}
             Triggered by: ${{ github.event_name }}
-            Target: ${{ github.event.inputs.target || 'all' }}
           prerelease: ${{ steps.tag.outputs.is_prerelease }}
           files: upload/*
           generate_release_notes: true
-          make_latest: legacy
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Finalize Tag (Success)
+        if: success() && github.ref != 'refs/tags/v*'
+        run: |
+          OLD_TAG="${{ steps.tag.outputs.tag_prefix }}-uploading"
+          NEW_TAG="${{ steps.tag.outputs.tag_prefix }}-ok"
+          # 使用 API 修改 release 的 tag
+          gh release edit "$OLD_TAG" --tag "$NEW_TAG"
+          # 删除旧 tag
+          git push origin ":refs/tags/$OLD_TAG"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Finalize Tag (Failure)
+        if: failure() && github.ref != 'refs/tags/v*'
+        run: |
+          OLD_TAG="${{ steps.tag.outputs.tag_prefix }}-uploading"
+          NEW_TAG="${{ steps.tag.outputs.tag_prefix }}-failed"
+          gh release edit "$OLD_TAG" --tag "$NEW_TAG"
+          git push origin ":refs/tags/$OLD_TAG"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Cleanup old builds
-        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+        if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         run: |
-          echo "Cleaning up old automated builds..."
-          # 获取所有 build- 或 manual- 开头的 releases，保留最新的 20 个
           RELEASES_TO_DELETE=$(gh release list --limit 100 | grep -E "^(build-|manual-)" | awk '{print $1}' | tail -n +21)
-          
-          if [ -z "$RELEASES_TO_DELETE" ]; then
-            echo "Nothing to cleanup."
-          else
+          if [ -n "$RELEASES_TO_DELETE" ]; then
             for TAG in $RELEASES_TO_DELETE; do
-              echo "Deleting $TAG"
               gh release delete "$TAG" --yes --cleanup-tag
             done
           fi
