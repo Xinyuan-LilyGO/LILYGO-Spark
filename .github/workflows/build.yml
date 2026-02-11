@@ -99,17 +99,10 @@ jobs:
       - name: Rename Windows artifacts
         shell: bash
         run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "Detected version: $VERSION"
           mkdir -p final-artifacts
           ls -R release/
-          # 规范命名
-          cp release/*arm64*.exe final-artifacts/LILYGO-Spark-${VERSION}-windows-setup-arm64.exe || true
-          cp release/*x64*.exe final-artifacts/LILYGO-Spark-${VERSION}-windows-setup-x64.exe || true
-          # 处理可能不带架构名的默认文件 (通常是 x64)
-          if [ ! -f final-artifacts/LILYGO-Spark-${VERSION}-windows-setup-x64.exe ]; then
-            cp release/*.exe final-artifacts/LILYGO-Spark-${VERSION}-windows-setup-x64.exe || true
-          fi
+          # 由于 package.json 已经配置了 artifactName，直接复制即可
+          cp release/*.exe final-artifacts/ || true
       - uses: actions/upload-artifact@v4
         with:
           name: Windows-artifacts
@@ -141,21 +134,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Rename Linux artifacts
         run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "Detected version: $VERSION"
           mkdir -p final-artifacts
           ls -R release/
-          # AppImage
-          cp release/*arm64.AppImage final-artifacts/LILYGO-Spark-${VERSION}-linux-arm64.AppImage || true
-          cp release/*x86_64.AppImage final-artifacts/LILYGO-Spark-${VERSION}-linux-x64.AppImage || true
-          # 处理可能不带架构名的默认文件 (通常是 x64)
-          if [ ! -f final-artifacts/LILYGO-Spark-${VERSION}-linux-x64.AppImage ]; then
-            cp release/*.AppImage final-artifacts/LILYGO-Spark-${VERSION}-linux-x64.AppImage || true
-          fi
-          
-          # deb
-          cp release/*arm64.deb final-artifacts/LILYGO-Spark-${VERSION}-linux-arm64.deb || true
-          cp release/*amd64.deb final-artifacts/LILYGO-Spark-${VERSION}-linux-x64.deb || true
+          # 由于 package.json 已经配置了 artifactName，直接复制即可
+          cp release/*.AppImage final-artifacts/ || true
+          cp release/*.deb final-artifacts/ || true
+          cp release/*.rpm final-artifacts/ || true
       - uses: actions/upload-artifact@v4
         with:
           name: Linux-artifacts
@@ -175,7 +159,7 @@ jobs:
       - name: Prepare files
         run: |
           mkdir -p upload
-          find dist/ -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.AppImage" -o -name "*.deb" \) -exec cp {} upload/ \;
+          find dist/ -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" \) -exec cp {} upload/ \;
           ls -lh upload/
 
       - name: Generate Tag Name

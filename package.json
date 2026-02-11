@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "postinstall": "electron-builder install-app-deps",
-    "build": "npm run clean && npm run build:all",
+    "build": "npm run clean && npm run prebuild && npm run build:compile && electron-builder",
     "clean": "rimraf dist dist-electron release",
     "prebuild": "shx mkdir -p build && shx cp public/LILYGO.png build/icon.png",
     "prebuild:mac:all": "npm run prebuild",
@@ -108,12 +108,16 @@
       "extendInfo": {
         "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to find and connect to ESP32 devices."
       },
-      "target": {
-        "target": "dmg",
-        "arch": [
-          "universal"
-        ]
-      }
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64",
+            "universal"
+          ]
+        }
+      ]
     },
     "dmg": {
       "format": "ULFO"
@@ -124,16 +128,45 @@
         {
           "target": "nsis",
           "arch": [
-            "x64"
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64",
+            "arm64"
           ]
         }
       ]
     },
+    "nsis": {
+      "artifactName": "LILYGO-Spark-${version}-windows-${arch}-setup.${ext}"
+    },
+    "portable": {
+      "artifactName": "LILYGO-Spark-${version}-windows-${arch}-portable.${ext}"
+    },
     "linux": {
       "compression": "maximum",
+      "artifactName": "LILYGO-Spark-${version}-linux-${arch}.${ext}",
       "target": [
         {
           "target": "AppImage",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "rpm",
           "arch": [
             "arm64",
             "x64"
