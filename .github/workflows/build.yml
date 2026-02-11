@@ -140,6 +140,9 @@ jobs:
           name: "Nightly Build (Latest)"
           prerelease: true
           files: dist/*
+          # 强制覆盖旧的 release 资产
+          fail_on_unmatched_files: false
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
