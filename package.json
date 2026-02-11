@@ -111,6 +111,7 @@
       "extendInfo": {
         "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to find and connect to ESP32 devices."
       },
+      "artifactName": "LILYGO-Spark-${version}-macOS-${arch}.${ext}",
       "target": [
         {
           "target": "dmg",
@@ -176,6 +177,12 @@
           ]
         }
       ]
+    },
+    "deb": {
+      "compression": "xz"
+    },
+    "rpm": {
+      "compression": "xz"
     }
   }
 }
