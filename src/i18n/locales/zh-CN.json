@@ -1,0 +1,50 @@
+{
+  "app": {
+    "title": "LILYGO Spark"
+  },
+  "nav": {
+    "flasher": "刷写工具",
+    "firmware": "固件中心",
+    "settings": "设置"
+  },
+  "settings": {
+    "title": "设置",
+    "language": "语言",
+    "language_options": {
+      "system": "跟随系统",
+      "en": "English",
+      "zh-CN": "简体中文",
+      "zh-TW": "繁體中文",
+      "ja": "日本語"
+    }
+  },
+  "flasher": {
+    "welcome": "欢迎使用 LILYGO Spark！",
+    "select_port_msg": "选择串口",
+    "label_port": "端口",
+    "label_chip": "芯片系列",
+    "label_baud": "波特率 (上传)",
+    "label_firmware": "固件文件 (.bin)",
+    "btn_flash": "开始刷写",
+    "btn_erase": "擦除 Flash",
+    "btn_console": "控制台",
+    "btn_connect_console": "连接控制台",
+    "btn_disconnect_console": "断开控制台",
+    "status": {
+      "ready": "准备连接或刷写。",
+      "flashing": "正在刷写...",
+      "success": "刷写完成！",
+      "error": "刷写错误",
+      "erasing": "正在擦除 Flash...",
+      "erased": "Flash 已擦除"
+    },
+    "choose_file": "选择文件",
+    "no_file_chosen": "未选择文件"
+  },
+  "device_toast": {
+    "new_device": "发现新设备",
+    "manufacturer": "厂商",
+    "via": "通过",
+    "clear_all": "清除全部"
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "app": {
+    "title": "LILYGO Spark"
+  },
+  "nav": {
+    "flasher": "Flasher",
+    "firmware": "Firmware",
+    "settings": "Settings"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "language_options": {
+      "system": "Follow System",
+      "en": "English",
+      "zh-CN": "简体中文",
+      "zh-TW": "繁體中文",
+      "ja": "日本語"
+    }
+  },
+  "flasher": {
+    "welcome": "Welcome to LILYGO Spark!",
+    "select_port_msg": "Serial port",
+    "label_port": "Port",
+    "label_chip": "Chip Family",
+    "label_baud": "Baud Rate (Upload)",
+    "label_firmware": "Firmware (.bin)",
+    "btn_flash": "Start Flashing",
+    "btn_erase": "Erase Flash",
+    "btn_console": "Console",
+    "btn_connect_console": "Connect Console",
+    "btn_disconnect_console": "Disconnect Console",
+    "status": {
+      "ready": "Ready to connect or flash.",
+      "flashing": "Flashing...",
+      "success": "Flash Complete!",
+      "error": "Flash Error",
+      "erasing": "Erasing Flash...",
+      "erased": "Flash Erased"
+    },
+    "choose_file": "Choose File",
+    "no_file_chosen": "No file chosen"
+  },
+  "device_toast": {
+    "new_device": "New Device Found",
+    "manufacturer": "Manufacturer",
+    "via": "via",
+    "clear_all": "Clear All"
+  }
+}

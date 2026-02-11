@@ -1,0 +1,50 @@
+{
+  "app": {
+    "title": "LILYGO Spark"
+  },
+  "nav": {
+    "flasher": "書き込みツール",
+    "firmware": "ファームウェア",
+    "settings": "設定"
+  },
+  "settings": {
+    "title": "設定",
+    "language": "言語",
+    "language_options": {
+      "system": "システムに従う",
+      "en": "English",
+      "zh-CN": "简体中文",
+      "zh-TW": "繁體中文",
+      "ja": "日本語"
+    }
+  },
+  "flasher": {
+    "welcome": "LILYGO Spark へようこそ！",
+    "select_port_msg": "シリアルポートを選択",
+    "label_port": "ポート",
+    "label_chip": "チップファミリー",
+    "label_baud": "ボーレート (書き込み)",
+    "label_firmware": "ファームウェア (.bin)",
+    "btn_flash": "書き込み開始",
+    "btn_erase": "Flash 消去",
+    "btn_console": "コンソール",
+    "btn_connect_console": "コンソール接続",
+    "btn_disconnect_console": "コンソール切断",
+    "status": {
+      "ready": "接続または書き込み準備完了。",
+      "flashing": "書き込み中...",
+      "success": "書き込み完了！",
+      "error": "書き込みエラー",
+      "erasing": "Flash 消去中...",
+      "erased": "Flash 消去済み"
+    },
+    "choose_file": "ファイルを選択",
+    "no_file_chosen": "ファイルが選択されていません"
+  },
+  "device_toast": {
+    "new_device": "新しいデバイスを検出",
+    "manufacturer": "メーカー",
+    "via": "経由",
+    "clear_all": "すべてクリア"
+  }
+}
