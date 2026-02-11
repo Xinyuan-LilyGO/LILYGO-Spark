@@ -11,10 +11,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
   const { t } = useTranslation();
 
   const navItems = [
-    { id: 'firmware', icon: Users, label: '固件社区' }, // Firmware Community
-    { id: 'flasher', icon: Zap, label: '刷写工具' },   // Flash Tool
-    { id: 'dumper', icon: Download, label: '固件提取' }, // Firmware Dumper
-    { id: 'settings', icon: Settings, label: '设置' },   // Settings
+    { id: 'firmware', icon: Users, label: t('nav.firmware') },
+    { id: 'flasher', icon: Zap, label: t('nav.flasher') },
+    { id: 'dumper', icon: Download, label: t('nav.dumper') },
+    { id: 'settings', icon: Settings, label: t('nav.settings') },
   ];
 
   return (

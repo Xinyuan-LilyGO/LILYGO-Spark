@@ -27,10 +27,7 @@ interface ElectronSerialPortInfo {
 const FirmwareDumper: React.FC = () => {
   const { t } = useTranslation();
   const [port, setPort] = useState<SerialPort | null>(null);
-  const [connected, setConnected] = useState(false);
-  const [baudRate] = useState(115200); // Default for logs
   const [flashBaudRate, setFlashBaudRate] = useState(921600); // Default for dumping
-  const [chipFamily, setChipFamily] = useState('ESP32-S3');
   const [progress, setProgress] = useState(0);
   // Status key: 'idle', 'ready', 'dumping', 'success', 'error'
   const [status, setStatus] = useState<string>('idle');
@@ -74,8 +71,8 @@ const FirmwareDumper: React.FC = () => {
       xtermRef.current = term;
       fitAddonRef.current = fitAddon;
 
-      term.writeln('Firmware Dumper initialized.');
-      term.writeln('Select a device to begin.');
+      term.writeln(t('dumper.terminal_init'));
+      term.writeln(t('dumper.terminal_select_device'));
     }
     
     // Handle resize
@@ -107,7 +104,7 @@ const FirmwareDumper: React.FC = () => {
           window.ipcRenderer.off('serial-ports-available');
       }
     };
-  }, []);
+  }, [t]);
 
   const handleSelectDeviceClick = async () => {
     try {
@@ -123,11 +120,11 @@ const FirmwareDumper: React.FC = () => {
       
       setPort(selectedPort);
       setStatus('ready');
-      xtermRef.current?.writeln('Device selected.');
+      xtermRef.current?.writeln(t('dumper.terminal_device_selected'));
       
     } catch (error) {
       console.error('Error selecting port:', error);
-      xtermRef.current?.writeln(`Port selection error: ${error}`);
+      xtermRef.current?.writeln(`${t('dumper.terminal_port_selection_error')}: ${error}`);
       setIsSelectingPort(false);
     }
   };
@@ -140,12 +137,12 @@ const FirmwareDumper: React.FC = () => {
 
   const handleDetect = async () => {
     if (!port) {
-      xtermRef.current?.writeln('Error: Please select a device first.');
+      xtermRef.current?.writeln(t('dumper.terminal_error_select_device'));
       return;
     }
 
     setStatus('detecting');
-    xtermRef.current?.writeln('Detecting chip info...');
+    xtermRef.current?.writeln(t('dumper.terminal_detecting'));
     
     try {
         const esptool = await import('esptool-js');
@@ -187,8 +184,8 @@ const FirmwareDumper: React.FC = () => {
         setDetectedFlashSize(sizeHex);
         setDumpSize(sizeHex); // Auto-set dump size
         
-        xtermRef.current?.writeln(`Detected: ${chipName}`);
-        xtermRef.current?.writeln(`Flash ID: 0x${flashId.toString(16)} -> Size: ${sizeHex}`);
+        xtermRef.current?.writeln(`${t('dumper.terminal_detected')}: ${chipName}`);
+        xtermRef.current?.writeln(`${t('dumper.terminal_flash_id')}: 0x${flashId.toString(16)} -> ${t('dumper.terminal_size')}: ${sizeHex}`);
         
         // Reset
         await transport.setDTR(false);
@@ -199,19 +196,19 @@ const FirmwareDumper: React.FC = () => {
         setStatus('ready');
     } catch (e: any) {
         console.error('Detection Error:', e);
-        xtermRef.current?.writeln(`Error: ${e.message || e}`);
+        xtermRef.current?.writeln(`${t('dumper.terminal_error')}: ${e.message || e}`);
         setStatus('error');
     }
   };
 
   const handleDump = async () => {
     if (!port) {
-      xtermRef.current?.writeln('Error: Please select a device first.');
+      xtermRef.current?.writeln(t('dumper.terminal_error_select_device'));
       return;
     }
 
     setStatus('dumping');
-    xtermRef.current?.writeln('Starting dump process...');
+    xtermRef.current?.writeln(t('dumper.terminal_starting_dump'));
     
     try {
         // Dynamic import esptool-js
@@ -220,7 +217,7 @@ const FirmwareDumper: React.FC = () => {
         const ESPLoader = esptool.ESPLoader;
         
         if (!Transport || !ESPLoader) {
-            throw new Error('Failed to load esptool-js classes');
+            throw new Error(t('dumper.terminal_error_esptool_load'));
         }
 
         const transport = new Transport(port as any, true);
@@ -240,13 +237,13 @@ const FirmwareDumper: React.FC = () => {
             }
         });
 
-        xtermRef.current?.writeln('Syncing...');
+        xtermRef.current?.writeln(t('dumper.terminal_syncing'));
         await espLoader.main(); // Sync and detect chip
         
         const size = parseInt(dumpSize, 16);
         const address = parseInt(dumpAddress, 16);
         
-        xtermRef.current?.writeln(`Reading flash from 0x${address.toString(16)} (size: 0x${size.toString(16)})...`);
+        xtermRef.current?.writeln(`${t('dumper.terminal_reading_flash')} 0x${address.toString(16)} (${t('dumper.terminal_size')}: 0x${size.toString(16)})...`);
         
         // Use readFlash
         const data = await espLoader.readFlash({
@@ -258,7 +255,7 @@ const FirmwareDumper: React.FC = () => {
             }
         });
         
-        xtermRef.current?.writeln('Read complete! Saving file...');
+        xtermRef.current?.writeln(t('dumper.terminal_read_complete'));
         
         // Create Blob and download
         const blob = new Blob([data], { type: 'application/octet-stream' });
@@ -271,7 +268,7 @@ const FirmwareDumper: React.FC = () => {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        xtermRef.current?.writeln('File saved.');
+        xtermRef.current?.writeln(t('dumper.terminal_file_saved'));
         
         // Reset
         await transport.setDTR(false);
@@ -283,13 +280,11 @@ const FirmwareDumper: React.FC = () => {
         
     } catch (e: any) {
         console.error('Dump Error:', e);
-        xtermRef.current?.writeln(`Dump Error: ${e.message || e}`);
+        xtermRef.current?.writeln(`${t('dumper.terminal_dump_error')}: ${e.message || e}`);
         setStatus('error');
     }
   };
 
-  const formatId = (id?: string) => id ? `0x${parseInt(id).toString(16).toUpperCase().padStart(4, '0')}` : 'Unknown';
-  
   return (
     <div className="flex flex-col h-full bg-slate-900 text-white p-6 gap-6">
       {/* Header / Controls */}
@@ -308,20 +303,20 @@ const FirmwareDumper: React.FC = () => {
             >
               <span className="truncate">
                   {selectedPortId 
-                        ? (availablePorts.find(p => p.portId === selectedPortId)?.displayName || 'Ready')
-                        : 'Select Device'} 
+                        ? (availablePorts.find(p => p.portId === selectedPortId)?.displayName || t('dumper.status_ready'))
+                        : t('dumper.btn_select_device')} 
               </span>
-              {!connected && <ChevronDown size={16} className={`ml-2 transition-transform ${isSelectingPort ? 'rotate-180' : ''}`} />}
+              <ChevronDown size={16} className={`ml-2 transition-transform ${isSelectingPort ? 'rotate-180' : ''}`} />
             </button>
           </div>
 
           {/* Custom Port Selection Dropdown */}
-          {isSelectingPort && !connected && (
+          {isSelectingPort && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl overflow-hidden z-50 w-[140%] min-w-[300px]">
                   <div className="max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600">
                       {availablePorts.length === 0 ? (
                           <div className="p-4 text-center text-slate-500 text-sm">
-                              No compatible devices found.<br/>Check connections.
+                              {t('dumper.no_devices_found')}<br/>{t('dumper.check_connections')}
                           </div>
                       ) : (
                           availablePorts.map((p) => (
@@ -359,7 +354,7 @@ const FirmwareDumper: React.FC = () => {
         </div>
 
         <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1">Start Address (Hex)</label>
+            <label className="block text-sm font-medium text-slate-400 mb-1">{t('dumper.label_start_address')}</label>
             <input 
                 type="text" 
                 value={dumpAddress} 
@@ -370,7 +365,7 @@ const FirmwareDumper: React.FC = () => {
         </div>
 
         <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1">Size (Hex)</label>
+            <label className="block text-sm font-medium text-slate-400 mb-1">{t('dumper.label_size')}</label>
             <div className="flex gap-2">
                 <input 
                     type="text" 
@@ -384,7 +379,7 @@ const FirmwareDumper: React.FC = () => {
                     className="bg-slate-700 border border-slate-600 rounded-lg px-2 text-white focus:ring-2 focus:ring-blue-500 outline-none text-xs"
                     defaultValue=""
                 >
-                    <option value="" disabled>Presets</option>
+                    <option value="" disabled>{t('dumper.presets')}</option>
                     <option value="0x400000">4MB</option>
                     <option value="0x800000">8MB</option>
                     <option value="0x1000000">16MB</option>
@@ -393,7 +388,7 @@ const FirmwareDumper: React.FC = () => {
         </div>
         
         <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1">Baud Rate</label>
+            <label className="block text-sm font-medium text-slate-400 mb-1">{t('dumper.label_baud_rate')}</label>
             <select 
                 value={flashBaudRate} 
                 onChange={e => setFlashBaudRate(Number(e.target.value))}
@@ -409,23 +404,23 @@ const FirmwareDumper: React.FC = () => {
         <div className="col-span-1 md:col-span-2 lg:col-span-4 flex gap-4 border-t border-slate-700 pt-4 mt-2">
              <div className="flex-1 flex gap-2 items-end">
                 <div className="flex-1">
-                    <label className="block text-sm font-medium text-slate-400 mb-1">Detected Chip</label>
+                    <label className="block text-sm font-medium text-slate-400 mb-1">{t('dumper.label_detected_chip')}</label>
                     <input 
                         type="text" 
                         value={detectedChip} 
                         readOnly
                         className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-300 outline-none"
-                        placeholder="Unknown"
+                        placeholder={t('dumper.unknown')}
                     />
                 </div>
                 <div className="flex-1">
-                    <label className="block text-sm font-medium text-slate-400 mb-1">Detected Size</label>
+                    <label className="block text-sm font-medium text-slate-400 mb-1">{t('dumper.label_detected_size')}</label>
                     <input 
                         type="text" 
                         value={detectedFlashSize} 
                         readOnly
                         className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-300 outline-none font-mono"
-                        placeholder="Unknown"
+                        placeholder={t('dumper.unknown')}
                     />
                 </div>
                 <button 
@@ -437,7 +432,7 @@ const FirmwareDumper: React.FC = () => {
                             : 'bg-indigo-600 hover:bg-indigo-500 text-white hover:shadow-indigo-500/25'
                         }`}
                 >
-                    Detect Info
+                    {t('dumper.btn_detect_info')}
                 </button>
              </div>
         </div>
@@ -447,7 +442,7 @@ const FirmwareDumper: React.FC = () => {
       {/* Action Bar */}
       <div className="flex items-center justify-between bg-slate-800 p-4 rounded-xl border border-slate-700">
         <div className="flex items-center gap-4 flex-1 mr-8">
-            <span className="text-sm font-medium text-slate-400">Status:</span>
+            <span className="text-sm font-medium text-slate-400">{t('dumper.label_status')}:</span>
             <span className={`text-sm font-bold ${status === 'success' ? 'text-emerald-400' : status === 'error' ? 'text-red-400' : 'text-white'}`}>
                 {status.toUpperCase()}
             </span>
@@ -472,7 +467,7 @@ const FirmwareDumper: React.FC = () => {
                 }`}
         >
             <Download className="mr-2" size={20} />
-            Dump Firmware
+            {t('dumper.btn_dump_firmware')}
         </button>
       </div>
 

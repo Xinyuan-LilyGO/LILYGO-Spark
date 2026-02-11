@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import Flasher from './components/Flasher'
 import DeviceToast from './components/DeviceToast'
 import SettingsPage from './components/SettingsPage'
@@ -9,7 +8,6 @@ import FirmwareDumper from './components/FirmwareDumper'
 
 function App() {
   const [activeTab, setActiveTab] = useState('firmware') // Default to firmware/community
-  const { t } = useTranslation()
 
   return (
     <div className="flex h-screen bg-slate-900 text-slate-100 overflow-hidden">

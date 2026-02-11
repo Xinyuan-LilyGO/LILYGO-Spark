@@ -5,6 +5,7 @@
   "nav": {
     "flasher": "刷写工具",
     "firmware": "固件中心",
+    "dumper": "固件提取",
     "settings": "设置"
   },
   "settings": {
@@ -40,6 +41,40 @@
     },
     "choose_file": "选择文件",
     "no_file_chosen": "未选择文件"
+  },
+  "dumper": {
+    "title": "固件提取",
+    "label_start_address": "起始地址 (Hex)",
+    "label_size": "大小 (Hex)",
+    "label_baud_rate": "波特率",
+    "label_detected_chip": "检测到芯片",
+    "label_detected_size": "检测到大小",
+    "label_status": "状态",
+    "btn_select_device": "选择设备",
+    "btn_detect_info": "检测信息",
+    "btn_dump_firmware": "提取固件",
+    "status_ready": "就绪",
+    "presets": "预设",
+    "unknown": "未知",
+    "no_devices_found": "未发现兼容设备。",
+    "check_connections": "请检查连接。",
+    "terminal_init": "固件提取工具已初始化。",
+    "terminal_select_device": "请选择一个设备开始。",
+    "terminal_device_selected": "设备已选择。",
+    "terminal_port_selection_error": "端口选择错误",
+    "terminal_error_select_device": "错误：请先选择一个设备。",
+    "terminal_detecting": "正在检测芯片信息...",
+    "terminal_detected": "已检测到",
+    "terminal_flash_id": "Flash ID",
+    "terminal_size": "大小",
+    "terminal_error": "错误",
+    "terminal_starting_dump": "开始提取过程...",
+    "terminal_error_esptool_load": "加载 esptool-js 类失败",
+    "terminal_syncing": "正在同步...",
+    "terminal_reading_flash": "正在读取 Flash 从",
+    "terminal_read_complete": "读取完成！正在保存文件...",
+    "terminal_file_saved": "文件已保存。",
+    "terminal_dump_error": "提取错误"
   },
   "device_toast": {
     "new_device": "发现新设备",

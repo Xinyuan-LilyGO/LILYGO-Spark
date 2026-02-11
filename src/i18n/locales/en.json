@@ -5,6 +5,7 @@
   "nav": {
     "flasher": "Flasher",
     "firmware": "Firmware",
+    "dumper": "Dumper",
     "settings": "Settings"
   },
   "settings": {
@@ -40,6 +41,40 @@
     },
     "choose_file": "Choose File",
     "no_file_chosen": "No file chosen"
+  },
+  "dumper": {
+    "title": "Firmware Dumper",
+    "label_start_address": "Start Address (Hex)",
+    "label_size": "Size (Hex)",
+    "label_baud_rate": "Baud Rate",
+    "label_detected_chip": "Detected Chip",
+    "label_detected_size": "Detected Size",
+    "label_status": "Status",
+    "btn_select_device": "Select Device",
+    "btn_detect_info": "Detect Info",
+    "btn_dump_firmware": "Dump Firmware",
+    "status_ready": "Ready",
+    "presets": "Presets",
+    "unknown": "Unknown",
+    "no_devices_found": "No compatible devices found.",
+    "check_connections": "Check connections.",
+    "terminal_init": "Firmware Dumper initialized.",
+    "terminal_select_device": "Select a device to begin.",
+    "terminal_device_selected": "Device selected.",
+    "terminal_port_selection_error": "Port selection error",
+    "terminal_error_select_device": "Error: Please select a device first.",
+    "terminal_detecting": "Detecting chip info...",
+    "terminal_detected": "Detected",
+    "terminal_flash_id": "Flash ID",
+    "terminal_size": "Size",
+    "terminal_error": "Error",
+    "terminal_starting_dump": "Starting dump process...",
+    "terminal_error_esptool_load": "Failed to load esptool-js classes",
+    "terminal_syncing": "Syncing...",
+    "terminal_reading_flash": "Reading flash from",
+    "terminal_read_complete": "Read complete! Saving file...",
+    "terminal_file_saved": "File saved.",
+    "terminal_dump_error": "Dump Error"
   },
   "device_toast": {
     "new_device": "New Device Found",
