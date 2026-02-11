@@ -43,6 +43,15 @@ jobs:
         with:
           node-version: 20
           cache: npm
+      - name: Cache electron dists
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/electron
+            ~/Library/Caches/electron-builder
+          key: ${{ runner.os }}-electron-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-
       - run: npm ci
       - run: npm run build:compile
       - run: npm run build:mac:all
@@ -50,13 +59,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Rename and Filter macOS artifacts
         run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "Detected version: $VERSION"
           mkdir -p final-artifacts
           ls -R release/
           # 规范命名并只保留 dmg
-          cp release/*-arm64.dmg final-artifacts/LILYGO-Spark-0.1.0-macOS-arm64.dmg || true
-          cp release/*-universal.dmg final-artifacts/LILYGO-Spark-0.1.0-macOS-universal.dmg || true
+          cp release/*-arm64.dmg final-artifacts/LILYGO-Spark-${VERSION}-macOS-arm64.dmg || true
+          cp release/*-universal.dmg final-artifacts/LILYGO-Spark-${VERSION}-macOS-universal.dmg || true
           # 如果有默认命名的也处理一下
-          cp release/LILYGO\ Spark-0.1.0.dmg final-artifacts/LILYGO-Spark-0.1.0-macOS-x64.dmg || true
+          cp release/LILYGO\ Spark-${VERSION}.dmg final-artifacts/LILYGO-Spark-${VERSION}-macOS-x64.dmg || true
       - uses: actions/upload-artifact@v4
         with:
           name: macOS-artifacts
@@ -71,6 +82,15 @@ jobs:
         with:
           node-version: 20
           cache: npm
+      - name: Cache electron dists
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Local\electron\Cache
+            ~\AppData\Local\electron-builder\Cache
+          key: ${{ runner.os }}-electron-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-
       - run: npm ci
       - run: npm run build:compile
       - run: npm run build:win:all
@@ -79,14 +99,16 @@ jobs:
       - name: Rename Windows artifacts
         shell: bash
         run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "Detected version: $VERSION"
           mkdir -p final-artifacts
           ls -R release/
           # 规范命名
-          cp release/*arm64*.exe final-artifacts/LILYGO-Spark-0.1.0-windows-setup-arm64.exe || true
-          cp release/*x64*.exe final-artifacts/LILYGO-Spark-0.1.0-windows-setup-x64.exe || true
+          cp release/*arm64*.exe final-artifacts/LILYGO-Spark-${VERSION}-windows-setup-arm64.exe || true
+          cp release/*x64*.exe final-artifacts/LILYGO-Spark-${VERSION}-windows-setup-x64.exe || true
           # 处理可能不带架构名的默认文件 (通常是 x64)
-          if [ ! -f final-artifacts/LILYGO-Spark-0.1.0-windows-setup-x64.exe ]; then
-            cp release/*.exe final-artifacts/LILYGO-Spark-0.1.0-windows-setup-x64.exe || true
+          if [ ! -f final-artifacts/LILYGO-Spark-${VERSION}-windows-setup-x64.exe ]; then
+            cp release/*.exe final-artifacts/LILYGO-Spark-${VERSION}-windows-setup-x64.exe || true
           fi
       - uses: actions/upload-artifact@v4
         with:
@@ -102,6 +124,15 @@ jobs:
         with:
           node-version: 20
           cache: npm
+      - name: Cache electron dists
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+          key: ${{ runner.os }}-electron-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-
       - run: npm ci
       - run: npm run build:compile
       - run: sudo apt-get update && sudo apt-get install -y rpm snapd
@@ -110,19 +141,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Rename Linux artifacts
         run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "Detected version: $VERSION"
           mkdir -p final-artifacts
           ls -R release/
           # AppImage
-          cp release/*arm64.AppImage final-artifacts/LILYGO-Spark-0.1.0-linux-arm64.AppImage || true
-          cp release/*x86_64.AppImage final-artifacts/LILYGO-Spark-0.1.0-linux-x64.AppImage || true
+          cp release/*arm64.AppImage final-artifacts/LILYGO-Spark-${VERSION}-linux-arm64.AppImage || true
+          cp release/*x86_64.AppImage final-artifacts/LILYGO-Spark-${VERSION}-linux-x64.AppImage || true
           # 处理可能不带架构名的默认文件 (通常是 x64)
-          if [ ! -f final-artifacts/LILYGO-Spark-0.1.0-linux-x64.AppImage ]; then
-            cp release/*.AppImage final-artifacts/LILYGO-Spark-0.1.0-linux-x64.AppImage || true
+          if [ ! -f final-artifacts/LILYGO-Spark-${VERSION}-linux-x64.AppImage ]; then
+            cp release/*.AppImage final-artifacts/LILYGO-Spark-${VERSION}-linux-x64.AppImage || true
           fi
           
           # deb
-          cp release/*arm64.deb final-artifacts/LILYGO-Spark-0.1.0-linux-arm64.deb || true
-          cp release/*amd64.deb final-artifacts/LILYGO-Spark-0.1.0-linux-x64.deb || true
+          cp release/*arm64.deb final-artifacts/LILYGO-Spark-${VERSION}-linux-arm64.deb || true
+          cp release/*amd64.deb final-artifacts/LILYGO-Spark-${VERSION}-linux-x64.deb || true
       - uses: actions/upload-artifact@v4
         with:
           name: Linux-artifacts
