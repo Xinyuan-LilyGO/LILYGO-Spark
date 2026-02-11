@@ -37,6 +37,10 @@ jobs:
   build-mac:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'mac' || inputs.target == 'all' }}
     runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64, universal]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -53,29 +57,24 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-electron-
       - run: npm ci
+      - run: npm run prebuild
       - run: npm run build:compile
-      - run: npm run build:mac:all
+      - run: npm run build:mac:${{ matrix.arch }}:only
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Rename and Filter macOS artifacts
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "Detected version: $VERSION"
-          mkdir -p final-artifacts
-          ls -R release/
-          # 规范命名并只保留 dmg
-          cp release/*-arm64.dmg final-artifacts/LILYGO-Spark-${VERSION}-macOS-arm64.dmg || true
-          cp release/*-universal.dmg final-artifacts/LILYGO-Spark-${VERSION}-macOS-universal.dmg || true
-          # 如果有默认命名的也处理一下
-          cp release/LILYGO\ Spark-${VERSION}.dmg final-artifacts/LILYGO-Spark-${VERSION}-macOS-x64.dmg || true
       - uses: actions/upload-artifact@v4
         with:
-          name: macOS-artifacts
-          path: final-artifacts/*.dmg
+          name: macOS-artifacts-${{ matrix.arch }}
+          path: release/*.dmg
 
   build-win:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'win' || inputs.target == 'all' }}
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+        target: [nsis, portable]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -92,25 +91,25 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-electron-
       - run: npm ci
+      - run: npm run prebuild
       - run: npm run build:compile
-      - run: npm run build:win:all
+      - name: Build Windows
+        run: npx electron-builder --win ${{ matrix.target }} --${{ matrix.arch }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Rename Windows artifacts
-        shell: bash
-        run: |
-          mkdir -p final-artifacts
-          ls -R release/
-          # 由于 package.json 已经配置了 artifactName，直接复制即可
-          cp release/*.exe final-artifacts/ || true
       - uses: actions/upload-artifact@v4
         with:
-          name: Windows-artifacts
-          path: final-artifacts/*.exe
+          name: Windows-artifacts-${{ matrix.arch }}-${{ matrix.target }}
+          path: release/*.exe
 
   build-linux:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'linux' || inputs.target == 'all' }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+        target: [AppImage, deb, rpm]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -127,23 +126,20 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-electron-
       - run: npm ci
+      - run: npm run prebuild
       - run: npm run build:compile
-      - run: sudo apt-get update && sudo apt-get install -y rpm snapd
-      - run: npm run build:linux:all
+      - run: sudo apt-get update && sudo apt-get install -y rpm
+      - name: Build Linux
+        run: npx electron-builder --linux ${{ matrix.target }} --${{ matrix.arch }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Rename Linux artifacts
-        run: |
-          mkdir -p final-artifacts
-          ls -R release/
-          # 由于 package.json 已经配置了 artifactName，直接复制即可
-          cp release/*.AppImage final-artifacts/ || true
-          cp release/*.deb final-artifacts/ || true
-          cp release/*.rpm final-artifacts/ || true
       - uses: actions/upload-artifact@v4
         with:
-          name: Linux-artifacts
-          path: final-artifacts/*
+          name: Linux-artifacts-${{ matrix.arch }}-${{ matrix.target }}
+          path: |
+            release/*.AppImage
+            release/*.deb
+            release/*.rpm
 
   release:
     needs: [build-mac, build-win, build-linux]
@@ -155,6 +151,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: dist/
+          merge-multiple: true
 
       - name: Prepare files
         run: |

@@ -127,7 +127,7 @@
       "format": "ULFO"
     },
     "win": {
-      "compression": "maximum",
+      "compression": "normal",
       "target": [
         {
           "target": "nsis",
