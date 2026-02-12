@@ -6,12 +6,82 @@ import { SerialPort } from 'serialport'
 import { DeviceDetector, DeviceDetectionConfig } from './device-detector'
 import { setupConfigHandler } from './config-handler'
 
+let win: BrowserWindow | null
+let deviceDetector: DeviceDetector | null = null;
+// Store the callback for serial port selection
+let serialPortCallback: ((portId: string) => void) | null = null;
+let activeSerialPort: SerialPort | null = null;
+
 // Configuration for device detection strategies
 const deviceDetectionConfig: DeviceDetectionConfig = {
   serialport_enable: true,      // Strategy 1: Node.js SerialPort polling (Recommended)
   usb_detection_enable: false,  // Strategy 3: usb-detection (Requires native build)
   pollInterval: 1000,
 };
+
+// --- Deep Link Protocol Setup ---
+const PROTOCOL = 'lilygo-spark';
+
+if (process.defaultApp) {
+  if (process.argv.length >= 2) {
+    app.setAsDefaultProtocolClient(PROTOCOL, process.execPath, [path.resolve(process.argv[1])])
+  }
+} else {
+  app.setAsDefaultProtocolClient(PROTOCOL)
+}
+
+const gotTheLock = app.requestSingleInstanceLock()
+
+if (!gotTheLock) {
+  app.quit()
+} else {
+  app.on('second-instance', (_event, commandLine, _workingDirectory) => {
+    // Someone tried to run a second instance, we should focus our window.
+    if (win) {
+      if (win.isMinimized()) win.restore()
+      win.focus()
+    }
+    
+    // Windows/Linux protocol handler
+    const url = commandLine.find(arg => arg.startsWith(`${PROTOCOL}://`))
+    if (url) handleDeepLink(url)
+  })
+}
+
+// macOS protocol handler
+app.on('open-url', (event, url) => {
+  event.preventDefault()
+  handleDeepLink(url)
+})
+
+function handleDeepLink(url: string) {
+  console.log('Deep link received:', url)
+  // Defer if window not ready
+  if (!win) {
+      console.warn('Window not ready for deep link');
+      return;
+  }
+  
+  if (win.webContents) {
+      try {
+          const urlObj = new URL(url);
+          const token = urlObj.searchParams.get('token');
+          const userStr = urlObj.searchParams.get('user');
+          
+          if (token) {
+              win.webContents.send('login-success', {
+                  token,
+                  user: userStr ? JSON.parse(decodeURIComponent(userStr)) : null
+              });
+              // Show window if hidden
+              win.show();
+          }
+      } catch (e) {
+          console.error('Failed to parse deep link:', e);
+      }
+  }
+}
+// --------------------------------
 
 // Handle potential issues with device detection during startup
 process.on('uncaughtException', (error) => {
@@ -28,12 +98,6 @@ process.on('uncaughtException', (error) => {
 // │ ├─ main.js
 // │ └─ preload.js
 //
-
-let win: BrowserWindow | null
-let deviceDetector: DeviceDetector | null = null;
-// Store the callback for serial port selection
-let serialPortCallback: ((portId: string) => void) | null = null;
-let activeSerialPort: SerialPort | null = null;
 
 function createWindow() {
   // Electron official way to detect dev vs production
@@ -153,6 +217,14 @@ function createWindow() {
   win.webContents.on('did-finish-load', () => {
     win?.webContents.send('main-process-message', (new Date).toLocaleString())
   })
+
+  // Forward console logs from Renderer to Main process terminal
+  win.webContents.on('console-message', (event, level, message, line, sourceId) => {
+      const levels = ['VERBOSE', 'INFO', 'WARNING', 'ERROR'];
+      const levelName = levels[level] || 'INFO';
+      // Filter out some noisy extension logs if needed
+      console.log(`[Renderer-${levelName}] ${message}`);
+  });
 
   // Load the app
   if (process.env.VITE_DEV_SERVER_URL) {
@@ -641,6 +713,16 @@ ipcMain.handle('write-serial', async (_event, data: string) => {
     } else {
         throw new Error('Serial port not open');
     }
+});
+
+// 5. Open External URL
+ipcMain.handle('open-external', async (_event, url: string) => {
+    await shell.openExternal(url);
+});
+
+// 6. Get Auth Login URL
+ipcMain.handle('get-auth-login-url', async () => {
+    return 'https://lilygo-api.bytecode.fun/auth/github/start';
 });
 
 app.on('window-all-closed', () => {
