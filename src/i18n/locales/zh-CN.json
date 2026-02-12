@@ -5,8 +5,26 @@
   "nav": {
     "flasher": "刷写工具",
     "firmware": "固件中心",
-    "dumper": "固件提取",
+    "dumper": "固件提取工具",
+    "utilities": "固件高级工具",
     "settings": "设置"
+  },
+  "utilities": {
+    "analyzer": "固件分析器",
+    "partition_editor": "分区表编辑器",
+    "btn_analyze": "分析",
+    "btn_export": "导出",
+    "btn_import": "导入",
+    "partition_table": "分区表",
+    "raw_data": "原始分析数据",
+    "detected_chip": "检测到的芯片",
+    "flash_info": "Flash 信息",
+    "image_type": "镜像类型",
+    "full_image": "完整镜像 (合并)",
+    "app_image": "App / 部分镜像",
+    "no_partitions": "未检测到分区表。",
+    "analysis_failed": "分析失败",
+    "select_firmware": "点击选择固件 .bin"
   },
   "settings": {
     "title": "设置",
@@ -19,8 +37,10 @@
       "ja": "日本語"
     }
   },
-  "flasher": {
+    "flasher": {
     "welcome": "欢迎使用 LILYGO Spark！",
+    "mode_basic": "基础模式",
+    "mode_advanced": "专业模式",
     "select_port_msg": "选择串口",
     "label_port": "端口",
     "label_chip": "芯片系列",

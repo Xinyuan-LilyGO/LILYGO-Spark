@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Settings, Zap, Users, Download } from 'lucide-react';
+import { Settings, Zap, LayoutGrid, Download, Wrench } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -11,9 +11,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
   const { t } = useTranslation();
 
   const navItems = [
-    { id: 'firmware', icon: Users, label: t('nav.firmware') },
+    { id: 'firmware', icon: LayoutGrid, label: t('nav.firmware') },
     { id: 'flasher', icon: Zap, label: t('nav.flasher') },
     { id: 'dumper', icon: Download, label: t('nav.dumper') },
+    { id: 'utilities', icon: Wrench, label: t('nav.utilities') },
     { id: 'settings', icon: Settings, label: t('nav.settings') },
   ];
 
@@ -61,15 +62,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
               <div className={`relative transition-transform duration-200 ${
                   isActive ? 'scale-105' : 'group-hover:scale-105'
               }`}>
-                  {/* Glow Effect using Shadow instead of Blur Filter for performance */}
-                  <div className={`absolute inset-0 rounded-full transition-opacity duration-200 ${
-                      isActive ? 'opacity-100 shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'opacity-0'
-                  }`} />
                   <Icon size={24} className={`relative z-10 ${isActive ? 'text-blue-400' : ''}`} />
               </div>
               
               {/* Text Label - Always Visible */}
-              <span className={`ml-4 font-medium whitespace-nowrap text-left ${isActive ? 'text-blue-100' : ''}`}>
+              <span className={`ml-4 font-medium whitespace-nowrap text-left overflow-hidden text-ellipsis ${isActive ? 'text-blue-100' : ''}`}>
                 {item.label}
               </span>
             </button>

@@ -4,10 +4,13 @@ Detailed structured data is available in [firmware_data.json](./firmware_data.js
 
 ## Products
 - T-Deck
-- T-Beam
-- T3 (LoRa32)
-- T-Lora Pager
 - T-Deck Pro
+- T-LoRa Pager
+- T3-S3
+- T3-S3 E-Paper
+- T-Beam
+- T-Beam Supreme
+- T3 (LoRa32)
 - T-Watch S3
 
 ## Firmware References

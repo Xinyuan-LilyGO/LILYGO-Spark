@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
 import path from 'node:path'
+import { execFile } from 'node:child_process'
 import { SerialPort } from 'serialport'
 import { DeviceDetector, DeviceDetectionConfig } from './device-detector'
 import { setupConfigHandler } from './config-handler'
@@ -248,6 +249,38 @@ ipcMain.on('serial-port-cancelled', () => {
   }
 });
 
+
+// Handle firmware analysis request
+ipcMain.handle('analyze-firmware', async (_event, filePath: string) => {
+    return new Promise((resolve, reject) => {
+        let scriptPath = '';
+        if (app.isPackaged) {
+            scriptPath = path.join(process.resourcesPath, 'tools', 'analyze_firmware.py');
+        } else {
+            // In dev, __dirname is dist-electron. resources is in root.
+            scriptPath = path.join(__dirname, '../resources/tools/common/analyze_firmware.py');
+        }
+
+        console.log(`Analyzing firmware: ${filePath} using script: ${scriptPath}`);
+
+        execFile('python3', [scriptPath, filePath], (error, stdout, stderr) => {
+            if (error) {
+                console.error('Error executing analyze_firmware.py:', error);
+                console.error('stderr:', stderr);
+                reject(stderr || error.message);
+                return;
+            }
+
+            try {
+                const result = JSON.parse(stdout);
+                resolve(result);
+            } catch (e) {
+                console.error('Failed to parse JSON output:', stdout);
+                reject('Failed to parse analysis result');
+            }
+        });
+    });
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

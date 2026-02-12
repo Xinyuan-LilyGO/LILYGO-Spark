@@ -4,23 +4,26 @@ import { Globe } from 'lucide-react';
 
 const SettingsPage: React.FC = () => {
   const { t, i18n } = useTranslation();
+  
+  // Initialize state based on localStorage
+  const [currentSelection, setCurrentSelection] = React.useState(() => {
+      return localStorage.getItem('i18nextLng') || 'system';
+  });
 
-  const changeLanguage = (lng: string) => {
+  const changeLanguage = async (lng: string) => {
     if (lng === 'system') {
+       // Switch to system language (navigator)
+       // We use a small timeout to ensure the change happens, 
+       // then clear localStorage because i18n might write to it.
+       const sysLang = navigator.language;
+       await i18n.changeLanguage(sysLang);
        localStorage.removeItem('i18nextLng');
-       // Reload to re-detect from navigator
-       window.location.reload(); 
+       setCurrentSelection('system');
     } else {
-      i18n.changeLanguage(lng);
+      await i18n.changeLanguage(lng);
+      setCurrentSelection(lng);
     }
   };
-  
-  // If i18nextLng is set in localStorage, we consider it an explicit override.
-  // Otherwise, it's "system".
-  // We need to handle the case where i18n.language might match one of our options
-  // but we want to know if it's explicit or implicit.
-  const storedLang = localStorage.getItem('i18nextLng');
-  const currentSelection = storedLang || 'system';
 
   return (
       <div className="p-8">
@@ -46,7 +49,7 @@ const SettingsPage: React.FC = () => {
                 </select>
             </div>
             <div className="text-xs text-slate-500 mt-2">
-                Current active language: {i18n.language}
+                Current active language: {i18n.language} ({currentSelection === 'system' ? 'System' : 'Manual'})
             </div>
         </div>
       </div>

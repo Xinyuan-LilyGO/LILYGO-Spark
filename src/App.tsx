@@ -5,6 +5,7 @@ import SettingsPage from './components/SettingsPage'
 import Sidebar from './components/Sidebar'
 import FirmwareCommunity from './components/FirmwareCommunity'
 import FirmwareDumper from './components/FirmwareDumper'
+import FirmwareUtilities from './components/FirmwareUtilities'
 
 function App() {
   const [activeTab, setActiveTab] = useState('firmware') // Default to firmware/community
@@ -28,6 +29,12 @@ function App() {
         {activeTab === 'dumper' && (
             <div className="h-full overflow-auto">
                 <FirmwareDumper />
+            </div>
+        )}
+        
+        {activeTab === 'utilities' && (
+            <div className="h-full overflow-auto">
+                <FirmwareUtilities />
             </div>
         )}
         
