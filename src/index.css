@@ -7,4 +7,16 @@ html, body, #root {
   margin: 0;
   background-color: #0f172a; /* slate-900 */
   color: #f8fafc; /* slate-50 */
+  /* Disable text selection globally */
+  user-select: none;
+  -webkit-user-select: none; /* Safari/Chrome */
+  /* Prevent drag image ghosting */
+  -webkit-user-drag: none;
+}
+
+/* Allow selection in text fields and specific areas */
+input, textarea, code, pre, .select-text {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
 }

@@ -5,7 +5,26 @@
   "nav": {
     "flasher": "書き込みツール",
     "firmware": "ファームウェア",
+    "dumper": "ファームウェア抽出",
+    "utilities": "ユーティリティ",
     "settings": "設定"
+  },
+  "utilities": {
+    "analyzer": "ファームウェア分析",
+    "partition_editor": "パーティションテーブルエディタ",
+    "btn_analyze": "分析",
+    "btn_export": "エクスポート",
+    "btn_import": "インポート",
+    "partition_table": "パーティションテーブル",
+    "raw_data": "生分析データ",
+    "detected_chip": "検出されたチップ",
+    "flash_info": "Flash 情報",
+    "image_type": "イメージタイプ",
+    "full_image": "完全イメージ (結合済み)",
+    "app_image": "App / 部分イメージ",
+    "no_partitions": "パーティションテーブルが検出されませんでした。",
+    "analysis_failed": "分析に失敗しました",
+    "select_firmware": "クリックしてファームウェア .bin を選択"
   },
   "settings": {
     "title": "設定",
@@ -20,6 +39,8 @@
   },
   "flasher": {
     "welcome": "LILYGO Spark へようこそ！",
+    "mode_basic": "基本モード",
+    "mode_advanced": "専門モード",
     "select_port_msg": "シリアルポートを選択",
     "label_port": "ポート",
     "label_chip": "チップファミリー",

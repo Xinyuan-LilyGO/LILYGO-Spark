@@ -105,8 +105,23 @@
       "!**/{appveyor.yml,.travis.yml,circle.yml}",
       "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
     ],
+    "extraResources": [
+      {
+        "from": "resources/tools/common",
+        "to": "tools",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "asar": true,
     "mac": {
+      "extraResources": [
+        {
+          "from": "resources/tools/mac/esptool-${arch}",
+          "to": "tools/esptool-${arch}"
+        }
+      ],
       "category": "public.app-category.developer-tools",
       "extendInfo": {
         "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to find and connect to ESP32 devices."
@@ -127,6 +142,15 @@
       "format": "ULFO"
     },
     "win": {
+      "extraResources": [
+        {
+          "from": "resources/tools/win",
+          "to": "tools",
+          "filter": [
+            "**/*"
+          ]
+        }
+      ],
       "compression": "normal",
       "target": [
         {
@@ -152,6 +176,15 @@
       "artifactName": "LILYGO-Spark-${version}-windows-${arch}-portable.${ext}"
     },
     "linux": {
+      "extraResources": [
+        {
+          "from": "resources/tools/linux",
+          "to": "tools",
+          "filter": [
+            "**/*"
+          ]
+        }
+      ],
       "compression": "maximum",
       "artifactName": "LILYGO-Spark-${version}-linux-${arch}.${ext}",
       "target": [

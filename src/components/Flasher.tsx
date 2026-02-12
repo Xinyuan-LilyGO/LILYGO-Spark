@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
-import { ChevronDown, Usb, Cpu, Check } from 'lucide-react';
+import { ChevronDown, Usb, Cpu, Check, Layers, Plus, Trash2, FilePlus } from 'lucide-react';
 import SparkMD5 from 'spark-md5';
 
 // Type definitions for Web Serial API
@@ -25,14 +25,36 @@ interface ElectronSerialPortInfo {
   usbDriverName?: string;
 }
 
+interface FlashFile {
+    id: string;
+    file: File | null;
+    address: string;
+    enable: boolean;
+}
+
 const Flasher: React.FC = () => {
   const { t } = useTranslation();
+  
+  // Mode state
+  const [mode, setMode] = useState<'basic' | 'advanced'>('basic');
+
   const [port, setPort] = useState<SerialPort | null>(null);
   const [connected, setConnected] = useState(false);
   const [baudRate] = useState(115200); // Default for logs
   const [flashBaudRate, setFlashBaudRate] = useState(921600); // Default for flashing
   const [chipFamily, setChipFamily] = useState('ESP32-S3'); // Default, maybe auto-detect
+  
+  // Basic Mode File
   const [file, setFile] = useState<File | null>(null);
+  
+  // Advanced Mode Files
+  const [files, setFiles] = useState<FlashFile[]>([
+      { id: '1', file: null, address: '0x10000', enable: true },
+      { id: '2', file: null, address: '0x8000', enable: true },
+      { id: '3', file: null, address: '0x0000', enable: false },
+      { id: '4', file: null, address: '0x0000', enable: false }
+  ]);
+
   const [progress, setProgress] = useState(0);
   // Status key: 'idle', 'ready', 'flashing', 'success', 'error'
   const [status, setStatus] = useState<string>('idle');
@@ -204,14 +226,83 @@ const Flasher: React.FC = () => {
     }
   };
 
+  const handleAdvancedFileChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+      const newFiles = [...files];
+      if (e.target.files && e.target.files.length > 0) {
+          newFiles[index].file = e.target.files[0];
+          newFiles[index].enable = true; // Auto-enable when file selected
+          setFiles(newFiles);
+      }
+  };
+
+  const updateFileAddress = (index: number, address: string) => {
+      const newFiles = [...files];
+      newFiles[index].address = address;
+      setFiles(newFiles);
+  };
+
+  const toggleFileEnable = (index: number) => {
+      const newFiles = [...files];
+      newFiles[index].enable = !newFiles[index].enable;
+      setFiles(newFiles);
+  };
+
+  const addFileRow = () => {
+      setFiles([...files, { id: Date.now().toString(), file: null, address: '0x0000', enable: true }]);
+  };
+
+  const removeFileRow = (index: number) => {
+      const newFiles = files.filter((_, i) => i !== index);
+      setFiles(newFiles);
+  };
+
   const handleFlash = async () => {
     if (!port) {
       xtermRef.current?.writeln('Error: Please select a device first.');
       return;
     }
-    if (!file) {
-        xtermRef.current?.writeln('Error: Please select a firmware file.');
-        return;
+    
+    // Validate files based on mode
+    let filesToFlash: Array<{ data: string, address: number }> = [];
+    
+    if (mode === 'basic') {
+        if (!file) {
+            xtermRef.current?.writeln('Error: Please select a firmware file.');
+            return;
+        }
+        // Basic mode usually flashes to 0x0000 or specific offset?
+        // Let's assume 0x0000 for merged bins, or prompt?
+        // Defaulting to 0x0000 for simplicity as per previous code
+        const fileContent = await file.arrayBuffer();
+        const fileString = new Uint8Array(fileContent);
+        const binaryString = Array.from(fileString).map(b => String.fromCharCode(b)).join("");
+        filesToFlash.push({ data: binaryString, address: 0x0000 });
+    } else {
+        // Advanced Mode
+        const enabledFiles = files.filter(f => f.enable && f.file);
+        if (enabledFiles.length === 0) {
+            xtermRef.current?.writeln('Error: No enabled files to flash.');
+            return;
+        }
+        
+        xtermRef.current?.writeln(`Preparing ${enabledFiles.length} files...`);
+        
+        for (const f of enabledFiles) {
+            if (!f.file) continue;
+            try {
+                const fileContent = await f.file.arrayBuffer();
+                const fileString = new Uint8Array(fileContent);
+                const binaryString = Array.from(fileString).map(b => String.fromCharCode(b)).join("");
+                const addr = parseInt(f.address, 16);
+                if (isNaN(addr)) throw new Error(`Invalid address: ${f.address}`);
+                
+                filesToFlash.push({ data: binaryString, address: addr });
+                xtermRef.current?.writeln(` - ${f.file.name} @ 0x${addr.toString(16)}`);
+            } catch (e) {
+                xtermRef.current?.writeln(`Error reading ${f.file.name}: ${e}`);
+                return;
+            }
+        }
     }
 
     // If connected (monitoring), we must disconnect first to let esptool take over
@@ -264,16 +355,8 @@ const Flasher: React.FC = () => {
         xtermRef.current?.writeln('Syncing...');
         await espLoader.main(); // Sync and detect chip
         
-        // Read file
-        const fileContent = await file.arrayBuffer();
-        const fileString = new Uint8Array(fileContent);
-        // Convert Uint8Array to binary string for esptool-js v0.5.4
-        const binaryString = Array.from(fileString).map(b => String.fromCharCode(b)).join("");
-        
-        xtermRef.current?.writeln(`Flashing ${file.name} (${file.size} bytes)...`);
-        
         await espLoader.writeFlash({
-            fileArray: [{ data: binaryString, address: 0x0000 }],
+            fileArray: filesToFlash,
             flashSize: 'keep',
             flashMode: 'keep',
             flashFreq: 'keep',
@@ -322,6 +405,32 @@ const Flasher: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full bg-slate-900 text-white p-6 gap-6" onClick={() => {}}>
+      {/* Mode Switcher */}
+      <div className="flex space-x-1 bg-slate-800 p-1 rounded-xl self-start border border-slate-700">
+          <button
+              onClick={() => setMode('basic')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center ${
+                  mode === 'basic' 
+                      ? 'bg-slate-700 text-white shadow-sm' 
+                      : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+              }`}
+          >
+              <FilePlus size={16} className="mr-2" />
+              {t('flasher.mode_basic')}
+          </button>
+          <button
+              onClick={() => setMode('advanced')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center ${
+                  mode === 'advanced' 
+                      ? 'bg-slate-700 text-white shadow-sm' 
+                      : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+              }`}
+          >
+              <Layers size={16} className="mr-2" />
+              {t('flasher.mode_advanced')}
+          </button>
+      </div>
+
       {/* Header / Controls */}
       <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end relative z-10">
         
@@ -432,23 +541,91 @@ const Flasher: React.FC = () => {
             </select>
         </div>
         
-        <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1">{t('flasher.label_firmware')}</label>
-             <input 
-                type="file" 
-                accept=".bin"
-                onChange={handleFileChange}
-                className="block w-full text-sm text-slate-400
-                  file:mr-4 file:py-2 file:px-4
-                  file:rounded-lg file:border-0
-                  file:text-sm file:font-semibold
-                  file:bg-blue-600 file:text-white
-                  hover:file:bg-blue-700
-                "
-              />
-        </div>
+        {mode === 'basic' && (
+            <div className="col-span-1 md:col-span-2 lg:col-span-4">
+                <label className="block text-sm font-medium text-slate-400 mb-1">{t('flasher.label_firmware')}</label>
+                 <input 
+                    type="file" 
+                    accept=".bin"
+                    onChange={handleFileChange}
+                    className="block w-full text-sm text-slate-400
+                      file:mr-4 file:py-2 file:px-4
+                      file:rounded-lg file:border-0
+                      file:text-sm file:font-semibold
+                      file:bg-blue-600 file:text-white
+                      hover:file:bg-blue-700
+                    "
+                  />
+            </div>
+        )}
 
       </div>
+
+      {/* Advanced File List */}
+      {mode === 'advanced' && (
+          <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
+              <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-bold text-white flex items-center">
+                      <Layers size={20} className="mr-2 text-blue-400" />
+                      Files to Flash
+                  </h3>
+                  <button 
+                      onClick={addFileRow}
+                      className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-sm rounded-lg flex items-center transition-colors"
+                  >
+                      <Plus size={16} className="mr-1.5" /> Add File
+                  </button>
+              </div>
+              
+              <div className="space-y-3">
+                  {files.map((f, index) => (
+                      <div key={f.id} className={`flex items-center gap-4 p-3 rounded-lg border transition-colors ${f.enable ? 'bg-slate-700/50 border-slate-600' : 'bg-slate-800 border-slate-700 opacity-60'}`}>
+                          <input 
+                              type="checkbox" 
+                              checked={f.enable} 
+                              onChange={() => toggleFileEnable(index)}
+                              className="w-5 h-5 rounded border-slate-500 bg-slate-700 text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-800"
+                          />
+                          
+                          <div className="flex-1">
+                              <input 
+                                  type="file" 
+                                  accept=".bin"
+                                  onChange={(e) => handleAdvancedFileChange(index, e)}
+                                  className="block w-full text-xs text-slate-400
+                                    file:mr-2 file:py-1 file:px-2
+                                    file:rounded-md file:border-0
+                                    file:text-xs file:font-semibold
+                                    file:bg-slate-600 file:text-white
+                                    hover:file:bg-slate-500
+                                  "
+                              />
+                          </div>
+                          
+                          <div className="w-32">
+                              <div className="flex items-center bg-slate-900 rounded-md border border-slate-600 px-2">
+                                  <span className="text-xs text-slate-500 mr-1">@</span>
+                                  <input 
+                                      type="text" 
+                                      value={f.address} 
+                                      onChange={(e) => updateFileAddress(index, e.target.value)}
+                                      className="w-full bg-transparent border-none text-xs text-white py-1.5 focus:ring-0 font-mono"
+                                      placeholder="0x0000"
+                                  />
+                              </div>
+                          </div>
+                          
+                          <button 
+                              onClick={() => removeFileRow(index)}
+                              className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-700 rounded-md transition-colors"
+                          >
+                              <Trash2 size={16} />
+                          </button>
+                      </div>
+                  ))}
+              </div>
+          </div>
+      )}
 
       {/* Action Bar */}
       <div className="flex items-center justify-between bg-slate-800 p-4 rounded-xl border border-slate-700">
@@ -484,9 +661,9 @@ const Flasher: React.FC = () => {
 
         <button 
             onClick={handleFlash}
-            disabled={!port || !file || status === 'flashing'}
+            disabled={!port || (mode === 'basic' && !file) || (mode === 'advanced' && files.filter(f => f.enable && f.file).length === 0) || status === 'flashing'}
             className={`px-8 py-3 rounded-lg font-bold text-lg shadow-lg transition-all
-                ${(!port || !file) 
+                ${(!port || (mode === 'basic' && !file) || (mode === 'advanced' && files.filter(f => f.enable && f.file).length === 0))
                     ? 'bg-slate-700 text-slate-500 cursor-not-allowed' 
                     : 'bg-blue-600 hover:bg-blue-500 text-white hover:shadow-blue-500/25'
                 }`}

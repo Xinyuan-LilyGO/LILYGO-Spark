@@ -26,6 +26,8 @@ interface ElectronSerialPortInfo {
 
 const FirmwareDumper: React.FC = () => {
   const { t } = useTranslation();
+  
+  // Dump Mode State
   const [port, setPort] = useState<SerialPort | null>(null);
   const [flashBaudRate, setFlashBaudRate] = useState(921600); // Default for dumping
   const [progress, setProgress] = useState(0);
@@ -284,6 +286,8 @@ const FirmwareDumper: React.FC = () => {
         setStatus('error');
     }
   };
+
+
 
   return (
     <div className="flex flex-col h-full bg-slate-900 text-white p-6 gap-6">

@@ -3,9 +3,9 @@
     "title": "LILYGO Spark"
   },
   "nav": {
-    "flasher": "Flasher",
-    "firmware": "Firmware",
-    "dumper": "Dumper",
+    "firmware": "Firmware Center",
+    "dumper": "Firmware Dumper",
+    "flasher": "Firmware Writer",
     "settings": "Settings"
   },
   "settings": {
@@ -21,6 +21,8 @@
   },
   "flasher": {
     "welcome": "Welcome to LILYGO Spark!",
+    "mode_basic": "Basic Mode",
+    "mode_advanced": "Hacker Mode",
     "select_port_msg": "Serial port",
     "label_port": "Port",
     "label_chip": "Chip Family",
