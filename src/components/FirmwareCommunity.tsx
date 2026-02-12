@@ -150,7 +150,7 @@ const FirmwareCommunity: React.FC = () => {
   return (
     <div className="flex h-full bg-slate-900 text-slate-100 overflow-hidden">
       {/* Left Column: Device List */}
-      <div className="w-1/3 min-w-[300px] max-w-[400px] border-r border-slate-700 flex flex-col bg-slate-800/50">
+      <div className="w-[36%] min-w-[375px] max-w-[500px] border-r border-slate-700 flex flex-col bg-slate-800/50">
         <div className="p-4 border-b border-slate-700">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
