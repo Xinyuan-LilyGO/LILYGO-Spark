@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, dialog, nativeImage } from 'electron'
 import path from 'node:path'
 
 // Set app name for "Open with" dialog when handling lilygo-spark:// deep links
@@ -47,6 +47,72 @@ function registerProtocol() {
   }
 }
 registerProtocol()
+
+/** Dev-only: show custom About window with logo, mimicking macOS native About */
+function showAboutWindow(parent: BrowserWindow, publicPath: string) {
+  const logoPath = path.join(publicPath, 'LILYGO.png')
+  const icon = nativeImage.createFromPath(logoPath)
+  const iconDataUrl = icon.isEmpty() ? '' : icon.resize({ width: 128, height: 128 }).toDataURL()
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #d1d1d6;
+    -webkit-app-region: drag;
+    padding: 28px 40px 20px;
+    text-align: center;
+    min-width: 360px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  img { width: 96px; height: 96px; margin-bottom: 12px; -webkit-app-region: no-drag; flex-shrink: 0; }
+  h1 { font-size: 20px; font-weight: 600; color: #1c1c1e; margin-bottom: 2px; letter-spacing: -0.5px; }
+  .version { font-size: 12px; color: #636366; margin-bottom: 12px; }
+  p { font-size: 11px; color: #636366; line-height: 1.4; margin-bottom: 16px; }
+  button {
+    -webkit-app-region: no-drag;
+    padding: 6px 24px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #0a84ff;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+  button:hover { background: rgba(10,132,255,0.15); }
+</style>
+</head>
+<body>
+  <img src="${iconDataUrl}" alt="LILYGO Spark" />
+  <h1>${app.name}</h1>
+  <div class="version">Version ${app.getVersion()}</div>
+  <p>A cross-platform firmware hub and burner for LILYGO and other ESP devices.</p>
+  <button onclick="window.close()">OK</button>
+</body>
+</html>`
+  const aboutWin = new BrowserWindow({
+    parent,
+    modal: true,
+    width: 380,
+    height: 360,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    show: false,
+    titleBarStyle: 'hidden',
+    backgroundColor: '#f6f6f6',
+    webPreferences: { nodeIntegration: false, contextIsolation: true }
+  })
+  aboutWin.setMenu(null)
+  aboutWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+  aboutWin.once('ready-to-show', () => aboutWin.show())
+}
 
 const gotTheLock = app.requestSingleInstanceLock()
 
@@ -146,7 +212,14 @@ function createWindow() {
       {
         label: app.name,
         submenu: [
-          { role: 'about' },
+          ...(isDev
+            ? [{
+                label: `About ${app.name}`,
+                click: () => {
+                  if (win && !win.isDestroyed()) showAboutWindow(win, publicPath)
+                }
+              }]
+            : [{ role: 'about' as const }]),
           { type: 'separator' },
           { role: 'services' },
           { type: 'separator' },

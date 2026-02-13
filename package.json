@@ -75,7 +75,7 @@
     "@types/w3c-web-serial": "^1.0.3",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.18",
-    "electron": "^40.4.0",
+    "electron": "^29.4.6",
     "electron-builder": "^26.7.0",
     "postcss": "^8.4.35",
     "rimraf": "^6.1.2",
@@ -138,7 +138,7 @@
       "category": "public.app-category.developer-tools",
       "extendInfo": {
         "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to find and connect to ESP32 devices.",
-        "CFBundleDisplayName": "LilyGO-Spark"
+        "CFBundleDisplayName": "LILYGO Spark"
       },
       "artifactName": "LILYGO-Spark-${version}-macOS-${arch}.${ext}",
       "target": [
