@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Github, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, ChevronRight, Layers } from 'lucide-react';
+import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, ChevronRight, Layers, Github } from 'lucide-react';
 
 interface ProductVariant {
   product_id: string;

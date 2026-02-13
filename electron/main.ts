@@ -173,7 +173,7 @@ function createWindow() {
         submenu: [
           { role: 'reload' },
           { role: 'forceReload' },
-          // { role: 'toggleDevTools' }, // Excluded to hide developer tools
+          ...(isDev ? [{ role: 'toggleDevTools' as const }] : []),
           { type: 'separator' },
           { role: 'resetZoom' },
           { role: 'zoomIn' },
