@@ -88,7 +88,7 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token }) => {
   return (
     <div className="p-8 max-w-2xl mx-auto">
       <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
-        <Upload className="text-blue-500" />
+        <Upload className="text-primary" />
         Firmware Upload
       </h2>
 
@@ -104,10 +104,10 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token }) => {
               disabled={uploading}
             />
             <div className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-              file ? 'border-blue-500/50 bg-blue-500/5' : 'border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700/50'
+              file ? 'border-primary/50 bg-primary/5' : 'border-slate-300 dark:border-zinc-600 hover:border-slate-400 dark:hover:border-zinc-500 hover:bg-slate-200 dark:hover:bg-zinc-700/50'
             }`}>
               {file ? (
-                <div className="flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400">
+                <div className="flex items-center justify-center gap-2 text-primary">
                   <FileUp size={24} />
                   <span className="font-medium">{file.name}</span>
                   <span className="text-xs text-slate-500">({(file.size / 1024).toFixed(1)} KB)</span>
@@ -149,7 +149,7 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token }) => {
           className={`w-full py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-all ${
             !file || uploading
               ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20'
+              : 'bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/20'
           }`}
         >
           {uploading ? (

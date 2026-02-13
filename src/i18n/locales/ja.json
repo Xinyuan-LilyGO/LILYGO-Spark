@@ -42,6 +42,14 @@
       "system": "システムに従う",
       "light": "ライト",
       "dark": "ダーク"
+    },
+    "accent": "アクセントカラー",
+    "accent_options": {
+      "blue": "ブルー",
+      "orange": "オレンジ",
+      "emerald": "エメラルド",
+      "violet": "バイオレット",
+      "rose": "ローズ"
     }
   },
   "burner": {

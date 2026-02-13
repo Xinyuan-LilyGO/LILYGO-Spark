@@ -290,9 +290,9 @@ const FirmwareDumper: React.FC = () => {
 
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white p-6 gap-6 transition-colors">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white p-6 gap-6 transition-colors">
       {/* Header / Controls */}
-      <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end relative z-10">
+      <div className="bg-white dark:bg-zinc-800 p-6 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-lg grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end relative z-10">
         
         <div className="relative" ref={portSelectRef}>
           <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">{t('burner.label_port')}</label>
@@ -301,8 +301,8 @@ const FirmwareDumper: React.FC = () => {
               onClick={handleSelectDeviceClick}
               className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-between border
                 ${port 
-                    ? 'bg-slate-600 dark:bg-slate-700 hover:bg-slate-500 dark:hover:bg-slate-600 text-white border-slate-400 dark:border-slate-500' 
-                    : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600'
+                    ? 'bg-slate-600 dark:bg-zinc-700 hover:bg-slate-500 dark:hover:bg-slate-600 text-white border-slate-400 dark:border-slate-500' 
+                    : 'bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-zinc-600'
                 }`}
             >
               <span className="truncate">
@@ -316,7 +316,7 @@ const FirmwareDumper: React.FC = () => {
 
           {/* Custom Port Selection Dropdown */}
           {isSelectingPort && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl shadow-2xl overflow-hidden z-50 w-[140%] min-w-[300px]">
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 rounded-xl shadow-2xl overflow-hidden z-50 w-[140%] min-w-[300px]">
                   <div className="max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600">
                       {availablePorts.length === 0 ? (
                           <div className="p-4 text-center text-slate-500 text-sm">
@@ -327,10 +327,10 @@ const FirmwareDumper: React.FC = () => {
                               <button
                                   key={p.portId}
                                   onClick={() => handlePortSelect(p.portId)}
-                                  className="w-full text-left p-3 hover:bg-slate-100 dark:hover:bg-slate-700 border-b border-slate-200 dark:border-slate-700/50 last:border-0 transition-colors group"
+                                  className="w-full text-left p-3 hover:bg-slate-100 dark:hover:bg-slate-700 border-b border-slate-200 dark:border-zinc-700/50 last:border-0 transition-colors group"
                               >
                                   <div className="flex items-start gap-3">
-                                      <div className={`mt-1 p-1.5 rounded-lg ${p.vendorId === '12346' ? 'bg-green-900/50 text-green-400' : 'bg-blue-900/50 text-blue-400'}`}>
+                                      <div className={`mt-1 p-1.5 rounded-lg ${p.vendorId === '12346' ? 'bg-green-900/50 text-green-400' : 'bg-primary/20 text-primary'}`}>
                                           {p.vendorId === '12346' ? <Cpu size={18} /> : <Usb size={18} />}
                                       </div>
                                       <div className="flex-1 min-w-0">
@@ -344,7 +344,7 @@ const FirmwareDumper: React.FC = () => {
                                           </div>
                                       </div>
                                       {selectedPortId === p.portId && (
-                                          <div className="mt-2 text-blue-400">
+                                          <div className="mt-2 text-primary">
                                               <Check size={16} />
                                           </div>
                                       )}
@@ -363,7 +363,7 @@ const FirmwareDumper: React.FC = () => {
                 type="text" 
                 value={dumpAddress} 
                 onChange={e => setDumpAddress(e.target.value)}
-                className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+                className="w-full bg-slate-100 dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none font-mono"
                 placeholder="0x000000"
             />
         </div>
@@ -375,12 +375,12 @@ const FirmwareDumper: React.FC = () => {
                     type="text" 
                     value={dumpSize} 
                     onChange={e => setDumpSize(e.target.value)}
-                    className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+                    className="w-full bg-slate-100 dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none font-mono"
                     placeholder="0x400000"
                 />
                 <select 
                     onChange={e => setDumpSize(e.target.value)}
-                    className="bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg px-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none text-xs"
+                    className="bg-slate-100 dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded-lg px-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none text-xs"
                     defaultValue=""
                 >
                     <option value="" disabled>{t('dumper.presets')}</option>
@@ -396,7 +396,7 @@ const FirmwareDumper: React.FC = () => {
             <select 
                 value={flashBaudRate} 
                 onChange={e => setFlashBaudRate(Number(e.target.value))}
-                className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full bg-slate-100 dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
             >
                 <option value={115200}>115200</option>
                 <option value={460800}>460800</option>
@@ -405,7 +405,7 @@ const FirmwareDumper: React.FC = () => {
             </select>
         </div>
 
-        <div className="col-span-1 md:col-span-2 lg:col-span-4 flex gap-4 border-t border-slate-200 dark:border-slate-700 pt-4 mt-2">
+        <div className="col-span-1 md:col-span-2 lg:col-span-4 flex gap-4 border-t border-slate-200 dark:border-zinc-700 pt-4 mt-2">
              <div className="flex-1 flex gap-2 items-end">
                 <div className="flex-1">
                     <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">{t('dumper.label_detected_chip')}</label>
@@ -413,7 +413,7 @@ const FirmwareDumper: React.FC = () => {
                         type="text" 
                         value={detectedChip} 
                         readOnly
-                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-700 dark:text-slate-300 outline-none"
+                        className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-600 rounded-lg px-3 py-2 text-slate-700 dark:text-slate-300 outline-none"
                         placeholder={t('dumper.unknown')}
                     />
                 </div>
@@ -423,7 +423,7 @@ const FirmwareDumper: React.FC = () => {
                         type="text" 
                         value={detectedFlashSize} 
                         readOnly
-                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-700 dark:text-slate-300 outline-none font-mono"
+                        className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-600 rounded-lg px-3 py-2 text-slate-700 dark:text-slate-300 outline-none font-mono"
                         placeholder={t('dumper.unknown')}
                     />
                 </div>
@@ -444,16 +444,16 @@ const FirmwareDumper: React.FC = () => {
       </div>
 
       {/* Action Bar */}
-      <div className="flex items-center justify-between bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+      <div className="flex items-center justify-between bg-white dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700">
         <div className="flex items-center gap-4 flex-1 mr-8">
             <span className="text-sm font-medium text-slate-600 dark:text-slate-400">{t('dumper.label_status')}:</span>
             <span className={`text-sm font-bold ${status === 'success' ? 'text-emerald-600 dark:text-emerald-400' : status === 'error' ? 'text-red-500 dark:text-red-400' : 'text-slate-900 dark:text-white'}`}>
                 {status.toUpperCase()}
             </span>
             {progress > 0 && (
-                <div className="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                <div className="flex-1 h-2 bg-slate-200 dark:bg-zinc-700 rounded-full overflow-hidden">
                     <div 
-                        className="h-full bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-500 bg-[length:200%_100%] animate-[shimmer_2s_linear_infinite]"
+                        className="h-full bg-gradient-to-r from-primary via-primary-muted to-primary bg-[length:200%_100%] animate-[shimmer_2s_linear_infinite]"
                         style={{ width: `${progress}%` }}
                     />
                 </div>
@@ -466,7 +466,7 @@ const FirmwareDumper: React.FC = () => {
             disabled={!port || status === 'dumping'}
             className={`px-8 py-3 rounded-lg font-bold text-lg shadow-lg transition-all flex items-center
                 ${(!port || status === 'dumping') 
-                    ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed' 
+                    ? 'bg-slate-300 dark:bg-zinc-700 text-slate-500 cursor-not-allowed' 
                     : 'bg-emerald-600 hover:bg-emerald-500 text-white hover:shadow-emerald-500/25'
                 }`}
         >
@@ -476,7 +476,7 @@ const FirmwareDumper: React.FC = () => {
       </div>
 
       {/* Terminal */}
-      <div className="flex-1 bg-black rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden relative shadow-inner">
+      <div className="flex-1 bg-black rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden relative shadow-inner">
         <div ref={terminalRef} className="absolute inset-0 p-4" />
       </div>
     </div>

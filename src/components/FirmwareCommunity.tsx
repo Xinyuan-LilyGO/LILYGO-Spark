@@ -252,7 +252,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
   };
 
   return (
-    <div className="flex h-full bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 overflow-hidden relative transition-colors">
+    <div className="flex h-full bg-slate-50 text-slate-900 dark:bg-zinc-900 dark:text-slate-100 overflow-hidden relative transition-colors">
       {/* Burner Modal */}
       {burnerModalOpen && fileToBurn && (
           <BurnerModal 
@@ -262,8 +262,8 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
       )}
 
       {/* Left Column: Device List */}
-      <div className="w-[36%] min-w-[375px] max-w-[500px] border-r border-slate-200 dark:border-slate-700 flex flex-col bg-slate-100/80 dark:bg-slate-800/50">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700">
+      <div className="w-[36%] min-w-[375px] max-w-[500px] border-r border-slate-200 dark:border-zinc-700 flex flex-col bg-slate-100/80 dark:bg-zinc-800/50">
+        <div className="p-4 border-b border-slate-200 dark:border-zinc-700">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 dark:text-slate-400" size={18} />
             <input 
@@ -271,7 +271,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
               placeholder="Search devices..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-blue-500 text-slate-800 dark:text-slate-200 placeholder-slate-500"
+              className="w-full bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-primary text-slate-800 dark:text-slate-200 placeholder-slate-500"
             />
           </div>
         </div>
@@ -329,7 +329,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                             onClick={() => setSelectedProductId(variant.product_id)}
                             className={`p-2 rounded-lg cursor-pointer transition-all duration-200 flex items-center ${
                               selectedProductId === variant.product_id 
-                                ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400 border border-blue-500/30' 
+                                ? 'bg-primary/10 text-primary border border-primary/30' 
                                 : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700/50 hover:text-slate-800 dark:hover:text-slate-200'
                             }`}
                           >
@@ -366,8 +366,8 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                   onClick={() => setSelectedProductId(group.product_id!)}
                   className={`p-3 rounded-xl cursor-pointer transition-all duration-200 border flex items-center ${
                     selectedProductId === group.product_id 
-                      ? 'bg-blue-600/10 border-blue-500/50 shadow-lg shadow-blue-900/10' 
-                      : 'bg-slate-100 dark:bg-slate-800 border-transparent hover:bg-slate-200 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                      ? 'bg-primary/10 border-primary/50 shadow-lg shadow-primary/10' 
+                      : 'bg-slate-100 dark:bg-zinc-800 border-transparent hover:bg-slate-200 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
                   }`}
                 >
                   {/* Invisible spacer to match Series chevron width (18px icon + mr-2) roughly 26px */}
@@ -389,7 +389,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                        </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className={`font-semibold truncate ${selectedProductId === group.product_id ? 'text-blue-600 dark:text-blue-400' : 'text-slate-800 dark:text-slate-200'}`}>
+                      <h3 className={`font-semibold truncate ${selectedProductId === group.product_id ? 'text-primary' : 'text-slate-800 dark:text-slate-200'}`}>
                         {group.name}
                       </h3>
                       <div className="flex items-center text-xs text-slate-500 mt-1">
@@ -406,7 +406,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
       </div>
 
       {/* Right Column: Firmware Details */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-slate-900">
+      <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-zinc-900">
         {selectedProduct ? (
           <>
             {/* Header Product Info */}
@@ -438,15 +438,15 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
             {/* Firmware List */}
             <div className="flex-1 overflow-y-auto p-6">
                 <h3 className="text-xl font-semibold mb-4 flex items-center text-slate-900 dark:text-white">
-                    <FileCode className="mr-2 text-blue-500" /> 
+                    <FileCode className="mr-2 text-primary" /> 
                     Available Firmware
-                    <span className="ml-3 text-sm font-normal text-slate-500 dark:text-slate-500 bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                    <span className="ml-3 text-sm font-normal text-slate-500 dark:text-slate-500 bg-slate-200 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
                         {relatedFirmwares.length}
                     </span>
                 </h3>
 
                 {relatedFirmwares.length === 0 ? (
-                    <div className="p-8 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl text-center text-slate-500">
+                    <div className="p-8 border border-dashed border-slate-300 dark:border-zinc-700 rounded-xl text-center text-slate-500">
                         No firmware found for this device in the manifest.
                     </div>
                 ) : (
@@ -457,7 +457,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                             const progress = downloadProgress[fw.download_url] || 0;
 
                             return (
-                                <div key={idx} className="bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 hover:border-blue-500/50 transition-colors group">
+                                <div key={idx} className="bg-slate-100 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 rounded-xl p-4 hover:border-primary/50 transition-colors group">
                                     <div className="flex items-center justify-between">
                                         <div className="flex-1">
                                             <div className="flex items-center space-x-3 mb-1">
@@ -465,7 +465,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                                                 <span className={`text-xs px-2 py-0.5 rounded-full border ${
                                                     fw.type === 'factory' ? 'bg-green-900/30 text-green-400 border-green-800' :
                                                     fw.type === 'micropython' ? 'bg-yellow-900/30 text-yellow-400 border-yellow-800' :
-                                                    'bg-blue-900/30 text-blue-400 border-blue-800'
+                                                    'bg-primary/20 text-primary border-primary/50'
                                                 }`}>
                                                     {fw.type.toUpperCase()}
                                                 </span>
@@ -480,9 +480,9 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                                         <div className="flex items-center gap-2">
                                             {isDownloading ? (
                                                 <div className="flex flex-col items-end min-w-[120px]">
-                                                    <div className="text-xs text-blue-400 mb-1">Downloading {progress}%</div>
+                                                    <div className="text-xs text-primary mb-1">Downloading {progress}%</div>
                                                     <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                                                        <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${progress}%` }} />
+                                                        <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
                                                     </div>
                                                 </div>
                                             ) : isDownloaded ? (
@@ -511,7 +511,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                                                 </div>
                                             ) : (
                                                 <button 
-                                                    className="ml-4 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg flex items-center shadow-lg shadow-blue-900/20 transition-all active:scale-95"
+                                                    className="ml-4 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg flex items-center shadow-lg shadow-primary/20 transition-all active:scale-95"
                                                     onClick={() => handleDownload(fw)}
                                                 >
                                                     <Download size={18} className="mr-2" />
@@ -521,7 +521,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                                         </div>
                                     </div>
                                     {fw.release_note && (
-                                        <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700/50 text-sm text-slate-600 dark:text-slate-400">
+                                        <div className="mt-3 pt-3 border-t border-slate-200 dark:border-zinc-700/50 text-sm text-slate-600 dark:text-slate-400">
                                             <span className="text-slate-500 font-semibold mr-2">Note:</span>
                                             {fw.release_note}
                                         </div>

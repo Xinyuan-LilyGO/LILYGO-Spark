@@ -42,7 +42,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
   ];
 
   return (
-    <div className="w-[220px] mt-1.5 h-full flex-none z-50 flex flex-col bg-slate-50 border-r border-slate-200 dark:bg-slate-900 dark:border-slate-700 transition-colors">
+    <div className="w-[220px] mt-1.5 h-full flex-none z-50 flex flex-col bg-slate-50 border-r border-slate-200 dark:bg-zinc-900 dark:border-zinc-700 transition-colors">
       
       {/* Header / Logo */}
       <div className="flex items-center justify-center h-20 overflow-hidden relative select-none">
@@ -71,12 +71,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
               onClick={() => setActiveTab(item.id)}
               className={`w-full flex items-center rounded-2xl transition-colors duration-200 group relative px-3 py-3 ${
                 isActive 
-                  ? 'bg-blue-600/10 text-blue-500 dark:text-blue-400' 
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800'
+                  ? 'bg-primary/10 text-primary' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800'
               }`}
             >
               {/* Active Indicator (Left Bar) */}
-              <div className={`absolute left-0 w-1 rounded-full bg-blue-500 transition-all duration-200 ${
+              <div className={`absolute left-0 w-1 rounded-full bg-primary transition-all duration-200 ${
                   isActive ? 'h-8 opacity-100' : 'h-0 opacity-0'
               } -ml-2`} />
 
@@ -84,11 +84,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
               <div className={`relative transition-transform duration-200 ${
                   isActive ? 'scale-105' : 'group-hover:scale-105'
               }`}>
-                  <Icon size={24} className={`relative z-10 ${isActive ? 'text-blue-400' : ''}`} />
+                  <Icon size={24} className={`relative z-10 ${isActive ? 'text-primary' : ''}`} />
               </div>
               
               {/* Text Label - Always Visible */}
-              <span className={`ml-3 font-medium whitespace-nowrap text-left overflow-hidden text-ellipsis ${isActive ? 'text-blue-700 dark:text-blue-100' : ''}`}>
+              <span className={`ml-3 font-medium whitespace-nowrap text-left overflow-hidden text-ellipsis ${isActive ? 'text-primary' : ''}`}>
                 {item.label}
               </span>
             </button>
@@ -97,7 +97,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
       </nav>
 
       {/* Footer: Login / User */}
-      <div className="p-4 border-t border-slate-200 dark:border-slate-700/30 space-y-3">
+      <div className="p-4 border-t border-slate-200 dark:border-zinc-700/30 space-y-3">
         {user ? (
           <div className="flex items-center gap-3 px-2">
             {user.avatar_url && (
@@ -109,7 +109,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
             </div>
             <button
               onClick={onLogout}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-200 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-700 transition-colors"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-200 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-700 transition-colors"
               title="退出登录"
             >
               <LogOut size={16} />
@@ -118,13 +118,13 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
         ) : (
           <button
             onClick={handleLogin}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 dark:hover:text-white transition-colors border border-slate-300 dark:border-slate-600/50"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-300 dark:hover:text-white transition-colors border border-slate-300 dark:border-zinc-600/50"
           >
             <Github size={18} />
             <span>使用 GitHub 登录</span>
           </button>
         )}
-        <div className="text-xs text-slate-500 dark:text-slate-500 text-center">v0.1.0-alpha</div>
+        <div className="text-xs text-slate-500 dark:text-zinc-500 text-center">v0.1.0-alpha</div>
       </div>
     </div>
   );

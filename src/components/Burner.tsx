@@ -559,14 +559,14 @@ const Burner: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white p-6 gap-6 transition-colors" onClick={() => {}}>
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white p-6 gap-6 transition-colors" onClick={() => {}}>
       {/* Mode Switcher */}
-      <div className="flex space-x-1 bg-slate-200 dark:bg-slate-800 p-1 rounded-xl self-start border border-slate-300 dark:border-slate-700">
+      <div className="flex space-x-1 bg-slate-200 dark:bg-zinc-800 p-1 rounded-xl self-start border border-slate-300 dark:border-zinc-700">
           <button
               onClick={() => setMode('basic')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center ${
                   mode === 'basic' 
-                      ? 'bg-slate-600 dark:bg-slate-700 text-white shadow-sm' 
+                      ? 'bg-slate-600 dark:bg-zinc-700 text-white shadow-sm' 
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300 dark:hover:bg-slate-700/50'
               }`}
           >
@@ -577,7 +577,7 @@ const Burner: React.FC = () => {
               onClick={() => setMode('advanced')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center ${
                   mode === 'advanced' 
-                      ? 'bg-slate-600 dark:bg-slate-700 text-white shadow-sm' 
+                      ? 'bg-slate-600 dark:bg-zinc-700 text-white shadow-sm' 
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300 dark:hover:bg-slate-700/50'
               }`}
           >
@@ -587,7 +587,7 @@ const Burner: React.FC = () => {
       </div>
 
       {/* Header / Controls */}
-      <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end relative z-10">
+      <div className="bg-white dark:bg-zinc-800 p-6 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-lg grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end relative z-10">
         
         <div className="relative" ref={portSelectRef}>
           <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">{t('burner.label_port')}</label>
@@ -596,8 +596,8 @@ const Burner: React.FC = () => {
               onClick={handleSelectDeviceClick}
               className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-between border
                 ${port 
-                    ? 'bg-slate-600 dark:bg-slate-700 hover:bg-slate-500 dark:hover:bg-slate-600 text-white border-slate-400 dark:border-slate-500' 
-                    : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600'
+                    ? 'bg-slate-600 dark:bg-zinc-700 hover:bg-slate-500 dark:hover:bg-slate-600 text-white border-slate-400 dark:border-slate-500' 
+                    : 'bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-zinc-600'
                 }`}
             >
               <span className="truncate">
@@ -611,7 +611,7 @@ const Burner: React.FC = () => {
 
           {/* Custom Port Selection Dropdown */}
           {isSelectingPort && !connected && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl shadow-2xl overflow-hidden z-50 animate-fade-in-up w-[140%] min-w-[300px]">
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 rounded-xl shadow-2xl overflow-hidden z-50 animate-fade-in-up w-[140%] min-w-[300px]">
                   <div className="max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600">
                       {availablePorts.length === 0 ? (
                           <div className="p-4 text-center text-slate-500 text-sm">
@@ -622,10 +622,10 @@ const Burner: React.FC = () => {
                               <button
                                   key={p.portId}
                                   onClick={() => handlePortSelect(p.portId)}
-                                  className="w-full text-left p-3 hover:bg-slate-100 dark:hover:bg-slate-700 border-b border-slate-200 dark:border-slate-700/50 last:border-0 transition-colors group"
+                                  className="w-full text-left p-3 hover:bg-slate-100 dark:hover:bg-slate-700 border-b border-slate-200 dark:border-zinc-700/50 last:border-0 transition-colors group"
                               >
                                   <div className="flex items-start gap-3">
-                                      <div className={`mt-1 p-1.5 rounded-lg ${p.vendorId === '12346' ? 'bg-green-900/50 text-green-400' : 'bg-blue-900/50 text-blue-400'}`}>
+                                      <div className={`mt-1 p-1.5 rounded-lg ${p.vendorId === '12346' ? 'bg-green-900/50 text-green-400' : 'bg-primary/20 text-primary'}`}>
                                           {p.vendorId === '12346' ? <Cpu size={18} /> : <Usb size={18} />}
                                       </div>
                                       <div className="flex-1 min-w-0">
@@ -652,7 +652,7 @@ const Burner: React.FC = () => {
                                           </div>
                                       </div>
                                       {selectedPortId === p.portId && (
-                                          <div className="mt-2 text-blue-400">
+                                          <div className="mt-2 text-primary">
                                               <Check size={16} />
                                           </div>
                                       )}
@@ -673,7 +673,7 @@ const Burner: React.FC = () => {
             <select 
                 value={toolStrategy} 
                 onChange={e => setToolStrategy(e.target.value as 'native' | 'js')}
-                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-primary outline-none"
             >
                 <option value="native">esptool (Native)</option>
                 <option value="js">esptool-js (Web)</option>
@@ -685,7 +685,7 @@ const Burner: React.FC = () => {
             <select 
                 value={chipFamily} 
                 onChange={e => setChipFamily(e.target.value)}
-                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-primary outline-none"
             >
                 <option value="ESP32">ESP32</option>
                 <option value="ESP32-S3">ESP32-S3</option>
@@ -699,7 +699,7 @@ const Burner: React.FC = () => {
             <select 
                 value={flashBaudRate} 
                 onChange={e => setFlashBaudRate(Number(e.target.value))}
-                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-primary outline-none"
             >
                 <option value={115200}>115200</option>
                 <option value={460800}>460800</option>
@@ -719,7 +719,7 @@ const Burner: React.FC = () => {
                                 placeholder="Enter firmware URL or select file..."
                                 value={downloadUrl}
                                 onChange={(e) => setDownloadUrl(e.target.value)}
-                                className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-500"
+                                className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-primary outline-none placeholder-slate-500"
                             />
                             <button
                                 onClick={handleDownload}
@@ -727,7 +727,7 @@ const Burner: React.FC = () => {
                                 className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center
                                     ${(!downloadUrl || isDownloading || !!downloadedFile)
                                         ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                                        : 'bg-blue-600 hover:bg-blue-500 text-white'
+                                        : 'bg-primary hover:bg-primary-hover text-white'
                                     }`}
                             >
                                 <Download size={18} className="mr-2" />
@@ -740,7 +740,7 @@ const Burner: React.FC = () => {
                             <div className="mt-2">
                                 <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
                                     <div 
-                                        className="h-full bg-blue-500 transition-all duration-300"
+                                        className="h-full bg-primary transition-all duration-300"
                                         style={{ width: `${downloadProgress}%` }}
                                     />
                                 </div>
@@ -823,7 +823,7 @@ const Burner: React.FC = () => {
           <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
               <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-bold text-white flex items-center">
-                      <Layers size={20} className="mr-2 text-blue-400" />
+                      <Layers size={20} className="mr-2 text-primary" />
                       Files to Flash
                   </h3>
                   <button 
@@ -841,7 +841,7 @@ const Burner: React.FC = () => {
                               type="checkbox" 
                               checked={f.enable} 
                               onChange={() => toggleFileEnable(index)}
-                              className="w-5 h-5 rounded border-slate-500 bg-slate-700 text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-800"
+                              className="w-5 h-5 rounded border-slate-500 bg-slate-700 text-primary focus:ring-primary focus:ring-offset-slate-800"
                           />
                           
                           <div className="flex-1">
@@ -885,7 +885,7 @@ const Burner: React.FC = () => {
       )}
 
       {/* Action Bar */}
-      <div className="flex items-center justify-between bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+      <div className="flex items-center justify-between bg-white dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700">
         <div className="flex items-center gap-4 flex-1 mr-8">
             <span className="text-sm font-medium text-slate-400">Status:</span>
             <span className={`text-sm font-bold ${status === 'success' ? 'text-emerald-400' : status === 'error' ? 'text-red-400' : 'text-white'}`}>
@@ -914,7 +914,7 @@ const Burner: React.FC = () => {
             className={`px-8 py-3 rounded-lg font-bold text-lg shadow-lg transition-all
                 ${(!port || (mode === 'basic' && !file && !downloadedFile) || (mode === 'advanced' && files.filter(f => f.enable && f.file).length === 0))
                     ? 'bg-slate-700 text-slate-500 cursor-not-allowed' 
-                    : 'bg-blue-600 hover:bg-blue-500 text-white hover:shadow-blue-500/25'
+                    : 'bg-blue-600 hover:bg-primary text-white hover:shadow-primary/25'
                 }`}
         >
             {t('burner.btn_flash')}

@@ -42,6 +42,14 @@
       "system": "跟随系统",
       "light": "浅色",
       "dark": "深色"
+    },
+    "accent": "强调色",
+    "accent_options": {
+      "blue": "蓝色",
+      "orange": "橙色",
+      "emerald": "翠绿",
+      "violet": "紫色",
+      "rose": "玫红"
     }
   },
   "burner": {

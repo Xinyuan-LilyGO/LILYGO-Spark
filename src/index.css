@@ -2,19 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Theme CSS variables - defaults (blue), overridden by ThemeContext */
+:root {
+  --color-primary: 59 130 246;
+  --color-primary-hover: 37 99 235;
+  --color-primary-muted: 96 165 250;
+  --color-primary-muted-bg: 59 130 246;
+  --color-bg-base: 248 250 252;  /* slate-50 light */
+  --color-text-base: 15 23 42;
+}
+
+.dark {
+  --color-bg-base: 24 24 27;     /* zinc-900, neutral dark (less blue than slate) */
+  --color-text-base: 248 250 252;
+}
+
 html, body, #root {
   height: 100%;
   margin: 0;
-  background-color: #0f172a; /* slate-900 */
-  color: #f8fafc; /* slate-50 */
-  /* Disable text selection globally */
+  background-color: rgb(var(--color-bg-base));
+  color: rgb(var(--color-text-base));
+  transition: background-color 0.2s, color 0.2s;
   user-select: none;
-  -webkit-user-select: none; /* Safari/Chrome */
-  /* Prevent drag image ghosting */
+  -webkit-user-select: none;
   -webkit-user-drag: none;
 }
 
-/* Allow selection in text fields and specific areas */
+/* Allow selection in text fields */
 input, textarea, code, pre, .select-text {
   user-select: text;
   -webkit-user-select: text;

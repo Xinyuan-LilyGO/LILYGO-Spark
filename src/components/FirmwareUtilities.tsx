@@ -292,14 +292,14 @@ const FirmwareUtilities: React.FC = () => {
                             )}
                             {analysisFile ? (
                                 <div className="flex flex-col items-center">
-                                    <FileCode size={32} className="text-blue-400 mb-2" />
+                                    <FileCode size={32} className="text-primary mb-2" />
                                     <span className="font-mono text-slate-200">{analysisFile.name}</span>
                                     <span className="text-xs text-slate-500 mt-1">{(analysisFile.size / 1024 / 1024).toFixed(2)} MB</span>
-                                    {!isAnalyzing && <span className="text-xs text-blue-400 mt-2">Click to select another file</span>}
+                                    {!isAnalyzing && <span className="text-xs text-primary mt-2">Click to select another file</span>}
                                 </div>
                             ) : (
                                 <div className="flex flex-col items-center text-slate-400">
-                                    <FileCode size={32} className="mb-2 group-hover:text-blue-400 transition-colors" />
+                                    <FileCode size={32} className="mb-2 group-hover:text-primary transition-colors" />
                                     <span>{t('utilities.select_firmware')}</span>
                                 </div>
                             )}
@@ -326,7 +326,7 @@ const FirmwareUtilities: React.FC = () => {
                                 <div className="bg-slate-700/50 p-4 rounded-lg border border-slate-700">
                                     <h4 className="text-xs text-slate-400 uppercase tracking-wider mb-1">{t('utilities.detected_chip')}</h4>
                                     <div className="text-xl font-bold text-white flex items-center">
-                                        <Cpu size={20} className="mr-2 text-blue-400" />
+                                        <Cpu size={20} className="mr-2 text-primary" />
                                         {analysisResult.chip || analysisResult.chip_guess || 'Unknown'}
                                     </div>
                                 </div>
@@ -361,7 +361,7 @@ const FirmwareUtilities: React.FC = () => {
                                                 setPartitions(analysisResult.partitions || []);
                                                 setActiveTool('editor');
                                             }}
-                                            className="text-xs bg-slate-700 hover:bg-slate-600 text-blue-400 px-3 py-1.5 rounded-lg transition-colors flex items-center"
+                                            className="text-xs bg-slate-700 hover:bg-slate-600 text-primary px-3 py-1.5 rounded-lg transition-colors flex items-center"
                                         >
                                             <FileCode size={14} className="mr-1.5" /> Open in Editor
                                         </button>
@@ -384,7 +384,7 @@ const FirmwareUtilities: React.FC = () => {
                                                         <td className="p-3 font-sans font-medium text-white">{p.label}</td>
                                                         <td className="p-3">{p.type}</td>
                                                         <td className="p-3">{p.subtype}</td>
-                                                        <td className="p-3 text-blue-300">{p.offset}</td>
+                                                        <td className="p-3 text-primary/80">{p.offset}</td>
                                                         <td className="p-3 text-green-300">{p.size} ({Math.round(p.size_dec/1024)}KB)</td>
                                                         <td className="p-3">{p.encrypted ? 'Yes' : '-'}</td>
                                                     </tr>
@@ -583,14 +583,14 @@ const FirmwareUtilities: React.FC = () => {
             <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg flex-1 flex flex-col">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-xl font-bold flex items-center">
-                        <FileCode className="mr-3 text-blue-500" />
+                        <FileCode className="mr-3 text-primary" />
                         Partition Table Editor
                     </h2>
                     <div className="flex space-x-2">
                         <button className="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm flex items-center text-slate-200">
                             <Upload size={16} className="mr-2" /> Import CSV
                         </button>
-                        <button className="px-3 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm flex items-center">
+                        <button className="px-3 py-2 bg-primary hover:bg-primary-hover rounded-lg text-sm flex items-center">
                             <Download size={16} className="mr-2" /> Export .bin
                         </button>
                     </div>
@@ -615,7 +615,7 @@ const FirmwareUtilities: React.FC = () => {
                                     <td className="p-2"><input type="text" defaultValue={p.label} className="bg-transparent w-full outline-none focus:text-white" /></td>
                                     <td className="p-2"><input type="text" defaultValue={p.type} className="bg-transparent w-full outline-none focus:text-white" /></td>
                                     <td className="p-2"><input type="text" defaultValue={p.subtype} className="bg-transparent w-full outline-none focus:text-white" /></td>
-                                    <td className="p-2 text-blue-300"><input type="text" defaultValue={p.offset} className="bg-transparent w-full outline-none focus:text-white" /></td>
+                                    <td className="p-2 text-primary/80"><input type="text" defaultValue={p.offset} className="bg-transparent w-full outline-none focus:text-white" /></td>
                                     <td className="p-2 text-green-300"><input type="text" defaultValue={p.size} className="bg-transparent w-full outline-none focus:text-white" /></td>
                                     <td className="p-2"><input type="text" defaultValue={p.encrypted ? 'encrypted' : ''} className="bg-transparent w-full outline-none focus:text-white" /></td>
                                     <td className="p-2 text-center">

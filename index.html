@@ -6,16 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LILYGO Spark</title>
     <style>
-      /* Prevent white flash before CSS loads */
-      body {
-        background-color: #0f172a; /* Tailwind slate-900 */
-        margin: 0;
-      }
+      body { margin: 0; }
     </style>
   </head>
   <body>
     <script>
-      (function(){try{var s=localStorage.getItem('lilygo_theme');var light=s==='light'||(s!=='dark'&&window.matchMedia('(prefers-color-scheme: light)').matches);document.body.style.backgroundColor=light?'#f8fafc':'#0f172a';}catch(e){}})();
+      (function(){try{var s=localStorage.getItem('lilygo_theme');var light=s==='light'||(s!=='dark'&&window.matchMedia('(prefers-color-scheme: light)').matches);document.body.style.backgroundColor=light?'#f8fafc':'#18181b';document.body.style.transition='background-color .2s';}catch(e){}})();
     </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

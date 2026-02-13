@@ -1,1 +1,103 @@
-{"app": {"title": "LILYGO Spark"}, "nav": {"firmware": "Firmware Center", "dumper": "Firmware Dumper", "burner": "Firmware Burner", "upload": "Upload", "utilities": "Firmware Utilities", "settings": "Settings"}, "settings": {"title": "Settings", "language": "Language", "language_options": {"system": "Follow System", "en": "English", "zh-CN": "简体中文", "zh-TW": "繁體中文", "ja": "日本語"}, "theme": "Theme", "theme_options": {"system": "Follow System", "light": "Light", "dark": "Dark"}}, "burner": {"welcome": "Welcome to LILYGO Spark!", "mode_basic": "Basic Mode", "mode_advanced": "Hacker Mode", "select_port_msg": "Serial port", "label_port": "Port", "label_chip": "Chip Family", "label_baud": "Baud Rate (Upload)", "label_firmware": "Firmware (.bin)", "btn_flash": "Start Flashing", "btn_erase": "Erase Flash", "btn_console": "Console", "btn_connect_console": "Connect Console", "btn_disconnect_console": "Disconnect Console", "status": {"ready": "Ready to connect or flash.", "flashing": "Flashing...", "success": "Flash Complete!", "error": "Flash Error", "erasing": "Erasing Flash...", "erased": "Flash Erased"}, "choose_file": "Choose File", "no_file_chosen": "No file chosen"}, "dumper": {"title": "Firmware Dumper", "label_start_address": "Start Address (Hex)", "label_size": "Size (Hex)", "label_baud_rate": "Baud Rate", "label_detected_chip": "Detected Chip", "label_detected_size": "Detected Size", "label_status": "Status", "btn_select_device": "Select Device", "btn_detect_info": "Detect Info", "btn_dump_firmware": "Dump Firmware", "status_ready": "Ready", "presets": "Presets", "unknown": "Unknown", "no_devices_found": "No compatible devices found.", "check_connections": "Check connections.", "terminal_init": "Firmware Dumper initialized.", "terminal_select_device": "Select a device to begin.", "terminal_device_selected": "Device selected.", "terminal_port_selection_error": "Port selection error", "terminal_error_select_device": "Error: Please select a device first.", "terminal_detecting": "Detecting chip info...", "terminal_detected": "Detected", "terminal_flash_id": "Flash ID", "terminal_size": "Size", "terminal_error": "Error", "terminal_starting_dump": "Starting dump process...", "terminal_error_esptool_load": "Failed to load esptool-js classes", "terminal_syncing": "Syncing...", "terminal_reading_flash": "Reading flash from", "terminal_read_complete": "Read complete! Saving file...", "terminal_file_saved": "File saved.", "terminal_dump_error": "Dump Error"}, "device_toast": {"new_device": "New Device Found", "manufacturer": "Manufacturer", "via": "via", "clear_all": "Clear All"}}
+{
+    "app": {
+        "title": "LILYGO Spark"
+    },
+    "nav": {
+        "firmware": "Firmware Center",
+        "dumper": "Firmware Dumper",
+        "burner": "Firmware Burner",
+        "upload": "Upload",
+        "utilities": "Firmware Utilities",
+        "settings": "Settings"
+    },
+    "settings": {
+        "title": "Settings",
+        "language": "Language",
+        "language_options": {
+            "system": "Follow System",
+            "en": "English",
+            "zh-CN": "简体中文",
+            "zh-TW": "繁體中文",
+            "ja": "日本語"
+        },
+        "theme": "Theme",
+        "theme_options": {
+            "system": "Follow System",
+            "light": "Light",
+            "dark": "Dark"
+        },
+        "accent": "Accent Color",
+        "accent_options": {
+            "blue": "Blue",
+            "orange": "Orange",
+            "emerald": "Emerald",
+            "violet": "Violet",
+            "rose": "Rose"
+        }
+    },
+    "burner": {
+        "welcome": "Welcome to LILYGO Spark!",
+        "mode_basic": "Basic Mode",
+        "mode_advanced": "Hacker Mode",
+        "select_port_msg": "Serial port",
+        "label_port": "Port",
+        "label_chip": "Chip Family",
+        "label_baud": "Baud Rate (Upload)",
+        "label_firmware": "Firmware (.bin)",
+        "btn_flash": "Start Flashing",
+        "btn_erase": "Erase Flash",
+        "btn_console": "Console",
+        "btn_connect_console": "Connect Console",
+        "btn_disconnect_console": "Disconnect Console",
+        "status": {
+            "ready": "Ready to connect or flash.",
+            "flashing": "Flashing...",
+            "success": "Flash Complete!",
+            "error": "Flash Error",
+            "erasing": "Erasing Flash...",
+            "erased": "Flash Erased"
+        },
+        "choose_file": "Choose File",
+        "no_file_chosen": "No file chosen"
+    },
+    "dumper": {
+        "title": "Firmware Dumper",
+        "label_start_address": "Start Address (Hex)",
+        "label_size": "Size (Hex)",
+        "label_baud_rate": "Baud Rate",
+        "label_detected_chip": "Detected Chip",
+        "label_detected_size": "Detected Size",
+        "label_status": "Status",
+        "btn_select_device": "Select Device",
+        "btn_detect_info": "Detect Info",
+        "btn_dump_firmware": "Dump Firmware",
+        "status_ready": "Ready",
+        "presets": "Presets",
+        "unknown": "Unknown",
+        "no_devices_found": "No compatible devices found.",
+        "check_connections": "Check connections.",
+        "terminal_init": "Firmware Dumper initialized.",
+        "terminal_select_device": "Select a device to begin.",
+        "terminal_device_selected": "Device selected.",
+        "terminal_port_selection_error": "Port selection error",
+        "terminal_error_select_device": "Error: Please select a device first.",
+        "terminal_detecting": "Detecting chip info...",
+        "terminal_detected": "Detected",
+        "terminal_flash_id": "Flash ID",
+        "terminal_size": "Size",
+        "terminal_error": "Error",
+        "terminal_starting_dump": "Starting dump process...",
+        "terminal_error_esptool_load": "Failed to load esptool-js classes",
+        "terminal_syncing": "Syncing...",
+        "terminal_reading_flash": "Reading flash from",
+        "terminal_read_complete": "Read complete! Saving file...",
+        "terminal_file_saved": "File saved.",
+        "terminal_dump_error": "Dump Error"
+    },
+    "device_toast": {
+        "new_device": "New Device Found",
+        "manufacturer": "Manufacturer",
+        "via": "via",
+        "clear_all": "Clear All"
+    }
+}

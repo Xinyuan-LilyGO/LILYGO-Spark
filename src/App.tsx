@@ -64,7 +64,7 @@ function App() {
   // };
 
   return (
-    <div className="flex h-screen bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100 overflow-hidden transition-colors">
+    <div className="flex h-screen bg-white text-slate-900 dark:bg-zinc-900 dark:text-zinc-100 overflow-hidden transition-colors">
       <DeviceToast />
       
       {/* Sidebar Component */}

@@ -103,7 +103,7 @@ const DeviceToast = () => {
             key={device.id}
             className="pointer-events-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl p-3 flex items-start space-x-3 text-slate-900 dark:text-slate-100 animate-fade-in-left shrink-0"
           >
-            <div className="bg-blue-600 p-2 rounded-full mt-1 shrink-0">
+            <div className="bg-primary p-2 rounded-full mt-1 shrink-0">
               {device.type === 'web-serial' ? <Usb size={18} /> : <Cpu size={18} />}
             </div>
             
