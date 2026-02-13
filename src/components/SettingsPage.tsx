@@ -6,7 +6,10 @@ import { useTheme, type AccentColor } from '../contexts/ThemeContext';
 const ACCENT_COLORS: { id: AccentColor; bg: string }[] = [
   { id: 'blue', bg: 'bg-blue-500' },
   { id: 'orange', bg: 'bg-orange-500' },
+  { id: 'amber', bg: 'bg-amber-500' },
   { id: 'emerald', bg: 'bg-emerald-500' },
+  { id: 'cyan', bg: 'bg-cyan-500' },
+  { id: 'sky', bg: 'bg-sky-500' },
   { id: 'violet', bg: 'bg-violet-500' },
   { id: 'rose', bg: 'bg-rose-500' },
 ];
@@ -105,7 +108,7 @@ const SettingsPage: React.FC = () => {
                     <Palette className="text-primary" />
                     <span className="font-medium text-slate-800 dark:text-zinc-200">{t('settings.accent')}</span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                     {ACCENT_COLORS.map(({ id, bg }) => (
                         <button
                             key={id}

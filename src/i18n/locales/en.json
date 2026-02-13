@@ -45,7 +45,10 @@
         "accent_options": {
             "blue": "Blue",
             "orange": "Orange",
+            "amber": "Amber",
             "emerald": "Emerald",
+            "cyan": "Cyan",
+            "sky": "Sky",
             "violet": "Violet",
             "rose": "Rose"
         },

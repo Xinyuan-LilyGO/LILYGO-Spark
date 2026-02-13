@@ -53,21 +53,25 @@ input, textarea, code, pre, .select-text {
   cursor: text;
 }
 
-/* Glass effect background - mesh gradient for visible blur */
+/* Glass effect background - mesh gradient (indigo, purple, amber, teal) */
 .bg-glass-mesh-light {
   background-color: #f1f5f9;
   background-image: 
-    radial-gradient(ellipse 80% 50% at 20% 20%, rgba(99, 102, 241, 0.25), transparent),
-    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(168, 85, 247, 0.2), transparent),
-    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(148, 163, 184, 0.3), transparent);
+    radial-gradient(ellipse 80% 50% at 20% 20%, rgba(99, 102, 241, 0.22), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(168, 85, 247, 0.18), transparent),
+    radial-gradient(ellipse 60% 50% at 70% 30%, rgba(251, 191, 36, 0.2), transparent),
+    radial-gradient(ellipse 50% 40% at 30% 70%, rgba(20, 184, 166, 0.15), transparent),
+    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(148, 163, 184, 0.25), transparent);
 }
 
 .bg-glass-mesh-dark {
   background-color: #18181b;
   background-image: 
-    radial-gradient(ellipse 80% 50% at 20% 20%, rgba(99, 102, 241, 0.2), transparent),
-    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(168, 85, 247, 0.15), transparent),
-    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(63, 63, 70, 0.5), transparent);
+    radial-gradient(ellipse 80% 50% at 20% 20%, rgba(99, 102, 241, 0.18), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(168, 85, 247, 0.14), transparent),
+    radial-gradient(ellipse 60% 50% at 70% 30%, rgba(251, 191, 36, 0.12), transparent),
+    radial-gradient(ellipse 50% 40% at 30% 70%, rgba(20, 184, 166, 0.1), transparent),
+    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(63, 63, 70, 0.4), transparent);
 }
 
 @keyframes fade-in-scale {

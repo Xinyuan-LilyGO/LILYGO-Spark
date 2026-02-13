@@ -62,7 +62,10 @@
     "accent_options": {
       "blue": "藍色",
       "orange": "橙色",
+      "amber": "琥珀黃",
       "emerald": "翠綠",
+      "cyan": "青色",
+      "sky": "天藍",
       "violet": "紫色",
       "rose": "玫紅"
     },

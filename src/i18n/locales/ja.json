@@ -62,7 +62,10 @@
     "accent_options": {
       "blue": "ブルー",
       "orange": "オレンジ",
+      "amber": "アンバー",
       "emerald": "エメラルド",
+      "cyan": "シアン",
+      "sky": "スカイ",
       "violet": "バイオレット",
       "rose": "ローズ"
     },

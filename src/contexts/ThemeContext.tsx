@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type ResolvedTheme = 'light' | 'dark';
-export type AccentColor = 'blue' | 'orange' | 'emerald' | 'violet' | 'rose';
+export type AccentColor = 'blue' | 'orange' | 'amber' | 'emerald' | 'cyan' | 'violet' | 'rose' | 'sky';
 
 const THEME_STORAGE_KEY = 'lilygo_theme';
 const ACCENT_STORAGE_KEY = 'lilygo_accent';
@@ -24,7 +24,8 @@ function getStoredPreference(): ThemePreference {
 function getStoredAccent(): AccentColor {
   try {
     const stored = localStorage.getItem(ACCENT_STORAGE_KEY);
-    if (['blue', 'orange', 'emerald', 'violet', 'rose'].includes(stored || '')) return stored as AccentColor;
+    const valid: AccentColor[] = ['blue', 'orange', 'amber', 'emerald', 'cyan', 'violet', 'rose', 'sky'];
+    if (valid.includes(stored as AccentColor)) return stored as AccentColor;
   } catch {}
   return 'blue';
 }
@@ -35,7 +36,7 @@ function getStoredGlass(): boolean {
     if (stored === 'true') return true;
     if (stored === 'false') return false;
   } catch {}
-  return false;
+  return true;
 }
 
 function resolveTheme(pref: ThemePreference): ResolvedTheme {
@@ -48,9 +49,12 @@ function resolveTheme(pref: ThemePreference): ResolvedTheme {
 export const ACCENT_PALETTES: Record<AccentColor, { main: string; hover: string; muted: string; mutedBg: string }> = {
   blue:    { main: '59 130 246',   hover: '37 99 235',   muted: '96 165 250',   mutedBg: '59 130 246' },
   orange:  { main: '249 115 22',   hover: '234 88 12',   muted: '251 146 60',   mutedBg: '249 115 22' },
+  amber:   { main: '245 158 11',   hover: '217 119 6',   muted: '251 191 36',   mutedBg: '245 158 11' },
   emerald: { main: '16 185 129',   hover: '5 150 105',   muted: '52 211 153',   mutedBg: '16 185 129' },
+  cyan:    { main: '6 182 212',    hover: '8 145 178',   muted: '34 211 238',   mutedBg: '6 182 212' },
   violet:  { main: '139 92 246',   hover: '124 58 237', muted: '167 139 250',  mutedBg: '139 92 246' },
   rose:    { main: '244 63 94',    hover: '225 29 72',  muted: '251 113 133',  mutedBg: '244 63 94' },
+  sky:    { main: '14 165 233',   hover: '2 132 199',   muted: '56 189 248',   mutedBg: '14 165 233' },
 };
 
 interface ThemeContextValue {
