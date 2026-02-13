@@ -35,14 +35,14 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
   const navItems = [
     { id: 'firmware', icon: LayoutGrid, label: t('nav.firmware') },
     { id: 'burner', icon: Zap, label: t('nav.burner') },
-    { id: 'upload', icon: Upload, label: 'Upload' },
+    { id: 'upload', icon: Upload, label: t('nav.upload') },
     { id: 'dumper', icon: Download, label: t('nav.dumper') },
     { id: 'utilities', icon: Wrench, label: t('nav.utilities') },
     { id: 'settings', icon: Settings, label: t('nav.settings') },
   ];
 
   return (
-    <div className="w-[230px] h-full flex-none z-50 flex flex-col bg-slate-50 border-r border-slate-200 dark:bg-slate-900 dark:border-slate-700 transition-colors">
+    <div className="w-[220px] mt-1.5 h-full flex-none z-50 flex flex-col bg-slate-50 border-r border-slate-200 dark:bg-slate-900 dark:border-slate-700 transition-colors">
       
       {/* Header / Logo */}
       <div className="flex items-center justify-center h-20 overflow-hidden relative select-none">
@@ -76,7 +76,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
               }`}
             >
               {/* Active Indicator (Left Bar) */}
-              <div className={`absolute left-0 w-1 rounded-r-full bg-blue-500 transition-all duration-200 ${
+              <div className={`absolute left-0 w-1 rounded-full bg-blue-500 transition-all duration-200 ${
                   isActive ? 'h-8 opacity-100' : 'h-0 opacity-0'
               } -ml-2`} />
 

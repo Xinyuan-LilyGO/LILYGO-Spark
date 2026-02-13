@@ -48,68 +48,37 @@ function registerProtocol() {
 }
 registerProtocol()
 
-let lastKnownTheme: 'light' | 'dark' = nativeTheme.shouldUseDarkColors ? 'dark' : 'light'
+// Use native macOS About panel in production
+app.setAboutPanelOptions({
+  applicationName: app.name,
+  applicationVersion: app.getVersion(),
+  copyright: 'LilyGo Community',
+  credits: 'A cross-platform firmware hub and burner for LILYGO and other ESP devices.'
+})
 
-/** Dev-only: show custom About window with logo, light/dark styles */
+/** Dev-only: custom About window with LILYGO logo (native About shows Electron icon in dev) */
 function showAboutWindow(parent: BrowserWindow, publicPath: string) {
-  const isDark = lastKnownTheme === 'dark'
+  const isDark = nativeTheme.shouldUseDarkColors
   const logoPath = path.join(publicPath, 'LILYGO.png')
   const icon = nativeImage.createFromPath(logoPath)
   const iconDataUrl = icon.isEmpty() ? '' : icon.resize({ width: 128, height: 128 }).toDataURL()
-  const lightStyles = 'body{background:#d1d1d6;}h1,.version,p{color:#1c1c1e;} .version,p{color:#636366;}button{color:#0a84ff;}button:hover{background:rgba(10,132,255,0.15);}'
+  const lightStyles = 'body{background:#d1d1d6;}h1,.version,p{color:#1c1c1e;}.version,p{color:#636366;}button{color:#0a84ff;}button:hover{background:rgba(10,132,255,0.15);}'
   const darkStyles = 'body{background:#1e293b;}h1{color:#f1f5f9;}.version,p{color:#94a3b8;}button{color:#60a5fa;}button:hover{background:rgba(96,165,250,0.2);}'
-  const html = `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8">
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { height: 100%; overflow: hidden; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    -webkit-app-region: drag;
-    padding: 28px 40px 20px;
-    text-align: center;
-    min-width: 360px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    transition: background 0.2s;
-  }
-  img { width: 96px; height: 96px; margin-bottom: 12px; -webkit-app-region: no-drag; flex-shrink: 0; }
-  h1 { font-size: 20px; font-weight: 600; margin-bottom: 2px; letter-spacing: -0.5px; }
-  .version { font-size: 12px; margin-bottom: 12px; }
-  p { font-size: 11px; line-height: 1.4; margin-bottom: 16px; }
-  button {
-    -webkit-app-region: no-drag;
-    padding: 6px 24px;
-    font-size: 13px;
-    font-weight: 500;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    border-radius: 4px;
-  }
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+  *{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;-webkit-app-region:drag;padding:44px 36px 40px;text-align:center;min-width:320px;display:flex;flex-direction:column;align-items:center}
+  img{width:80px;height:80px;margin-bottom:10px;-webkit-app-region:no-drag}h1{font-size:18px;font-weight:600;margin-bottom:2px}.version{font-size:12px;margin-bottom:8px}p{font-size:11px;line-height:1.4;margin-bottom:12px}
+  button{-webkit-app-region:no-drag;padding:6px 24px;font-size:13px;font-weight:500;background:transparent;border:none;cursor:pointer;border-radius:4px}
   ${isDark ? darkStyles : lightStyles}
-</style>
-</head>
-<body>
+</style></head><body>
   <img src="${iconDataUrl}" alt="LILYGO Spark" />
   <h1>${app.name}</h1>
   <div class="version">Version ${app.getVersion()}</div>
   <p>A cross-platform firmware hub and burner for LILYGO and other ESP devices.</p>
   <button onclick="window.close()">OK</button>
-</body>
-</html>`
+</body></html>`
   const aboutWin = new BrowserWindow({
-    parent,
-    modal: true,
-    width: 380,
-    height: 360,
-    resizable: false,
-    minimizable: false,
-    maximizable: false,
-    show: false,
-    titleBarStyle: 'hidden',
+    parent, modal: true, width: 340, height: 300, resizable: false,
+    minimizable: false, maximizable: false, show: false, titleBarStyle: 'hidden',
     backgroundColor: isDark ? '#1e293b' : '#d1d1d6',
     webPreferences: { nodeIntegration: false, contextIsolation: true }
   })
@@ -208,6 +177,12 @@ function createWindow() {
     console.log('Development mode')
     console.log('__dirname:', __dirname)
     console.log('distPath:', distPath)
+    // Set custom icon for Dock & About panel in dev (macOS)
+    if (process.platform === 'darwin') {
+      const iconPath = path.join(publicPath, 'LILYGO.png')
+      const icon = nativeImage.createFromPath(iconPath)
+      if (!icon.isEmpty()) app.dock?.setIcon(icon)
+    }
   }
 
   // Create custom menu to hide DevTools while keeping other functionality
@@ -217,12 +192,7 @@ function createWindow() {
         label: app.name,
         submenu: [
           ...(isDev
-            ? [{
-                label: `About ${app.name}`,
-                click: () => {
-                  if (win && !win.isDestroyed()) showAboutWindow(win, publicPath)
-                }
-              }]
+            ? [{ label: `About ${app.name}`, click: () => { if (win && !win.isDestroyed()) showAboutWindow(win, publicPath) } }]
             : [{ role: 'about' as const }]),
           { type: 'separator' },
           { role: 'services' },
@@ -409,10 +379,8 @@ ipcMain.on('serial-port-selected', handleSerialPortSelected);
 // Handle cancellation
 ipcMain.on('serial-port-cancelled', handleSerialPortCancelled);
 
-// Sync theme from renderer for About window
-ipcMain.on('theme-changed', (_event, theme: 'light' | 'dark') => {
-  lastKnownTheme = theme;
-});
+// Sync theme from renderer (kept for potential future use)
+ipcMain.on('theme-changed', (_event, _theme: 'light' | 'dark') => {});
 
 // Handle firmware analysis request
 ipcMain.handle('analyze-firmware', handleAnalyzeFirmware);

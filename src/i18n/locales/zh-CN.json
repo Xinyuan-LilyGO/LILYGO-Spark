@@ -6,6 +6,7 @@
     "burner": "刷写工具",
     "firmware": "固件中心",
     "dumper": "固件提取工具",
+    "upload": "固件上传",
     "utilities": "固件高级工具",
     "settings": "设置"
   },
