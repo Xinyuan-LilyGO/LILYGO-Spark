@@ -12,6 +12,7 @@ A cross-platform firmware hub and burner for LILYGO and other ESP devices.
 |------|------|
 | `api_base_url` | 服务端 API 根地址（如上传、登录等） |
 | `firmware_manifest_url` | 默认固件清单的在线 URL |
+| `firmware_manifest_mirrors` | 可选，多地区 OSS 镜像 URL 数组，主地址失败时按序尝试（如联通网络访问香港 OSS 超时时可回退到大陆镜像） |
 | `oss_domain_prefix` | OSS 域名前缀（固件文件下载域名） |
 
 ### 配置加载顺序
@@ -29,6 +30,9 @@ A cross-platform firmware hub and burner for LILYGO and other ESP devices.
 {
   "api_base_url": "https://your-api.example.com",
   "firmware_manifest_url": "https://your-api.example.com/manifest/firmware_manifest.json",
+  "firmware_manifest_mirrors": [
+    "https://your-bucket.oss-cn-hangzhou.aliyuncs.com/firmware_manifest.json"
+  ],
   "oss_domain_prefix": "https://your-bucket.oss.region.aliyuncs.com"
 }
 ```
@@ -39,7 +43,8 @@ The application uses a JSON manifest to list available devices and firmware. The
 
 ### Manifest and images
 
-- **Local fallback**: If the remote manifest fails to load, the app falls back to a built-in `firmware_manifest.json`.
+- **Multi-region mirrors**: Configure `firmware_manifest_mirrors` in `lilygo_config.json` to add OSS URLs in other regions (e.g. mainland China). When the primary Hong Kong OSS times out (e.g. on some mobile carriers), the app will try mirrors in order.
+- **Local fallback**: If all remote URLs fail, the app falls back to a built-in `firmware_manifest.json`.
 - **Images**: Stored in `public/devices/`; in manifest use `"image_url": "devices/t-deck.jpg"`. For remote manifests, `image_url` can be full URLs.
 
 ## Development

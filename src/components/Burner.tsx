@@ -559,15 +559,15 @@ const Burner: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-900 text-white p-6 gap-6" onClick={() => {}}>
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white p-6 gap-6 transition-colors" onClick={() => {}}>
       {/* Mode Switcher */}
-      <div className="flex space-x-1 bg-slate-800 p-1 rounded-xl self-start border border-slate-700">
+      <div className="flex space-x-1 bg-slate-200 dark:bg-slate-800 p-1 rounded-xl self-start border border-slate-300 dark:border-slate-700">
           <button
               onClick={() => setMode('basic')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center ${
                   mode === 'basic' 
-                      ? 'bg-slate-700 text-white shadow-sm' 
-                      : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                      ? 'bg-slate-600 dark:bg-slate-700 text-white shadow-sm' 
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300 dark:hover:bg-slate-700/50'
               }`}
           >
               <FilePlus size={16} className="mr-2" />
@@ -577,8 +577,8 @@ const Burner: React.FC = () => {
               onClick={() => setMode('advanced')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center ${
                   mode === 'advanced' 
-                      ? 'bg-slate-700 text-white shadow-sm' 
-                      : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                      ? 'bg-slate-600 dark:bg-slate-700 text-white shadow-sm' 
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300 dark:hover:bg-slate-700/50'
               }`}
           >
               <Layers size={16} className="mr-2" />
@@ -587,17 +587,17 @@ const Burner: React.FC = () => {
       </div>
 
       {/* Header / Controls */}
-      <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end relative z-10">
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end relative z-10">
         
         <div className="relative" ref={portSelectRef}>
-          <label className="block text-sm font-medium text-slate-400 mb-1">{t('burner.label_port')}</label>
+          <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">{t('burner.label_port')}</label>
           <div className="flex gap-2">
             <button 
               onClick={handleSelectDeviceClick}
               className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-between border
                 ${port 
-                    ? 'bg-slate-700 hover:bg-slate-600 text-white border-slate-500' 
-                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-600'
+                    ? 'bg-slate-600 dark:bg-slate-700 hover:bg-slate-500 dark:hover:bg-slate-600 text-white border-slate-400 dark:border-slate-500' 
+                    : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600'
                 }`}
             >
               <span className="truncate">
@@ -611,7 +611,7 @@ const Burner: React.FC = () => {
 
           {/* Custom Port Selection Dropdown */}
           {isSelectingPort && !connected && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl overflow-hidden z-50 animate-fade-in-up w-[140%] min-w-[300px]">
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl shadow-2xl overflow-hidden z-50 animate-fade-in-up w-[140%] min-w-[300px]">
                   <div className="max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600">
                       {availablePorts.length === 0 ? (
                           <div className="p-4 text-center text-slate-500 text-sm">
@@ -622,7 +622,7 @@ const Burner: React.FC = () => {
                               <button
                                   key={p.portId}
                                   onClick={() => handlePortSelect(p.portId)}
-                                  className="w-full text-left p-3 hover:bg-slate-700 border-b border-slate-700/50 last:border-0 transition-colors group"
+                                  className="w-full text-left p-3 hover:bg-slate-100 dark:hover:bg-slate-700 border-b border-slate-200 dark:border-slate-700/50 last:border-0 transition-colors group"
                               >
                                   <div className="flex items-start gap-3">
                                       <div className={`mt-1 p-1.5 rounded-lg ${p.vendorId === '12346' ? 'bg-green-900/50 text-green-400' : 'bg-blue-900/50 text-blue-400'}`}>
@@ -630,7 +630,7 @@ const Burner: React.FC = () => {
                                       </div>
                                       <div className="flex-1 min-w-0">
                                           <div className="flex justify-between items-center mb-0.5">
-                                              <span className="font-semibold text-sm text-slate-200 truncate pr-2">
+                                              <span className="font-semibold text-sm text-slate-800 dark:text-slate-200 truncate pr-2">
                                                   {p.displayName || p.portName}
                                               </span>
                                               {p.vendorId === '12346' && (
@@ -885,7 +885,7 @@ const Burner: React.FC = () => {
       )}
 
       {/* Action Bar */}
-      <div className="flex items-center justify-between bg-slate-800 p-4 rounded-xl border border-slate-700">
+      <div className="flex items-center justify-between bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
         <div className="flex items-center gap-4 flex-1 mr-8">
             <span className="text-sm font-medium text-slate-400">Status:</span>
             <span className={`text-sm font-bold ${status === 'success' ? 'text-emerald-400' : status === 'error' ? 'text-red-400' : 'text-white'}`}>

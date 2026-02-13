@@ -35,9 +35,15 @@
       "zh-CN": "简体中文",
       "zh-TW": "繁體中文",
       "ja": "日本語"
+    },
+    "theme": "主题",
+    "theme_options": {
+      "system": "跟随系统",
+      "light": "浅色",
+      "dark": "深色"
     }
   },
-    "burner": {
+  "burner": {
     "welcome": "欢迎使用 LILYGO Spark！",
     "mode_basic": "基础模式",
     "mode_advanced": "专业模式",

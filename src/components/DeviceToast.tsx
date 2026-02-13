@@ -89,7 +89,7 @@ const DeviceToast = () => {
       <div className="flex justify-end pointer-events-auto mb-1">
         <button 
           onClick={clearAll}
-          className="flex items-center space-x-1 text-xs text-slate-400 hover:text-white bg-slate-800/80 px-2 py-1 rounded shadow-sm backdrop-blur-sm transition-colors"
+          className="flex items-center space-x-1 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-white/90 dark:bg-slate-800/80 px-2 py-1 rounded shadow-sm backdrop-blur-sm transition-colors border border-slate-200 dark:border-transparent"
         >
           <Trash2 size={12} />
           <span>{t('device_toast.clear_all')}</span>
@@ -97,11 +97,11 @@ const DeviceToast = () => {
       </div>
 
       {/* Scrollable Notification List */}
-      <div className="flex-1 overflow-y-auto flex flex-col gap-3 pr-1 pb-2 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent">
+      <div className="flex-1 overflow-y-auto flex flex-col gap-3 pr-1 pb-2 scrollbar-thin scrollbar-thumb-slate-400 dark:scrollbar-thumb-slate-600 scrollbar-track-transparent">
         {notifications.map((device) => (
           <div 
             key={device.id}
-            className="pointer-events-auto bg-slate-800 border border-slate-600 rounded-lg shadow-xl p-3 flex items-start space-x-3 text-slate-100 animate-fade-in-left shrink-0"
+            className="pointer-events-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl p-3 flex items-start space-x-3 text-slate-900 dark:text-slate-100 animate-fade-in-left shrink-0"
           >
             <div className="bg-blue-600 p-2 rounded-full mt-1 shrink-0">
               {device.type === 'web-serial' ? <Usb size={18} /> : <Cpu size={18} />}
@@ -112,16 +112,16 @@ const DeviceToast = () => {
                 <h3 className="font-semibold text-sm truncate pr-2">{t('device_toast.new_device')}</h3>
                 <button 
                   onClick={() => removeNotification(device.id)} 
-                  className="text-slate-400 hover:text-white shrink-0"
+                  className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white shrink-0"
                 >
                   <X size={14} />
                 </button>
               </div>
               
-              <div className="mt-1 text-xs text-slate-400 space-y-1">
+              <div className="mt-1 text-xs text-slate-500 dark:text-slate-400 space-y-1">
                 <div className="flex items-center justify-between">
                   {device.port ? (
-                    <span className="font-mono bg-slate-900 px-1.5 py-0.5 rounded text-[10px] truncate max-w-[120px]" title={device.port}>
+                    <span className="font-mono bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded text-[10px] truncate max-w-[120px] text-slate-700 dark:text-slate-300" title={device.port}>
                       {device.port}
                     </span>
                   ) : <span></span>}

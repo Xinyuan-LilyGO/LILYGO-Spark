@@ -186,15 +186,15 @@ const BurnerModal: React.FC<BurnerModalProps> = ({ file, onClose }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-slate-800 rounded-xl border border-slate-700 shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
                 {/* Header */}
-                <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50 rounded-t-xl">
-                    <h3 className="text-lg font-bold text-white flex items-center">
+                <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-100 dark:bg-slate-900/50 rounded-t-xl">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center">
                         <Zap className="mr-2 text-emerald-400" size={20} />
                         Flash Firmware
                     </h3>
-                    <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+                    <button onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
                         <X size={20} />
                     </button>
                 </div>
@@ -202,9 +202,9 @@ const BurnerModal: React.FC<BurnerModalProps> = ({ file, onClose }) => {
                 {/* Content */}
                 <div className="p-6 space-y-6 overflow-y-auto">
                     {/* File Info */}
-                    <div className="bg-slate-700/30 p-3 rounded-lg border border-slate-600/50">
-                        <div className="text-sm text-slate-300 font-medium mb-1">Target Firmware:</div>
-                        <div className="text-xs font-mono text-slate-400 break-all">{file.fileName}</div>
+                    <div className="bg-slate-100 dark:bg-slate-700/30 p-3 rounded-lg border border-slate-200 dark:border-slate-600/50">
+                        <div className="text-sm text-slate-700 dark:text-slate-300 font-medium mb-1">Target Firmware:</div>
+                        <div className="text-xs font-mono text-slate-600 dark:text-slate-400 break-all">{file.fileName}</div>
                         <div className="text-[10px] font-mono text-slate-500 mt-1">SHA256: {file.sha256}</div>
                     </div>
 

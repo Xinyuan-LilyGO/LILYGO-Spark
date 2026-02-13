@@ -229,9 +229,9 @@ const FirmwareUtilities: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-900 text-white p-6 gap-6">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white p-6 gap-6 transition-colors">
       {/* Tool Switcher */}
-      <div className="flex space-x-1 bg-slate-800 p-1 rounded-xl self-start border border-slate-700">
+      <div className="flex space-x-1 bg-slate-200 dark:bg-slate-800 p-1 rounded-xl self-start border border-slate-300 dark:border-slate-700">
           <button
               onClick={() => setActiveTool('analyzer')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center ${
@@ -270,7 +270,7 @@ const FirmwareUtilities: React.FC = () => {
       {activeTool === 'analyzer' && (
         <div className="flex-1 flex flex-col gap-6 overflow-auto">
             {/* Analysis Controls */}
-            <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
+            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg">
                 <div className="flex gap-4 items-center">
                     <input 
                         type="file" 

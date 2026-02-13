@@ -7,6 +7,8 @@ const REQUIRED_KEYS = ['api_base_url', 'firmware_manifest_url', 'oss_domain_pref
 export interface LilygoConfig {
   api_base_url: string;
   firmware_manifest_url: string;
+  /** 可选：多地区 OSS 镜像 URL 列表，主地址失败时按序尝试 */
+  firmware_manifest_mirrors?: string[];
   oss_domain_prefix: string;
 }
 
@@ -60,6 +62,11 @@ function loadMergedConfig(): LilygoConfig {
     }
     result[key] = merged[key] as string;
   }
+  // 可选：多地区 manifest 镜像
+  const mirrorsRaw = merged.firmware_manifest_mirrors;
+  if (Array.isArray(mirrorsRaw)) {
+    result.firmware_manifest_mirrors = mirrorsRaw.filter((u): u is string => typeof u === 'string' && u.trim().length > 0);
+  }
   return result;
 }
 
@@ -71,21 +78,61 @@ function getConfig(): LilygoConfig {
   return cachedConfig;
 }
 
+const FETCH_TIMEOUT_MS = 30000; // 30 秒，应对慢速网络/跨境访问
+const FETCH_RETRIES = 3;
+
+async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'Accept': 'application/json' },
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function tryFetchManifest(url: string, label: string): Promise<unknown | null> {
+  for (let attempt = 1; attempt <= FETCH_RETRIES; attempt++) {
+    try {
+      const response = await fetchWithTimeout(url, FETCH_TIMEOUT_MS);
+      if (response.ok) {
+        return await response.json();
+      }
+      console.warn(`[${label}] HTTP ${response.status} (attempt ${attempt}/${FETCH_RETRIES})`);
+    } catch (error) {
+      const err = error as Error & { code?: string; cause?: { code?: string } };
+      const isTimeout = err?.name === 'AbortError' || err?.code === 'UND_ERR_CONNECT_TIMEOUT' || err?.cause?.code === 'UND_ERR_CONNECT_TIMEOUT';
+      console.warn(`[${label}] ${isTimeout ? '连接超时' : '请求失败'} (attempt ${attempt}/${FETCH_RETRIES})`);
+      if (attempt < FETCH_RETRIES) {
+        await new Promise((r) => setTimeout(r, 1000 * attempt));
+      }
+    }
+  }
+  return null;
+}
+
 export function setupConfigHandler() {
   ipcMain.handle('get-firmware-manifest', async () => {
     const config = getConfig();
-    const manifestUrl = config.firmware_manifest_url.trim();
+    const primaryUrl = config.firmware_manifest_url.trim();
+    const mirrors = config.firmware_manifest_mirrors ?? [];
 
-    try {
-      const response = await fetch(manifestUrl);
-      if (response.ok) {
-        const data = await response.json();
+    const urlsToTry = [primaryUrl, ...mirrors];
+    for (let i = 0; i < urlsToTry.length; i++) {
+      const url = urlsToTry[i].trim();
+      if (!url) continue;
+      const label = i === 0 ? '主地址' : `镜像${i}`;
+      const data = await tryFetchManifest(url, label);
+      if (data != null) {
+        if (i > 0) console.log(`[Manifest] 使用 ${label} 成功: ${url}`);
         return data;
       }
-      console.warn(`Failed to fetch manifest: ${response.status} ${response.statusText}`);
-    } catch (error) {
-      console.error('Error fetching remote manifest:', error);
     }
+    console.error('所有 manifest 地址均失败，主地址及', mirrors.length, '个镜像');
 
     let localManifestPath = '';
     if (app.isPackaged) {

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, dialog, nativeImage } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, dialog, nativeImage, nativeTheme } from 'electron'
 import path from 'node:path'
 
 // Set app name for "Open with" dialog when handling lilygo-spark:// deep links
@@ -48,11 +48,16 @@ function registerProtocol() {
 }
 registerProtocol()
 
-/** Dev-only: show custom About window with logo, mimicking macOS native About */
+let lastKnownTheme: 'light' | 'dark' = nativeTheme.shouldUseDarkColors ? 'dark' : 'light'
+
+/** Dev-only: show custom About window with logo, light/dark styles */
 function showAboutWindow(parent: BrowserWindow, publicPath: string) {
+  const isDark = lastKnownTheme === 'dark'
   const logoPath = path.join(publicPath, 'LILYGO.png')
   const icon = nativeImage.createFromPath(logoPath)
   const iconDataUrl = icon.isEmpty() ? '' : icon.resize({ width: 128, height: 128 }).toDataURL()
+  const lightStyles = 'body{background:#d1d1d6;}h1,.version,p{color:#1c1c1e;} .version,p{color:#636366;}button{color:#0a84ff;}button:hover{background:rgba(10,132,255,0.15);}'
+  const darkStyles = 'body{background:#1e293b;}h1{color:#f1f5f9;}.version,p{color:#94a3b8;}button{color:#60a5fa;}button:hover{background:rgba(96,165,250,0.2);}'
   const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8">
@@ -61,7 +66,6 @@ function showAboutWindow(parent: BrowserWindow, publicPath: string) {
   html, body { height: 100%; overflow: hidden; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: #d1d1d6;
     -webkit-app-region: drag;
     padding: 28px 40px 20px;
     text-align: center;
@@ -69,23 +73,23 @@ function showAboutWindow(parent: BrowserWindow, publicPath: string) {
     display: flex;
     flex-direction: column;
     align-items: center;
+    transition: background 0.2s;
   }
   img { width: 96px; height: 96px; margin-bottom: 12px; -webkit-app-region: no-drag; flex-shrink: 0; }
-  h1 { font-size: 20px; font-weight: 600; color: #1c1c1e; margin-bottom: 2px; letter-spacing: -0.5px; }
-  .version { font-size: 12px; color: #636366; margin-bottom: 12px; }
-  p { font-size: 11px; color: #636366; line-height: 1.4; margin-bottom: 16px; }
+  h1 { font-size: 20px; font-weight: 600; margin-bottom: 2px; letter-spacing: -0.5px; }
+  .version { font-size: 12px; margin-bottom: 12px; }
+  p { font-size: 11px; line-height: 1.4; margin-bottom: 16px; }
   button {
     -webkit-app-region: no-drag;
     padding: 6px 24px;
     font-size: 13px;
     font-weight: 500;
-    color: #0a84ff;
     background: transparent;
     border: none;
     cursor: pointer;
     border-radius: 4px;
   }
-  button:hover { background: rgba(10,132,255,0.15); }
+  ${isDark ? darkStyles : lightStyles}
 </style>
 </head>
 <body>
@@ -106,7 +110,7 @@ function showAboutWindow(parent: BrowserWindow, publicPath: string) {
     maximizable: false,
     show: false,
     titleBarStyle: 'hidden',
-    backgroundColor: '#f6f6f6',
+    backgroundColor: isDark ? '#1e293b' : '#d1d1d6',
     webPreferences: { nodeIntegration: false, contextIsolation: true }
   })
   aboutWin.setMenu(null)
@@ -404,6 +408,11 @@ ipcMain.on('serial-port-selected', handleSerialPortSelected);
 
 // Handle cancellation
 ipcMain.on('serial-port-cancelled', handleSerialPortCancelled);
+
+// Sync theme from renderer for About window
+ipcMain.on('theme-changed', (_event, theme: 'light' | 'dark') => {
+  lastKnownTheme = theme;
+});
 
 // Handle firmware analysis request
 ipcMain.handle('analyze-firmware', handleAnalyzeFirmware);
