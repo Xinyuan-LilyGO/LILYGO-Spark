@@ -8,7 +8,22 @@
         "burner": "Firmware Burner",
         "upload": "Upload",
         "utilities": "Firmware Utilities",
-        "settings": "Settings"
+        "settings": "Settings",
+        "community": "LILYGO Community",
+        "lilygo_related": "LILYGO Related"
+    },
+    "community": {
+        "title": "LILYGO Related",
+        "subtitle": "Official site, GitHub, Wiki, Taobao, AliExpress, Community",
+        "open_external": "Open in Browser",
+        "links": {
+            "official": "LILYGO Official Website",
+            "github": "LILYGO GitHub",
+            "wiki": "LILYGO Wiki",
+            "taobao": "LILYGO Taobao Store",
+            "aliexpress": "LILYGO AliExpress Store",
+            "community": "LILYGO Community Forum"
+        }
     },
     "settings": {
         "title": "Settings",

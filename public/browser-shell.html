@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-src *; object-src 'none'; base-uri 'self'">
+  <title>LILYGO Spark - Browser</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; height: 100vh; display: flex; flex-direction: column; background: #0f172a; color: #e2e8f0; }
+    .toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #1e293b; border-bottom: 1px solid #334155; flex-shrink: 0; }
+    .toolbar button { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: none; border-radius: 8px; background: #334155; color: #94a3b8; cursor: pointer; transition: all 0.2s; }
+    .toolbar button:hover:not(:disabled) { background: #475569; color: #f1f5f9; }
+    .toolbar button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .toolbar button.open-external { width: auto; padding: 0 14px; gap: 6px; font-size: 13px; }
+    .url-bar { flex: 1; min-width: 0; height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; font-size: 13px; font-family: ui-monospace, monospace; }
+    .url-bar:focus { outline: none; border-color: #6366f1; }
+    .url-bar::placeholder { color: #64748b; }
+    webview { flex: 1; min-height: 0; }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button id="back" title="Back" disabled>←</button>
+    <button id="forward" title="Forward" disabled>→</button>
+    <button id="refresh" title="Refresh">⟳</button>
+    <input type="text" id="url" class="url-bar" placeholder="" spellcheck="false" />
+    <button id="go" title="Go">Go</button>
+    <button id="open-external" class="open-external" title="">↗ <span id="open-external-label">Open in Browser</span></button>
+  </div>
+  <webview id="wv" allowpopups="yes"></webview>
+
+  <script>
+    (function() {
+      const params = new URLSearchParams(window.location.search);
+      const initialUrl = params.get('url') || 'about:blank';
+
+      const lang = (navigator.language || navigator.userLanguage || '').toLowerCase();
+      const t = {
+        placeholder: lang.startsWith('zh') ? '输入网址或按 Enter 跳转' : 'Enter URL or press Enter',
+        openExternal: lang.startsWith('zh') ? '在系统浏览器中打开' : 'Open in Browser',
+      };
+      document.getElementById('url').placeholder = t.placeholder;
+      const openLabel = document.getElementById('open-external-label');
+      if (openLabel) openLabel.textContent = t.openExternal;
+      document.getElementById('open-external').title = t.openExternal;
+
+      const wv = document.getElementById('wv');
+      const urlInput = document.getElementById('url');
+      const backBtn = document.getElementById('back');
+      const forwardBtn = document.getElementById('forward');
+      const refreshBtn = document.getElementById('refresh');
+      const goBtn = document.getElementById('go');
+      const openExternalBtn = document.getElementById('open-external');
+
+      wv.src = initialUrl;
+      urlInput.value = initialUrl;
+
+      wv.addEventListener('did-start-loading', () => { refreshBtn.textContent = '⋯'; });
+      wv.addEventListener('did-stop-loading', () => { refreshBtn.textContent = '⟳'; });
+
+      wv.addEventListener('did-navigate', (e) => {
+        urlInput.value = e.url;
+        updateNavButtons();
+      });
+      wv.addEventListener('did-navigate-in-page', (e) => {
+        urlInput.value = e.url;
+        updateNavButtons();
+      });
+
+      function updateNavButtons() {
+        backBtn.disabled = !wv.canGoBack();
+        forwardBtn.disabled = !wv.canGoForward();
+      }
+      wv.addEventListener('did-navigate', updateNavButtons);
+      wv.addEventListener('did-navigate-in-page', updateNavButtons);
+
+      backBtn.onclick = () => wv.goBack();
+      forwardBtn.onclick = () => wv.goForward();
+      refreshBtn.onclick = () => wv.reload();
+
+      function navigate() {
+        let url = urlInput.value.trim();
+        if (!url) return;
+        if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+        wv.src = url;
+      }
+      goBtn.onclick = navigate;
+      urlInput.onkeydown = (e) => { if (e.key === 'Enter') navigate(); };
+
+      openExternalBtn.onclick = () => {
+        const url = wv.getURL();
+        if (url && url !== 'about:blank' && window.ipcRenderer) {
+          window.ipcRenderer.invoke('open-external', url);
+        }
+      };
+    })();
+  </script>
+</body>
+</html>

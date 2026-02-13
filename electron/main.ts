@@ -421,13 +421,29 @@ ipcMain.handle('open-external', handleOpenExternal);
 // 6. Open URL (external browser or internal window)
 ipcMain.handle('open-url', async (_event, url: string, mode: 'external' | 'internal' = 'external') => {
   if (mode === 'internal') {
+    const isDev = !app.isPackaged && process.env.VITE_DEV_SERVER_URL !== undefined;
+    const distPath = path.join(__dirname, '../dist');
+    const preloadPath = path.join(__dirname, 'preload.js');
+    const shellPath = path.join(distPath, 'browser-shell.html');
+
     const child = new BrowserWindow({
       parent: win ?? undefined,
-      width: 1000,
-      height: 700,
-      webPreferences: { nodeIntegration: false, contextIsolation: true },
+      width: 1100,
+      height: 750,
+      minWidth: 600,
+      minHeight: 400,
+      webPreferences: {
+        preload: preloadPath,
+        nodeIntegration: false,
+        contextIsolation: true,
+        webviewTag: true,
+      },
     });
-    await child.loadURL(url);
+    if (isDev) {
+      await child.loadURL(`${process.env.VITE_DEV_SERVER_URL}/browser-shell.html?url=${encodeURIComponent(url)}`);
+    } else {
+      await child.loadFile(shellPath, { query: { url } });
+    }
     child.on('closed', () => { child.destroy(); });
   } else {
     await shell.openExternal(url);

@@ -8,7 +8,22 @@
     "dumper": "韌體提取工具",
     "upload": "韌體上傳",
     "utilities": "韌體高級工具",
-    "settings": "設置"
+    "settings": "設置",
+    "community": "LILYGO 社區",
+    "lilygo_related": "LILYGO 相關"
+  },
+  "community": {
+    "title": "LILYGO 相關",
+    "subtitle": "官網、GitHub、Wiki、淘寶、AliExpress、社區論壇",
+    "open_external": "在瀏覽器中開啟",
+    "links": {
+      "official": "LILYGO 官方網站",
+      "github": "LILYGO GitHub",
+      "wiki": "LILYGO Wiki",
+      "taobao": "LILYGO 淘寶店",
+      "aliexpress": "LILYGO AliExpress 店鋪",
+      "community": "LILYGO 社區論壇"
+    }
   },
   "utilities": {
     "analyzer": "韌體分析器",

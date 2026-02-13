@@ -8,7 +8,22 @@
     "dumper": "固件提取工具",
     "upload": "固件上传",
     "utilities": "固件高级工具",
-    "settings": "设置"
+    "settings": "设置",
+    "community": "LILYGO 社区",
+    "lilygo_related": "LILYGO 相关"
+  },
+  "community": {
+    "title": "LILYGO 相关",
+    "subtitle": "官网、GitHub、Wiki、淘宝、AliExpress、社区论坛",
+    "open_external": "在浏览器中打开",
+    "links": {
+      "official": "LILYGO 官方网站",
+      "github": "LILYGO GitHub",
+      "wiki": "LILYGO Wiki",
+      "taobao": "LILYGO 淘宝店",
+      "aliexpress": "LILYGO AliExpress 店铺",
+      "community": "LILYGO 社区论坛"
+    }
   },
   "utilities": {
     "analyzer": "固件分析器",

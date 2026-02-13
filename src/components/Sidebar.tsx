@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Settings, Zap, LayoutGrid, Download, Wrench, Github, LogOut, Upload, Compass } from 'lucide-react';
+import { Settings, Zap, LayoutGrid, Download, Wrench, Github, LogOut, Upload, Compass, Users } from 'lucide-react';
 
 interface AuthUser {
   login: string;
@@ -39,6 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
     { id: 'upload', icon: Upload, label: t('nav.upload') },
     { id: 'dumper', icon: Download, label: t('nav.dumper') },
     { id: 'utilities', icon: Wrench, label: t('nav.utilities') },
+    { id: 'community', icon: Users, label: t('nav.lilygo_related') },
     { id: 'settings', icon: Settings, label: t('nav.settings') },
   ];
 

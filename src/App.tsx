@@ -8,6 +8,7 @@ import FirmwareCommunity from './components/FirmwareCommunity'
 import FirmwareDumper from './components/FirmwareDumper'
 import FirmwareUtilities from './components/FirmwareUtilities'
 import FirmwareUpload from './components/FirmwareUpload'
+import LilygoCommunity from './components/LilygoCommunity'
 
 const AUTH_STORAGE_KEY = 'lilygo_auth';
 
@@ -81,6 +82,10 @@ function App() {
         {/* Tab Content */}
         {activeTab === 'discovery' && (
              <Discovery />
+        )}
+
+        {activeTab === 'community' && (
+             <LilygoCommunity />
         )}
 
         {activeTab === 'burner' && (
