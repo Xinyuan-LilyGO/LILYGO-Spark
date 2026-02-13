@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, dialog } from 'electron'
 import path from 'node:path'
 import { DeviceDetector, DeviceDetectionConfig } from './device-detector'
 import { setupConfigHandler } from './config-handler'
@@ -11,6 +11,10 @@ import {
     handleSerialPortCancelled, 
     handleSerialPortSelected, 
     handleWriteSerial,
+    handleDownloadFirmware,
+    handleRemoveFile,
+    handleFlashFirmwareNative,
+    handleSaveFile,
     getEnhancedPortList,
     setSerialPortCallback,
     checkBluetoothPermission
@@ -298,8 +302,16 @@ function createWindow() {
   // Check Bluetooth Permission on macOS
   checkBluetoothPermission(win);
 
+  try {
+    setupConfigHandler();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    dialog.showErrorBox('读取配置文件错误', msg);
+    app.quit();
+    return;
+  }
+
   // Initialize Device Detector
-  setupConfigHandler();
   deviceDetector = new DeviceDetector(win, deviceDetectionConfig);
   deviceDetector.start();
   
@@ -319,6 +331,18 @@ ipcMain.on('serial-port-cancelled', handleSerialPortCancelled);
 
 // Handle firmware analysis request
 ipcMain.handle('analyze-firmware', handleAnalyzeFirmware);
+
+// Handle firmware download
+ipcMain.handle('download-firmware', handleDownloadFirmware);
+
+// Handle file remove
+ipcMain.handle('remove-file', handleRemoveFile);
+
+// Handle native firmware flashing
+ipcMain.handle('flash-firmware-native', handleFlashFirmwareNative);
+
+// Handle file save
+ipcMain.handle('save-file', handleSaveFile);
 
 // ------------------------------
 // Custom Serial Console Handlers

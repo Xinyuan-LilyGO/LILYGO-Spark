@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, ChevronRight, Layers, Github } from 'lucide-react';
+import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, ChevronRight, Layers, Github, Save, Trash2, Zap } from 'lucide-react';
+import BurnerModal from './BurnerModal';
 
 interface ProductVariant {
   product_id: string;
@@ -41,12 +42,33 @@ interface Manifest {
   firmware_list: Firmware[];
 }
 
-const FirmwareCommunity: React.FC = () => {
+interface FirmwareCommunityProps {
+  onSelectFirmware?: (url: string) => void;
+}
+
+interface DownloadedFile {
+    url: string;
+    path: string;
+    md5: string;
+    sha256: string;
+    fileName: string;
+}
+
+const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware: _onSelectFirmware }) => {
   const [manifest, setManifest] = useState<Manifest>({ product_list: [], firmware_list: [] });
   const [loading, setLoading] = useState(true);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedSeries, setExpandedSeries] = useState<Set<string>>(new Set());
+  
+  // Download state per firmware URL
+  const [downloading, setDownloading] = useState<Record<string, boolean>>({});
+  const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({});
+  const [downloadedFiles, setDownloadedFiles] = useState<Record<string, DownloadedFile>>({});
+  
+  // Burner Modal State
+  const [burnerModalOpen, setBurnerModalOpen] = useState(false);
+  const [fileToBurn, setFileToBurn] = useState<DownloadedFile | null>(null);
 
   const loadManifest = async () => {
     setLoading(true);
@@ -147,8 +169,98 @@ const FirmwareCommunity: React.FC = () => {
     }
   }, [searchQuery]);
 
+  const handleDownload = async (fw: Firmware) => {
+      if (downloading[fw.download_url]) return;
+      
+      setDownloading(prev => ({ ...prev, [fw.download_url]: true }));
+      setDownloadProgress(prev => ({ ...prev, [fw.download_url]: 0 }));
+
+      try {
+          if (window.ipcRenderer) {
+              const progressHandler = (_event: any, { percent }: { percent: number }) => {
+                  setDownloadProgress(prev => ({ ...prev, [fw.download_url]: percent }));
+              };
+              window.ipcRenderer.on('download-progress', progressHandler);
+
+              const result = await window.ipcRenderer.invoke('download-firmware', fw.download_url);
+              
+              window.ipcRenderer.off('download-progress', progressHandler);
+
+              if (result.success) {
+                  // Verify Hash if provided
+                  if (fw.hash_md5 && result.md5.toLowerCase() !== fw.hash_md5.toLowerCase()) {
+                      alert(`Hash mismatch! Expected: ${fw.hash_md5}, Got: ${result.md5}`);
+                      // Optional: remove file?
+                  } else {
+                      setDownloadedFiles(prev => ({
+                          ...prev,
+                          [fw.download_url]: {
+                              url: fw.download_url,
+                              path: result.path,
+                              md5: result.md5,
+                              sha256: result.sha256,
+                              fileName: result.fileName
+                          }
+                      }));
+                  }
+              } else {
+                  alert(`Download failed: ${result.error}`);
+              }
+          }
+      } catch (e: any) {
+          console.error(e);
+          alert(`Download error: ${e.message}`);
+      } finally {
+          setDownloading(prev => ({ ...prev, [fw.download_url]: false }));
+      }
+  };
+
+  const handleRemove = async (url: string) => {
+      const file = downloadedFiles[url];
+      if (!file) return;
+      
+      if (window.ipcRenderer) {
+          await window.ipcRenderer.invoke('remove-file', file.path);
+          setDownloadedFiles(prev => {
+              const next = { ...prev };
+              delete next[url];
+              return next;
+          });
+          setDownloadProgress(prev => {
+              const next = { ...prev };
+              delete next[url];
+              return next;
+          });
+      }
+  };
+
+  const handleSaveAs = async (url: string) => {
+      const file = downloadedFiles[url];
+      if (!file) return;
+      
+      if (window.ipcRenderer) {
+          await window.ipcRenderer.invoke('save-file', file.fileName, file.path);
+      }
+  };
+
+  const handleBurnClick = (url: string) => {
+      const file = downloadedFiles[url];
+      if (file) {
+          setFileToBurn(file);
+          setBurnerModalOpen(true);
+      }
+  };
+
   return (
-    <div className="flex h-full bg-slate-900 text-slate-100 overflow-hidden">
+    <div className="flex h-full bg-slate-900 text-slate-100 overflow-hidden relative">
+      {/* Burner Modal */}
+      {burnerModalOpen && fileToBurn && (
+          <BurnerModal 
+              file={fileToBurn} 
+              onClose={() => setBurnerModalOpen(false)} 
+          />
+      )}
+
       {/* Left Column: Device List */}
       <div className="w-[36%] min-w-[375px] max-w-[500px] border-r border-slate-700 flex flex-col bg-slate-800/50">
         <div className="p-4 border-b border-slate-700">
@@ -339,47 +451,84 @@ const FirmwareCommunity: React.FC = () => {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 gap-4">
-                        {relatedFirmwares.map((fw, idx) => (
-                            <div key={idx} className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 hover:border-blue-500/50 transition-colors group">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex-1">
-                                        <div className="flex items-center space-x-3 mb-1">
-                                            <h4 className="text-lg font-medium text-slate-200">{fw.name}</h4>
-                                            <span className={`text-xs px-2 py-0.5 rounded-full border ${
-                                                fw.type === 'factory' ? 'bg-green-900/30 text-green-400 border-green-800' :
-                                                fw.type === 'micropython' ? 'bg-yellow-900/30 text-yellow-400 border-yellow-800' :
-                                                'bg-blue-900/30 text-blue-400 border-blue-800'
-                                            }`}>
-                                                {fw.type.toUpperCase()}
-                                            </span>
+                        {relatedFirmwares.map((fw, idx) => {
+                            const isDownloaded = !!downloadedFiles[fw.download_url];
+                            const isDownloading = downloading[fw.download_url];
+                            const progress = downloadProgress[fw.download_url] || 0;
+
+                            return (
+                                <div key={idx} className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 hover:border-blue-500/50 transition-colors group">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex-1">
+                                            <div className="flex items-center space-x-3 mb-1">
+                                                <h4 className="text-lg font-medium text-slate-200">{fw.name}</h4>
+                                                <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                                                    fw.type === 'factory' ? 'bg-green-900/30 text-green-400 border-green-800' :
+                                                    fw.type === 'micropython' ? 'bg-yellow-900/30 text-yellow-400 border-yellow-800' :
+                                                    'bg-blue-900/30 text-blue-400 border-blue-800'
+                                                }`}>
+                                                    {fw.type.toUpperCase()}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm text-slate-400 mb-2">{fw.description}</p>
+                                            <div className="flex items-center space-x-4 text-xs text-slate-500 font-mono">
+                                                <span>Ver: {fw.version}</span>
+                                                {fw.filename && <span>File: {fw.filename}</span>}
+                                            </div>
                                         </div>
-                                        <p className="text-sm text-slate-400 mb-2">{fw.description}</p>
-                                        <div className="flex items-center space-x-4 text-xs text-slate-500 font-mono">
-                                            <span>Ver: {fw.version}</span>
-                                            {fw.filename && <span>File: {fw.filename}</span>}
+                                        
+                                        <div className="flex items-center gap-2">
+                                            {isDownloading ? (
+                                                <div className="flex flex-col items-end min-w-[120px]">
+                                                    <div className="text-xs text-blue-400 mb-1">Downloading {progress}%</div>
+                                                    <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                                                        <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${progress}%` }} />
+                                                    </div>
+                                                </div>
+                                            ) : isDownloaded ? (
+                                                <div className="flex items-center gap-2">
+                                                    <button 
+                                                        onClick={() => handleRemove(fw.download_url)}
+                                                        className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
+                                                        title="Remove Download"
+                                                    >
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleSaveAs(fw.download_url)}
+                                                        className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+                                                        title="Save As..."
+                                                    >
+                                                        <Save size={18} />
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleBurnClick(fw.download_url)}
+                                                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg flex items-center shadow-lg shadow-emerald-900/20 transition-all active:scale-95"
+                                                    >
+                                                        <Zap size={18} className="mr-2" />
+                                                        Burn
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button 
+                                                    className="ml-4 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg flex items-center shadow-lg shadow-blue-900/20 transition-all active:scale-95"
+                                                    onClick={() => handleDownload(fw)}
+                                                >
+                                                    <Download size={18} className="mr-2" />
+                                                    Download
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
-                                    
-                                    <button 
-                                        className="ml-4 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg flex items-center shadow-lg shadow-blue-900/20 transition-all active:scale-95"
-                                        onClick={() => {
-                                            // Handle download/flash logic here
-                                            console.log('Download', fw.download_url);
-                                            alert(`Coming soon: Auto-download ${fw.filename}`);
-                                        }}
-                                    >
-                                        <Download size={18} className="mr-2" />
-                                        Flash / Download
-                                    </button>
+                                    {fw.release_note && (
+                                        <div className="mt-3 pt-3 border-t border-slate-700/50 text-sm text-slate-400">
+                                            <span className="text-slate-500 font-semibold mr-2">Note:</span>
+                                            {fw.release_note}
+                                        </div>
+                                    )}
                                 </div>
-                                {fw.release_note && (
-                                    <div className="mt-3 pt-3 border-t border-slate-700/50 text-sm text-slate-400">
-                                        <span className="text-slate-500 font-semibold mr-2">Note:</span>
-                                        {fw.release_note}
-                                    </div>
-                                )}
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>

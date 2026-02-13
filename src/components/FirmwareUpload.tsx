@@ -38,16 +38,13 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token }) => {
     formData.append('file', file);
 
     try {
-      // API endpoint - fetch from Electron config or use default
-      let API_URL = 'https://lilygo-api.bytecode.fun';
+      let API_URL: string;
       if (window.ipcRenderer) {
-          try {
-              API_URL = await window.ipcRenderer.invoke('get-api-base-url');
-          } catch (e) {
-              console.warn('Failed to get API URL from main process, using default', e);
-          }
+        API_URL = await window.ipcRenderer.invoke('get-api-base-url');
+      } else {
+        throw new Error('无法获取 API 地址：请在 Electron 环境中运行，并配置 lilygo_config.json 中的 api_base_url');
       }
-      
+
       const response = await fetch(`${API_URL}/upload/firmware`, {
         method: 'POST',
         headers: {

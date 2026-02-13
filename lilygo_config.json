@@ -1,0 +1,5 @@
+{
+  "api_base_url": "https://lilygo-api.bytecode.fun",
+  "firmware_manifest_url": "https://lilygo.oss-cn-hongkong.aliyuncs.com/firmware_manifest.json",
+  "oss_domain_prefix": "https://lilygo.oss-cn-hongkong.aliyuncs.com"
+}

@@ -2,101 +2,127 @@ import { app, ipcMain } from 'electron';
 import path from 'path';
 import fs from 'fs';
 
-interface Config {
-  firmware_manifest_url?: string;
-  auth_api_base_url?: string;
+const REQUIRED_KEYS = ['api_base_url', 'firmware_manifest_url', 'oss_domain_prefix'] as const;
+
+export interface LilygoConfig {
+  api_base_url: string;
+  firmware_manifest_url: string;
+  oss_domain_prefix: string;
+}
+
+function isNonEmptyString(v: unknown): v is string {
+  return typeof v === 'string' && v.trim().length > 0;
+}
+
+function loadJsonIfExists(filePath: string): Record<string, unknown> | null {
+  try {
+    if (fs.existsSync(filePath)) {
+      const raw = fs.readFileSync(filePath, 'utf-8');
+      const data = JSON.parse(raw);
+      return data && typeof data === 'object' ? data : null;
+    }
+  } catch (e) {
+    console.error('Error reading config file:', filePath, e);
+  }
+  return null;
+}
+
+function getBundledConfigPath(): string {
+  return path.join(app.getAppPath(), 'lilygo_config.json');
+}
+
+function loadMergedConfig(): LilygoConfig {
+  const bundledPath = getBundledConfigPath();
+  let merged: Record<string, unknown> = {};
+
+  const bundled = loadJsonIfExists(bundledPath);
+  if (bundled) {
+    merged = { ...bundled };
+  }
+
+  const userDataPath = app.getPath('userData');
+  const userConfigPath = path.join(userDataPath, 'lilygo_config.json');
+  const userConfig = loadJsonIfExists(userConfigPath);
+  if (userConfig) {
+    merged = { ...merged, ...userConfig };
+  }
+
+  const result: LilygoConfig = {
+    api_base_url: '',
+    firmware_manifest_url: '',
+    oss_domain_prefix: '',
+  };
+  for (const key of REQUIRED_KEYS) {
+    if (!isNonEmptyString(merged[key])) {
+      throw new Error(
+        `lilygo_config.json 缺少必填字段或值为空: "${key}"。请确保仓库中的 lilygo_config.json 或用户目录下的配置文件包含 api_base_url、firmware_manifest_url、oss_domain_prefix。`
+      );
+    }
+    result[key] = merged[key] as string;
+  }
+  return result;
+}
+
+let cachedConfig: LilygoConfig | null = null;
+
+function getConfig(): LilygoConfig {
+  if (cachedConfig) return cachedConfig;
+  cachedConfig = loadMergedConfig();
+  return cachedConfig;
 }
 
 export function setupConfigHandler() {
   ipcMain.handle('get-firmware-manifest', async () => {
-    const userDataPath = app.getPath('userData');
-    const configPath = path.join(userDataPath, 'lilygo_config.json');
-    let manifestUrl = '';
+    const config = getConfig();
+    const manifestUrl = config.firmware_manifest_url.trim();
 
-    // 1. Try to read config file
     try {
-      if (fs.existsSync(configPath)) {
-        const configData = fs.readFileSync(configPath, 'utf-8');
-        const config: Config = JSON.parse(configData);
-        if (config.firmware_manifest_url) {
-            manifestUrl = config.firmware_manifest_url;
-            console.log('Using remote manifest URL:', manifestUrl);
-        }
+      const response = await fetch(manifestUrl);
+      if (response.ok) {
+        const data = await response.json();
+        return data;
       }
+      console.warn(`Failed to fetch manifest: ${response.status} ${response.statusText}`);
     } catch (error) {
-      console.error('Error reading config:', error);
+      console.error('Error fetching remote manifest:', error);
     }
 
-    // 2. If URL exists, try to fetch it
-    if (manifestUrl) {
-      try {
-        const response = await fetch(manifestUrl);
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Fetched remote manifest successfully');
-          return data;
-        } else {
-            console.warn(`Failed to fetch manifest: ${response.status} ${response.statusText}`);
-        }
-      } catch (error) {
-        console.error('Error fetching remote manifest:', error);
+    let localManifestPath = '';
+    if (app.isPackaged) {
+      localManifestPath = path.join(process.resourcesPath, 'firmware_manifest.json');
+      if (!fs.existsSync(localManifestPath)) {
+        localManifestPath = path.join(path.dirname(app.getPath('exe')), 'firmware_manifest.json');
+      }
+    } else {
+      localManifestPath = path.join(app.getAppPath(), '..', 'firmware_manifest.json');
+      if (!fs.existsSync(localManifestPath)) {
+        localManifestPath = path.join(process.cwd(), 'firmware_manifest.json');
       }
     }
 
-    // 3. Fallback to local file
-    console.log('Falling back to local manifest');
-    try {
-      // In dev, it's in the project root. In prod, we'd need to adjust this.
-      // Assuming dev for now or bundled in resources.
-      // app.getAppPath() points to the bundle source.
-      
-      let localManifestPath = '';
-      if (app.isPackaged) {
-          // In production, assume it's in resources or similar
-          localManifestPath = path.join(process.resourcesPath, 'firmware_manifest.json');
-          // If not found there, try next to the executable (portable)
-          if (!fs.existsSync(localManifestPath)) {
-             localManifestPath = path.join(path.dirname(app.getPath('exe')), 'firmware_manifest.json');
-          }
-      } else {
-          // In dev: root of the project
-          localManifestPath = path.join(app.getAppPath(), '..', 'firmware_manifest.json'); // ".." because app.getAppPath() might be dist-electron
-          // Fix for specific dev structure if needed:
-          if (!fs.existsSync(localManifestPath)) {
-             localManifestPath = path.join(process.cwd(), 'firmware_manifest.json');
-          }
-      }
-      
-      if (fs.existsSync(localManifestPath)) {
-        const data = fs.readFileSync(localManifestPath, 'utf-8');
-        return JSON.parse(data);
-      } else {
-        console.error('Local manifest not found at:', localManifestPath);
-        return { product_list: [], firmware_list: [] }; // Return empty structure
-      }
-    } catch (error) {
-      console.error('Error reading local manifest:', error);
-      return { product_list: [], firmware_list: [] };
+    if (fs.existsSync(localManifestPath)) {
+      const data = fs.readFileSync(localManifestPath, 'utf-8');
+      return JSON.parse(data);
     }
+
+    console.error('Local manifest not found at:', localManifestPath);
+    return { product_list: [], firmware_list: [] };
   });
 
-  // 获取 API 基础 URL
   ipcMain.handle('get-api-base-url', async () => {
-    const userDataPath = app.getPath('userData');
-    const configPath = path.join(userDataPath, 'lilygo_config.json');
-    const defaultBase = 'https://lilygo-api.bytecode.fun';
-
-    try {
-      if (fs.existsSync(configPath)) {
-        const configData = fs.readFileSync(configPath, 'utf-8');
-        const config: Config = JSON.parse(configData);
-        if (config.auth_api_base_url) {
-          return config.auth_api_base_url.replace(/\/$/, '');
-        }
-      }
-    } catch (error) {
-      console.error('Error reading config for api base:', error);
-    }
-    return defaultBase;
+    const config = getConfig();
+    return config.api_base_url.replace(/\/$/, '');
   });
+
+  ipcMain.handle('get-oss-domain-prefix', async () => {
+    const config = getConfig();
+    return config.oss_domain_prefix.replace(/\/$/, '');
+  });
+
+  try {
+    getConfig();
+  } catch (err) {
+    console.error('Invalid or missing lilygo_config.json:', err);
+    throw err;
+  }
 }
