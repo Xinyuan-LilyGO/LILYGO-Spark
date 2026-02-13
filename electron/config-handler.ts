@@ -80,26 +80,6 @@ export function setupConfigHandler() {
     }
   });
 
-  // 获取 GitHub 登录 URL（用于在浏览器中打开）
-  ipcMain.handle('get-auth-login-url', async () => {
-    const userDataPath = app.getPath('userData');
-    const configPath = path.join(userDataPath, 'lilygo_config.json');
-    const defaultBase = 'https://lilygo-api.bytecode.fun';
-
-    try {
-      if (fs.existsSync(configPath)) {
-        const configData = fs.readFileSync(configPath, 'utf-8');
-        const config: Config = JSON.parse(configData);
-        if (config.auth_api_base_url) {
-          return `${config.auth_api_base_url.replace(/\/$/, '')}/auth/github/start`;
-        }
-      }
-    } catch (error) {
-      console.error('Error reading config for auth:', error);
-    }
-    return `${defaultBase}/auth/github/start`;
-  });
-
   // 获取 API 基础 URL
   ipcMain.handle('get-api-base-url', async () => {
     const userDataPath = app.getPath('userData');

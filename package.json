@@ -113,7 +113,8 @@
         "from": "resources/tools/common",
         "to": "tools",
         "filter": [
-          "**/*"
+          "**/*",
+          "!esptool/**"
         ]
       }
     ],
@@ -130,7 +131,7 @@
       "extraResources": [
         {
           "from": "resources/tools/mac/esptool-${arch}",
-          "to": "tools/esptool-${arch}"
+          "to": "tools/esptool"
         }
       ],
       "category": "public.app-category.developer-tools",

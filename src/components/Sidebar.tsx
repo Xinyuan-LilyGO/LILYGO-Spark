@@ -21,7 +21,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
   const handleLogin = async () => {
     try {
       if (window.ipcRenderer) {
-          const url = await window.ipcRenderer.invoke('get-auth-login-url');
+          const apiBaseUrl = await window.ipcRenderer.invoke('get-api-base-url');
+          const url = `${apiBaseUrl}/auth/github/start`;
           await window.ipcRenderer.invoke('open-external', url);
       } else {
           console.warn('Not in Electron environment');
