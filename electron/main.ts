@@ -29,13 +29,17 @@ const deviceDetectionConfig: DeviceDetectionConfig = {
 // --- Deep Link Protocol Setup ---
 const PROTOCOL = 'lilygo-spark';
 
-if (process.defaultApp) {
-  if (process.argv.length >= 2) {
-    app.setAsDefaultProtocolClient(PROTOCOL, process.execPath, [path.resolve(process.argv[1])])
+// In dev (defaultApp), register with current app path so lilygo-spark:// opens this app, not another Electron (e.g. LilyGo-Flasher)
+function registerProtocol() {
+  if (process.defaultApp) {
+    const appPath = app.getAppPath()
+    app.setAsDefaultProtocolClient(PROTOCOL, process.execPath, [appPath])
+    if (process.env.VITE_DEV_SERVER_URL) console.log('[Protocol] Registered lilygo-spark:// for dev, appPath:', appPath)
+  } else {
+    app.setAsDefaultProtocolClient(PROTOCOL)
   }
-} else {
-  app.setAsDefaultProtocolClient(PROTOCOL)
 }
+registerProtocol()
 
 const gotTheLock = app.requestSingleInstanceLock()
 
@@ -173,7 +177,7 @@ function createWindow() {
         submenu: [
           { role: 'reload' },
           { role: 'forceReload' },
-          // { role: 'toggleDevTools' }, // Excluded to hide developer tools
+          ...(isDev ? [{ role: 'toggleDevTools' as const }] : []),
           { type: 'separator' },
           { role: 'resetZoom' },
           { role: 'zoomIn' },

@@ -121,7 +121,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
             className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors border border-slate-600/50"
           >
             <Github size={18} />
-            <span>GitHub 登录</span>
+            <span>使用 GitHub 登录</span>
           </button>
         )}
         <div className="text-xs text-slate-500 text-center">v0.1.0-alpha</div>
