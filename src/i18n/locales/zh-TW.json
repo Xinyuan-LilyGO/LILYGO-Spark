@@ -3,7 +3,7 @@
     "title": "LILYGO Spark"
   },
   "nav": {
-    "flasher": "刷寫工具",
+    "burner": "刷寫工具",
     "firmware": "固件中心",
     "dumper": "韌體提取工具",
     "utilities": "韌體高級工具",
@@ -37,7 +37,7 @@
       "ja": "日本語"
     }
   },
-  "flasher": {
+  "burner": {
     "welcome": "歡迎使用 LILYGO Spark！",
     "mode_basic": "基礎模式",
     "mode_advanced": "專業模式",

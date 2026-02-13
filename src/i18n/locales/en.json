@@ -5,7 +5,7 @@
   "nav": {
     "firmware": "Firmware Center",
     "dumper": "Firmware Dumper",
-    "flasher": "Firmware Writer",
+    "burner": "Firmware Burner",
     "settings": "Settings"
   },
   "settings": {
@@ -19,7 +19,7 @@
       "ja": "日本語"
     }
   },
-  "flasher": {
+  "burner": {
     "welcome": "Welcome to LILYGO Spark!",
     "mode_basic": "Basic Mode",
     "mode_advanced": "Hacker Mode",

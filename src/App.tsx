@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import Flasher from './components/Flasher'
+import Burner from './components/Burner'
 import DeviceToast from './components/DeviceToast'
 import SettingsPage from './components/SettingsPage'
 import Sidebar from './components/Sidebar'
@@ -60,7 +60,7 @@ function App() {
 
   // const handleSelectFirmware = (url: string) => {
   //     _setSelectedFirmwareUrl(url);
-  //     setActiveTab('flasher');
+  //     setActiveTab('burner');
   // };
 
   return (
@@ -78,9 +78,9 @@ function App() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Tab Content */}
-        {activeTab === 'flasher' && (
+        {activeTab === 'burner' && (
             <div className="h-full overflow-auto">
-                <Flasher />
+                <Burner />
             </div>
         )}
 

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Terminal } from 'xterm';
-import { FitAddon } from 'xterm-addon-fit';
-import 'xterm/css/xterm.css';
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import '@xterm/xterm/css/xterm.css';
 import { ChevronDown, Usb, Cpu, Check, Layers, Plus, Trash2, FilePlus, Download, Save } from 'lucide-react';
 import SparkMD5 from 'spark-md5';
 
@@ -32,7 +32,7 @@ interface FlashFile {
     enable: boolean;
 }
 
-const Flasher: React.FC = () => {
+const Burner: React.FC = () => {
   const { t } = useTranslation();
   
   // Mode state
@@ -95,8 +95,8 @@ const Flasher: React.FC = () => {
       xtermRef.current = term;
       fitAddonRef.current = fitAddon;
 
-      term.writeln(t('flasher.welcome'));
-      term.writeln(t('flasher.select_port_msg'));
+      term.writeln(t('burner.welcome'));
+      term.writeln(t('burner.select_port_msg'));
     }
     
     // Handle resize
@@ -148,7 +148,7 @@ const Flasher: React.FC = () => {
       setPort(selectedPort);
       setStatus('ready');
       
-      xtermRef.current?.writeln(t('flasher.status.ready'));
+      xtermRef.current?.writeln(t('burner.status.ready'));
       
     } catch (error) {
       console.error('Error selecting port:', error);
@@ -359,8 +359,8 @@ const Flasher: React.FC = () => {
             let filePathToFlash = '';
             if (downloadedFile) {
                 filePathToFlash = downloadedFile.path;
-            } else if (file && file.path) { // file.path exists in Electron environment for File object
-                filePathToFlash = (file as any).path;
+            } else if (file && (file as File & { path?: string }).path) { // file.path exists in Electron environment
+                filePathToFlash = (file as File & { path: string }).path;
             } else {
                  xtermRef.current?.writeln('Error: Cannot flash local file in browser mode with native tool (requires Electron file path).');
                  return;
@@ -550,10 +550,10 @@ const Flasher: React.FC = () => {
   // Helper for status text
   const getStatusText = () => {
       switch(status) {
-          case 'flashing': return t('flasher.status.flashing');
-          case 'success': return t('flasher.status.success');
-          case 'error': return t('flasher.status.error');
-          case 'ready': return t('flasher.status.ready');
+          case 'flashing': return t('burner.status.flashing');
+          case 'success': return t('burner.status.success');
+          case 'error': return t('burner.status.error');
+          case 'ready': return t('burner.status.ready');
           default: return 'Idle';
       }
   };
@@ -571,7 +571,7 @@ const Flasher: React.FC = () => {
               }`}
           >
               <FilePlus size={16} className="mr-2" />
-              {t('flasher.mode_basic')}
+              {t('burner.mode_basic')}
           </button>
           <button
               onClick={() => setMode('advanced')}
@@ -582,7 +582,7 @@ const Flasher: React.FC = () => {
               }`}
           >
               <Layers size={16} className="mr-2" />
-              {t('flasher.mode_advanced')}
+              {t('burner.mode_advanced')}
           </button>
       </div>
 
@@ -590,7 +590,7 @@ const Flasher: React.FC = () => {
       <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end relative z-10">
         
         <div className="relative" ref={portSelectRef}>
-          <label className="block text-sm font-medium text-slate-400 mb-1">{t('flasher.label_port')}</label>
+          <label className="block text-sm font-medium text-slate-400 mb-1">{t('burner.label_port')}</label>
           <div className="flex gap-2">
             <button 
               onClick={handleSelectDeviceClick}
@@ -602,8 +602,8 @@ const Flasher: React.FC = () => {
             >
               <span className="truncate">
                   {selectedPortId 
-                        ? (availablePorts.find(p => p.portId === selectedPortId)?.displayName || t('flasher.status.ready'))
-                        : t('flasher.select_port_msg', 'Select Device').includes('Select') ? 'Select Device' : t('flasher.select_port_msg')} 
+                        ? (availablePorts.find(p => p.portId === selectedPortId)?.displayName || t('burner.status.ready'))
+                        : t('burner.select_port_msg', 'Select Device').includes('Select') ? 'Select Device' : t('burner.select_port_msg')} 
               </span>
               {!connected && <ChevronDown size={16} className={`ml-2 transition-transform ${isSelectingPort ? 'rotate-180' : ''}`} />}
             </button>
@@ -662,7 +662,7 @@ const Flasher: React.FC = () => {
                       )}
                   </div>
                   <div className="p-2 bg-slate-900/50 border-t border-slate-700 text-[10px] text-center text-slate-500">
-                      {t('flasher.select_port_msg')}
+                      {t('burner.select_port_msg')}
                   </div>
               </div>
           )}
@@ -681,7 +681,7 @@ const Flasher: React.FC = () => {
         </div>
 
         <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1">{t('flasher.label_chip')}</label>
+            <label className="block text-sm font-medium text-slate-400 mb-1">{t('burner.label_chip')}</label>
             <select 
                 value={chipFamily} 
                 onChange={e => setChipFamily(e.target.value)}
@@ -695,7 +695,7 @@ const Flasher: React.FC = () => {
         </div>
 
         <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1">{t('flasher.label_baud')}</label>
+            <label className="block text-sm font-medium text-slate-400 mb-1">{t('burner.label_baud')}</label>
             <select 
                 value={flashBaudRate} 
                 onChange={e => setFlashBaudRate(Number(e.target.value))}
@@ -712,7 +712,7 @@ const Flasher: React.FC = () => {
             <div className="col-span-1 md:col-span-2 lg:col-span-4 space-y-4">
                 <div className="flex gap-4 items-start">
                     <div className="flex-1">
-                        <label className="block text-sm font-medium text-slate-400 mb-1">{t('flasher.label_firmware')}</label>
+                        <label className="block text-sm font-medium text-slate-400 mb-1">{t('burner.label_firmware')}</label>
                         <div className="flex gap-2">
                             <input 
                                 type="text" 
@@ -905,7 +905,7 @@ const Flasher: React.FC = () => {
                         : 'bg-emerald-600 hover:bg-emerald-500 text-white hover:shadow-emerald-500/25'
                 }`}
         >
-            {connected ? t('flasher.btn_disconnect_console') : t('flasher.btn_connect_console')}
+            {connected ? t('burner.btn_disconnect_console') : t('burner.btn_connect_console')}
         </button>
 
         <button 
@@ -917,7 +917,7 @@ const Flasher: React.FC = () => {
                     : 'bg-blue-600 hover:bg-blue-500 text-white hover:shadow-blue-500/25'
                 }`}
         >
-            {t('flasher.btn_flash')}
+            {t('burner.btn_flash')}
         </button>
       </div>
 
@@ -929,4 +929,4 @@ const Flasher: React.FC = () => {
   );
 };
 
-export default Flasher;
+export default Burner;

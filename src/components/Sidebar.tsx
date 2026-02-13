@@ -34,7 +34,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
 
   const navItems = [
     { id: 'firmware', icon: LayoutGrid, label: t('nav.firmware') },
-    { id: 'flasher', icon: Zap, label: t('nav.flasher') },
+    { id: 'burner', icon: Zap, label: t('nav.burner') },
     { id: 'upload', icon: Upload, label: 'Upload' },
     { id: 'dumper', icon: Download, label: t('nav.dumper') },
     { id: 'utilities', icon: Wrench, label: t('nav.utilities') },

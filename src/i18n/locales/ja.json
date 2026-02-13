@@ -3,7 +3,7 @@
     "title": "LILYGO Spark"
   },
   "nav": {
-    "flasher": "書き込みツール",
+    "burner": "書き込みツール",
     "firmware": "ファームウェア",
     "dumper": "ファームウェア抽出",
     "utilities": "ユーティリティ",
@@ -37,7 +37,7 @@
       "ja": "日本語"
     }
   },
-  "flasher": {
+  "burner": {
     "welcome": "LILYGO Spark へようこそ！",
     "mode_basic": "基本モード",
     "mode_advanced": "専門モード",

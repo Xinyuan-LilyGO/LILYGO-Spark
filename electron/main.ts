@@ -1,5 +1,8 @@
 import { app, BrowserWindow, ipcMain, Menu, dialog } from 'electron'
 import path from 'node:path'
+
+// Set app name for "Open with" dialog when handling lilygo-spark:// deep links
+if (process.defaultApp) app.name = 'LILYGO Spark'
 import { DeviceDetector, DeviceDetectionConfig } from './device-detector'
 import { setupConfigHandler } from './config-handler'
 import { 

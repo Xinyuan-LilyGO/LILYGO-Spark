@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Terminal } from 'xterm';
-import { FitAddon } from 'xterm-addon-fit';
-import 'xterm/css/xterm.css';
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import '@xterm/xterm/css/xterm.css';
 import { ChevronDown, Usb, Cpu, Check, Download } from 'lucide-react';
 
 // Type definitions for Web Serial API
@@ -295,7 +295,7 @@ const FirmwareDumper: React.FC = () => {
       <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end relative z-10">
         
         <div className="relative" ref={portSelectRef}>
-          <label className="block text-sm font-medium text-slate-400 mb-1">{t('flasher.label_port')}</label>
+          <label className="block text-sm font-medium text-slate-400 mb-1">{t('burner.label_port')}</label>
           <div className="flex gap-2">
             <button 
               onClick={handleSelectDeviceClick}

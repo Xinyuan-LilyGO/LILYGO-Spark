@@ -1,6 +1,6 @@
 # LILYGO Spark
 
-A cross-platform firmware hub and flasher for LILYGO and other ESP devices.
+A cross-platform firmware hub and burner for LILYGO and other ESP devices.
 
 ## 配置文件 `lilygo_config.json`
 
