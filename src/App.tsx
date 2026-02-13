@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import Burner from './components/Burner'
+import Discovery from './components/Discovery'
 import DeviceToast from './components/DeviceToast'
 import SettingsPage from './components/SettingsPage'
 import Sidebar from './components/Sidebar'
@@ -64,7 +65,7 @@ function App() {
   // };
 
   return (
-    <div className="flex h-screen bg-white text-slate-900 dark:bg-zinc-900 dark:text-zinc-100 overflow-hidden transition-colors">
+    <div className="flex h-screen bg-background text-[rgb(var(--color-text-base))] overflow-hidden transition-colors">
       <DeviceToast />
       
       {/* Sidebar Component */}
@@ -78,6 +79,10 @@ function App() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Tab Content */}
+        {activeTab === 'discovery' && (
+             <Discovery />
+        )}
+
         {activeTab === 'burner' && (
             <div className="h-full overflow-auto">
                 <Burner />

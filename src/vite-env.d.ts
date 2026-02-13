@@ -1,5 +1,20 @@
 /// <reference types="vite/client" />
 
+declare module 'rss-parser/dist/rss-parser.min.js' {
+  interface ParserItem {
+    guid?: string
+    link?: string
+    title?: string
+    contentSnippet?: string
+    pubDate?: string
+    content?: string
+  }
+  class Parser {
+    parseURL(url: string): Promise<{ items: ParserItem[] }>
+  }
+  export default Parser
+}
+
 interface Window {
   ipcRenderer: {
     on: (channel: string, listener: (event: any, ...args: any[]) => void) => void

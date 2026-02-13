@@ -1,0 +1,40 @@
+[
+    {
+        "id": "mock-1",
+        "title": "New ESP32-C6 Board with Zigbee Support Released",
+        "summary": "LILYGO has announced a new development board featuring the ESP32-C6 RISC-V MCU, supporting Wi-Fi 6, Bluetooth 5, and Zigbee/Thread/Matter.",
+        "source": "Hackaday",
+        "url": "https://hackaday.com",
+        "imageUrl": "https://hackaday.com/wp-content/uploads/2023/01/esp32-c6-featured.jpg",
+        "date": "2024-02-10T00:00:00.000Z",
+        "tags": ["ESP32-C6", "Hardware", "Zigbee"]
+    },
+    {
+        "id": "mock-2",
+        "title": "Building a Smart Home Dashboard with T-Display S3",
+        "summary": "A community member shares their project using LVGL and SquareLine Studio to create a beautiful touch interface for Home Assistant.",
+        "source": "Reddit",
+        "url": "https://reddit.com/r/esp32",
+        "imageUrl": "https://preview.redd.it/t-display-s3-dashboard.jpg",
+        "date": "2024-02-09T00:00:00.000Z",
+        "tags": ["Project", "LVGL", "Home Assistant"]
+    },
+    {
+        "id": "mock-3",
+        "title": "MicroPython v1.22 Released: What's New for ESP32?",
+        "summary": "The latest MicroPython release brings significant performance improvements and new driver support for ESP32-S3 peripherals.",
+        "source": "CNX",
+        "url": "https://cnx-software.com",
+        "tags": ["Software", "MicroPython"]
+    },
+    {
+        "id": "mock-5",
+        "title": "GitHub: Xinyuan-LilyGO/T-Deck",
+        "summary": "ESP32-S3 LoRaWAN device with keyboard and trackball. Check out the latest firmware and examples.",
+        "source": "GitHub",
+        "url": "https://github.com/Xinyuan-LilyGO/T-Deck",
+        "imageUrl": "https://avatars.githubusercontent.com/u/33570047?v=4",
+        "date": "2024-02-11T00:00:00.000Z",
+        "tags": ["Open Source", "Hardware"]
+    }
+]

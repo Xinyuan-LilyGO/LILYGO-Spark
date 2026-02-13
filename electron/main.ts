@@ -179,9 +179,9 @@ function createWindow() {
     console.log('distPath:', distPath)
     // Set custom icon for Dock & About panel in dev (macOS)
     if (process.platform === 'darwin') {
-      const iconPath = path.join(publicPath, 'LILYGO.png')
-      const icon = nativeImage.createFromPath(iconPath)
-      if (!icon.isEmpty()) app.dock?.setIcon(icon)
+      // const iconPath = path.join(publicPath, 'LILYGO.png')
+      // const icon = nativeImage.createFromPath(iconPath)
+      // if (!icon.isEmpty()) app.dock?.setIcon(icon)
     }
   }
 

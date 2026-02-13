@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Settings, Zap, LayoutGrid, Download, Wrench, Github, LogOut, Upload } from 'lucide-react';
+import { Settings, Zap, LayoutGrid, Download, Wrench, Github, LogOut, Upload, Compass } from 'lucide-react';
 
 interface AuthUser {
   login: string;
@@ -33,6 +33,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
   };
 
   const navItems = [
+    { id: 'discovery', icon: Compass, label: 'Discovery' }, // TODO: i18n
     { id: 'firmware', icon: LayoutGrid, label: t('nav.firmware') },
     { id: 'burner', icon: Zap, label: t('nav.burner') },
     { id: 'upload', icon: Upload, label: t('nav.upload') },
@@ -42,12 +43,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
   ];
 
   return (
-    <div className="w-[220px] mt-1.5 h-full flex-none z-50 flex flex-col bg-slate-50 border-r border-slate-200 dark:bg-zinc-900 dark:border-zinc-700 transition-colors">
+    <div className="w-[220px] mt-1.5 h-full flex-none z-50 flex flex-col bg-surface border-r border-slate-200 dark:border-zinc-700 transition-colors">
       
       {/* Header / Logo */}
       <div className="flex items-center justify-center h-20 overflow-hidden relative select-none">
         <div className="flex items-center">
-             <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/20 shrink-0">
+             <div className="w-10 h-10 bg-gradient-to-br from-primary to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary/30 shrink-0">
                 <Zap size={24} className="text-white fill-white" />
              </div>
              
@@ -69,10 +70,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center rounded-2xl transition-colors duration-200 group relative px-3 py-3 ${
+              className={`w-full flex items-center rounded-2xl transition-all duration-200 group relative px-3 py-3 ${
                 isActive 
-                  ? 'bg-primary/10 text-primary' 
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800'
+                  ? 'bg-primary/10 text-primary shadow-[0_0_15px_-3px_rgba(var(--color-primary),0.3)]' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-surface-hover dark:text-zinc-400 dark:hover:text-white'
               }`}
             >
               {/* Active Indicator (Left Bar) */}
@@ -118,7 +119,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
         ) : (
           <button
             onClick={handleLogin}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-300 dark:hover:text-white transition-colors border border-slate-300 dark:border-zinc-600/50"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 dark:bg-surface-hover dark:hover:bg-zinc-700 dark:text-zinc-300 dark:hover:text-white transition-colors border border-slate-300 dark:border-zinc-600/50"
           >
             <Github size={18} />
             <span>使用 GitHub 登录</span>

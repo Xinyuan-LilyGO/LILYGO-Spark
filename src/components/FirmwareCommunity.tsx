@@ -462,10 +462,11 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                                         <div className="flex-1">
                                             <div className="flex items-center space-x-3 mb-1">
                                                 <h4 className="text-lg font-medium text-slate-800 dark:text-slate-200">{fw.name}</h4>
-                                                <span className={`text-xs px-2 py-0.5 rounded-full border ${
-                                                    fw.type === 'factory' ? 'bg-green-900/30 text-green-400 border-green-800' :
-                                                    fw.type === 'micropython' ? 'bg-yellow-900/30 text-yellow-400 border-yellow-800' :
-                                                    'bg-primary/20 text-primary border-primary/50'
+                                                <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
+                                                    fw.type === 'factory' ? 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/40 dark:text-green-300 dark:border-green-700' :
+                                                    fw.type === 'micropython' ? 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-700' :
+                                                    fw.type === 'lora' ? 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-700' :
+                                                    'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-700'
                                                 }`}>
                                                     {fw.type.toUpperCase()}
                                                 </span>

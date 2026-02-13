@@ -113,7 +113,7 @@
       "version": "Latest",
       "type": "factory",
       "filename": "firmware.bin",
-      "download_url": "https://github.com/Xinyuan-LilyGO/T-Deck/tree/master/firmware",
+      "download_url": "https://github.com/Xinyuan-LilyGO/T-Deck/raw/master/firmware/firmware.bin",
       "description": "Official factory firmware for T-Deck",
       "hash_md5": "",
       "release_note": "Check GitHub for latest release notes"
@@ -124,7 +124,7 @@
       "version": "Unknown",
       "type": "micropython",
       "filename": "micropython_t_deck.bin",
-      "download_url": "https://github.com/varna9000/t-deck-lorawan-micropython",
+      "download_url": "https://github.com/varna9000/t-deck-lorawan-micropython/releases/latest/download/firmware.bin",
       "description": "Community MicroPython port with LoRaWAN support",
       "hash_md5": "",
       "release_note": "Community maintained"
@@ -155,13 +155,35 @@
     {
       "supported_product_ids": ["t-beam"],
       "name": "Meshtastic Firmware",
-      "version": "Latest Stable",
-      "type": "community",
-      "filename": "firmware-tbeam-latest.bin",
-      "download_url": "https://flasher.meshtastic.org",
+      "version": "2.7.15",
+      "type": "lora",
+      "filename": "firmware-tbeam-2.7.15.567b8ea.bin",
+      "download_url": "https://github.com/meshtastic/firmware/releases/download/v2.7.15.567b8ea/firmware-esp32-2.7.15.567b8ea.zip",
       "description": "Popular mesh networking firmware for T-Beam",
       "hash_md5": "",
-      "release_note": "See Meshtastic releases"
+      "release_note": "Meshtastic Stable Release v2.7.15"
+    },
+    {
+      "supported_product_ids": ["t-deck"],
+      "name": "Meshtastic Firmware",
+      "version": "2.7.15",
+      "type": "lora",
+      "filename": "firmware-t-deck-2.7.15.567b8ea.bin",
+      "download_url": "https://github.com/meshtastic/firmware/releases/download/v2.7.15.567b8ea/firmware-esp32s3-2.7.15.567b8ea.zip",
+      "description": "Popular mesh networking firmware for T-Deck",
+      "hash_md5": "",
+      "release_note": "Meshtastic Stable Release v2.7.15"
+    },
+    {
+      "supported_product_ids": ["t3-s3"],
+      "name": "Meshtastic Firmware (LoRa)",
+      "version": "2.7.15",
+      "type": "lora",
+      "filename": "firmware-tlora-t3s3-v1-2.7.15.567b8ea.bin",
+      "download_url": "https://github.com/meshtastic/firmware/releases/download/v2.7.15.567b8ea/firmware-esp32s3-2.7.15.567b8ea.zip",
+      "description": "Meshtastic LoRaWAN firmware for T3-S3",
+      "hash_md5": "",
+      "release_note": "Meshtastic Stable Release v2.7.15"
     },
     {
       "supported_product_ids": ["t-deck-pro"],
@@ -169,7 +191,7 @@
       "version": "Latest",
       "type": "factory",
       "filename": "firmware.bin",
-      "download_url": "https://github.com/Xinyuan-LilyGO/T-Deck-Pro/tree/master/firmware",
+      "download_url": "https://github.com/Xinyuan-LilyGO/T-Deck-Pro/raw/master/firmware/H693_factory_v1.2_20250412.bin",
       "description": "Official factory firmware for T-Deck Pro",
       "hash_md5": "",
       "release_note": "Check GitHub for latest release notes"
