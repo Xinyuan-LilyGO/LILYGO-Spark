@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Globe, Moon, Palette, ExternalLink } from 'lucide-react';
+import { Globe, Moon, Palette, ExternalLink, Sparkles } from 'lucide-react';
 import { useTheme, type AccentColor } from '../contexts/ThemeContext';
 
 const ACCENT_COLORS: { id: AccentColor; bg: string }[] = [
@@ -15,7 +15,7 @@ const LINK_OPEN_STORAGE_KEY = 'lilygo_link_open_mode';
 
 const SettingsPage: React.FC = () => {
   const { t, i18n } = useTranslation();
-  const { preference: themePreference, setPreference: setThemePreference, accent, setAccent } = useTheme();
+  const { preference: themePreference, setPreference: setThemePreference, accent, setAccent, glassEnabled, setGlassEnabled } = useTheme();
   
   // Initialize state based on localStorage
   const [currentSelection, setCurrentSelection] = React.useState(() => {
@@ -50,7 +50,11 @@ const SettingsPage: React.FC = () => {
       <div className="p-8">
         <h2 className="text-2xl font-bold mb-6 text-slate-900 dark:text-white">{t('settings.title')}</h2>
         
-        <div className="bg-slate-100 dark:bg-zinc-800 rounded-lg p-6 max-w-2xl border border-slate-200 dark:border-zinc-700 space-y-6">
+        <div className={`rounded-2xl p-6 max-w-2xl border space-y-6 transition-all duration-200 ${
+          glassEnabled 
+            ? 'bg-white/40 dark:bg-zinc-800/40 backdrop-blur-2xl backdrop-saturate-150 border-white/30 dark:border-white/10 shadow-xl ring-1 ring-white/20 inset-ring' 
+            : 'bg-slate-100 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700'
+        }`}>
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                     <Globe className="text-primary" />
@@ -136,6 +140,28 @@ const SettingsPage: React.FC = () => {
             </div>
             <div className="text-xs text-slate-500 dark:text-zinc-400 mt-2">
                 {t('settings.link_open_hint')}
+            </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                    <Sparkles className="text-primary" />
+                    <span className="font-medium text-slate-800 dark:text-slate-200">{t('settings.glass')}</span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                        type="checkbox"
+                        checked={glassEnabled}
+                        onChange={(e) => setGlassEnabled(e.target.checked)}
+                        className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 dark:bg-zinc-600 peer-focus:ring-2 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all after:border after:border-slate-300 dark:after:border-zinc-500 peer-checked:bg-primary"></div>
+                    <span className="ml-3 text-sm text-slate-600 dark:text-slate-300">{glassEnabled ? t('settings.glass_on') : t('settings.glass_off')}</span>
+                </label>
+            </div>
+            <div className="text-xs text-slate-500 dark:text-zinc-400 mt-2">
+                {t('settings.glass_hint')}
             </div>
             </div>
         </div>

@@ -52,3 +52,35 @@ input, textarea, code, pre, .select-text {
   -webkit-user-select: text;
   cursor: text;
 }
+
+/* Glass effect background - mesh gradient for visible blur */
+.bg-glass-mesh-light {
+  background-color: #f1f5f9;
+  background-image: 
+    radial-gradient(ellipse 80% 50% at 20% 20%, rgba(99, 102, 241, 0.25), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(168, 85, 247, 0.2), transparent),
+    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(148, 163, 184, 0.3), transparent);
+}
+
+.bg-glass-mesh-dark {
+  background-color: #18181b;
+  background-image: 
+    radial-gradient(ellipse 80% 50% at 20% 20%, rgba(99, 102, 241, 0.2), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(168, 85, 247, 0.15), transparent),
+    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(63, 63, 70, 0.5), transparent);
+}
+
+@keyframes fade-in-scale {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in-scale 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

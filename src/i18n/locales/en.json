@@ -54,7 +54,11 @@
             "external": "External Browser",
             "internal": "In-App Window"
         },
-        "link_open_hint": "Product pages, GitHub, and news links will open in external browser or in-app window."
+        "link_open_hint": "Product pages, GitHub, and news links will open in external browser or in-app window.",
+        "glass": "Glass Effect",
+        "glass_on": "On",
+        "glass_off": "Off",
+        "glass_hint": "Sidebar and settings use frosted glass effect. Turn off on low-end devices for better performance."
     },
     "burner": {
         "welcome": "Welcome to LILYGO Spark!",

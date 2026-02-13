@@ -71,7 +71,11 @@
       "external": "外部浏览器",
       "internal": "应用内窗口"
     },
-    "link_open_hint": "产品页、GitHub、新闻等链接将按此设置打开。"
+    "link_open_hint": "产品页、GitHub、新闻等链接将按此设置打开。",
+    "glass": "玻璃拟态",
+    "glass_on": "已开启",
+    "glass_off": "已关闭",
+    "glass_hint": "侧边栏和设置卡片使用毛玻璃效果，可在低性能设备上关闭以提升流畅度。"
   },
   "burner": {
     "welcome": "欢迎使用 LILYGO Spark！",

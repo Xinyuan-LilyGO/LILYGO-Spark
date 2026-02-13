@@ -71,7 +71,11 @@
       "external": "外部ブラウザ",
       "internal": "アプリ内ウィンドウ"
     },
-    "link_open_hint": "製品ページ、GitHub、ニュースなどのリンクはこの設定で開きます。"
+    "link_open_hint": "製品ページ、GitHub、ニュースなどのリンクはこの設定で開きます。",
+    "glass": "グラス効果",
+    "glass_on": "オン",
+    "glass_off": "オフ",
+    "glass_hint": "サイドバーと設定カードに毛ガラス効果を適用。低スペックPCではオフにするとパフォーマンスが向上します。"
   },
   "burner": {
     "welcome": "LILYGO Spark へようこそ！",

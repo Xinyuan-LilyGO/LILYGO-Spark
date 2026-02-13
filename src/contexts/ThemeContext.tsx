@@ -6,6 +6,7 @@ export type AccentColor = 'blue' | 'orange' | 'emerald' | 'violet' | 'rose';
 
 const THEME_STORAGE_KEY = 'lilygo_theme';
 const ACCENT_STORAGE_KEY = 'lilygo_accent';
+const GLASS_STORAGE_KEY = 'lilygo_glass_effect';
 
 function getSystemTheme(): ResolvedTheme {
   if (typeof window === 'undefined') return 'dark';
@@ -28,6 +29,15 @@ function getStoredAccent(): AccentColor {
   return 'blue';
 }
 
+function getStoredGlass(): boolean {
+  try {
+    const stored = localStorage.getItem(GLASS_STORAGE_KEY);
+    if (stored === 'true') return true;
+    if (stored === 'false') return false;
+  } catch {}
+  return false;
+}
+
 function resolveTheme(pref: ThemePreference): ResolvedTheme {
   if (pref === 'light') return 'light';
   if (pref === 'dark') return 'dark';
@@ -47,8 +57,10 @@ interface ThemeContextValue {
   preference: ThemePreference;
   resolved: ResolvedTheme;
   accent: AccentColor;
+  glassEnabled: boolean;
   setPreference: (p: ThemePreference) => void;
   setAccent: (a: AccentColor) => void;
+  setGlassEnabled: (v: boolean) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -56,6 +68,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [preference, setPreferenceState] = useState<ThemePreference>(getStoredPreference);
   const [accent, setAccentState] = useState<AccentColor>(getStoredAccent);
+  const [glassEnabled, setGlassEnabledState] = useState(getStoredGlass);
   const [systemDark, setSystemDark] = useState(getSystemTheme);
 
   const resolved = resolveTheme(preference);
@@ -69,6 +82,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setAccent = (a: AccentColor) => {
     setAccentState(a);
     localStorage.setItem(ACCENT_STORAGE_KEY, a);
+  };
+
+  const setGlassEnabled = (v: boolean) => {
+    setGlassEnabledState(v);
+    localStorage.setItem(GLASS_STORAGE_KEY, String(v));
   };
 
   useEffect(() => {
@@ -106,7 +124,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [effectiveResolved]);
 
   return (
-    <ThemeContext.Provider value={{ preference, resolved: effectiveResolved, accent, setPreference, setAccent }}>
+    <ThemeContext.Provider value={{ preference, resolved: effectiveResolved, accent, glassEnabled, setPreference, setAccent, setGlassEnabled }}>
       {children}
     </ThemeContext.Provider>
   );

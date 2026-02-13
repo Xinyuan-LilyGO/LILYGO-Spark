@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTheme } from './contexts/ThemeContext'
 import Burner from './components/Burner'
 import Discovery from './components/Discovery'
 import DeviceToast from './components/DeviceToast'
@@ -19,6 +20,7 @@ interface AuthUser {
 }
 
 function App() {
+  const { glassEnabled, resolved } = useTheme();
   const [activeTab, setActiveTab] = useState('firmware') // Default to firmware/community
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -65,8 +67,14 @@ function App() {
   //     setActiveTab('burner');
   // };
 
+  const bgClass = glassEnabled
+    ? resolved === 'dark'
+      ? 'bg-glass-mesh-dark'
+      : 'bg-glass-mesh-light'
+    : 'bg-background';
+
   return (
-    <div className="flex h-screen bg-background text-[rgb(var(--color-text-base))] overflow-hidden transition-colors">
+    <div className={`flex h-screen text-[rgb(var(--color-text-base))] overflow-hidden transition-all duration-300 ${bgClass}`}>
       <DeviceToast />
       
       {/* Sidebar Component */}
@@ -79,6 +87,7 @@ function App() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        <div key={activeTab} className="flex-1 flex flex-col min-h-0 overflow-hidden animate-fade-in">
         {/* Tab Content */}
         {activeTab === 'discovery' && (
              <Discovery />
@@ -121,6 +130,7 @@ function App() {
                 <SettingsPage />
             </div>
         )}
+        </div>
       </div>
     </div>
   )

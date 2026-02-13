@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Settings, Zap, LayoutGrid, Download, Wrench, Github, LogOut, Upload, Compass, Users } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface AuthUser {
   login: string;
@@ -17,6 +18,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogout }) => {
   const { t } = useTranslation();
+  const { glassEnabled } = useTheme();
 
   const handleLogin = async () => {
     try {
@@ -44,7 +46,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
   ];
 
   return (
-    <div className="w-[220px] h-full flex-none z-50 flex flex-col min-h-0 bg-surface border-r border-slate-200 dark:border-zinc-700 transition-colors overflow-hidden">
+    <div className={`w-[220px] h-full flex-none z-50 flex flex-col min-h-0 border-r transition-all duration-200 overflow-hidden ${
+      glassEnabled 
+        ? 'bg-white/40 dark:bg-zinc-900/40 backdrop-blur-2xl backdrop-saturate-150 border-white/20 dark:border-white/10 shadow-[4px_0_24px_-4px_rgba(0,0,0,0.08)] dark:shadow-[4px_0_24px_-4px_rgba(0,0,0,0.3)] ring-1 ring-white/10 inset-ring' 
+        : 'bg-surface border-slate-200 dark:border-zinc-700'
+    }`}>
       
       {/* Header / Logo */}
       <div className="flex items-center justify-center h-20 overflow-hidden relative select-none shrink-0">
