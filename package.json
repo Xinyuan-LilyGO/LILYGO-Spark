@@ -9,6 +9,9 @@
     "build": "npm run clean && npm run prebuild && npm run build:compile && electron-builder",
     "clean": "rimraf dist dist-electron release",
     "prebuild": "node scripts/check-lilygo-config.js && shx mkdir -p build && shx cp public/LILYGO.png build/icon.png",
+    "fetch-products": "node scripts/fetch-lilygo-products.js && node scripts/filter-flashable-products.js",
+    "filter-products": "node scripts/filter-flashable-products.js",
+    "restructure-manifest": "node scripts/restructure-manifest-by-series.js",
     "prebuild:mac:all": "npm run prebuild",
     "prebuild:mac": "npm run prebuild",
     "build:compile": "tsc && vite build",
@@ -118,6 +121,10 @@
           "**/*",
           "!esptool/**"
         ]
+      },
+      {
+        "from": "firmware_manifest.json",
+        "to": "firmware_manifest.json"
       }
     ],
     "asar": true,

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, ChevronRight, Layers, Github, Save, Trash2, Zap } from 'lucide-react';
 import BurnerModal from './BurnerModal';
 
-interface ProductVariant {
+interface Product {
   product_id: string;
   name: string;
   description: string;
@@ -18,7 +18,7 @@ interface ProductGroup {
   name: string;
   description: string;
   image_url: string;
-  variants?: ProductVariant[];
+  products?: Product[];
   // Single product fields
   mcu?: string;
   github_repo?: string;
@@ -80,8 +80,10 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
       // Select first available product
       if (data.product_list.length > 0 && !selectedProductId) {
         const first = data.product_list[0];
-        if (first.variants && first.variants.length > 0) {
-          setSelectedProductId(first.variants[0].product_id);
+        const v0 = first.products?.[0];
+        const productId = v0 && 'product_id' in v0 ? v0.product_id : null;
+        if (productId) {
+          setSelectedProductId(productId);
           if (first.id) toggleSeries(first.id, true);
         } else if (first.product_id) {
           setSelectedProductId(first.product_id);
@@ -111,14 +113,14 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
     });
   };
 
-  // Helper to find product details by ID (could be single product or variant)
-  const findProductById = (id: string | null): ProductVariant | ProductGroup | null => {
+  // Helper to find product details by ID (could be single product or in series)
+  const findProductById = (id: string | null): Product | ProductGroup | null => {
     if (!id) return null;
     for (const group of manifest.product_list) {
       if (group.product_id === id) return group;
-      if (group.variants) {
-        const variant = group.variants.find(v => v.product_id === id);
-        if (variant) return variant;
+      if (group.products) {
+        const product = group.products.find(v => v.product_id === id);
+        if (product) return product;
       }
     }
     return null;
@@ -131,28 +133,28 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
   );
 
   // Filter logic
+  const q = searchQuery?.toLowerCase() ?? '';
   const filteredGroups = manifest.product_list.map(group => {
-    // If it's a single product, check match
-    if (!group.variants) {
-      const matches = group.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                      group.mcu?.toLowerCase().includes(searchQuery.toLowerCase());
+    const groupName = group.name ?? '';
+    // If it's a single product (no products array), check match
+    if (!group.products || !group.products.some((v: any) => 'product_id' in v)) {
+      const matches = groupName.toLowerCase().includes(q) || 
+                      (group.mcu ?? '').toLowerCase().includes(q);
       return matches ? group : null;
     }
 
-    // If it's a series, check if series matches OR any variant matches
-    const seriesMatches = group.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchingVariants = group.variants.filter(v => 
-      v.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      v.mcu.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // If it's a series with products, check if series matches OR any product matches
+    const seriesMatches = groupName.toLowerCase().includes(q);
+    const matchingProducts = group.products.filter((v: any) => {
+      const vName = (v.name ?? v.title ?? '').toLowerCase();
+      const vMcu = (v.mcu ?? '').toLowerCase();
+      return vName.includes(q) || vMcu.includes(q);
+    });
 
-    if (seriesMatches || matchingVariants.length > 0) {
-      // Return group but maybe with filtered variants? 
-      // For now let's keep all variants if series matches, or just matching variants if series doesn't match?
-      // Better UX: if searching, expand relevant series.
+    if (seriesMatches || matchingProducts.length > 0) {
       return {
         ...group,
-        variants: seriesMatches ? group.variants : matchingVariants
+        products: seriesMatches ? group.products : matchingProducts
       };
     }
     return null;
@@ -163,7 +165,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
     if (searchQuery) {
       const newExpanded = new Set<string>();
       filteredGroups.forEach(g => {
-        if (g.variants && g.id) newExpanded.add(g.id);
+        if (g.products && g.id) newExpanded.add(g.id);
       });
       setExpandedSeries(newExpanded);
     }
@@ -262,7 +264,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
       )}
 
       {/* Left Column: Device List */}
-      <div className="w-[36%] min-w-[375px] max-w-[500px] border-r border-slate-200 dark:border-zinc-700 flex flex-col bg-slate-100/80 dark:bg-zinc-800/50">
+      <div className="w-[36%] min-w-[260px] max-w-[500px] shrink-0 border-r border-slate-200 dark:border-zinc-700 flex flex-col bg-slate-100/80 dark:bg-zinc-800/50">
         <div className="p-4 border-b border-slate-200 dark:border-zinc-700">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 dark:text-slate-400" size={18} />
@@ -283,7 +285,8 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
              <div className="text-center py-10 text-slate-500 dark:text-slate-500">No devices found</div>
           ) : (
             filteredGroups.map(group => {
-              const isSeries = !!group.variants && group.variants.length > 0;
+              const hasProducts = !!group.products?.length && group.products.some((v: any) => 'product_id' in v);
+              const isSeries = hasProducts;
               const isExpanded = group.id ? expandedSeries.has(group.id) : false;
               
               if (isSeries) {
@@ -314,29 +317,29 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-slate-800 dark:text-slate-200">{group.name}</h3>
                         <div className="flex items-center text-xs text-slate-500 mt-1">
-                           <span className="bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-300 mr-2">{group.variants?.length} variants</span>
+                           <span className="bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-300 mr-2">{group.products?.length} products</span>
                         </div>
                         <p className="text-xs text-slate-500 mt-1 truncate">{group.description}</p>
                       </div>
                     </div>
 
-                    {/* Variants List */}
+                    {/* Products List */}
                     {isExpanded && (
                       <div className="ml-[20px] pl-6 border-l-2 border-slate-700/50 mt-1 space-y-1">
-                        {group.variants?.map(variant => (
+                        {group.products?.map(product => (
                           <div 
-                            key={variant.product_id}
-                            onClick={() => setSelectedProductId(variant.product_id)}
+                            key={product.product_id}
+                            onClick={() => setSelectedProductId(product.product_id)}
                             className={`p-2 rounded-lg cursor-pointer transition-all duration-200 flex items-center ${
-                              selectedProductId === variant.product_id 
+                              selectedProductId === product.product_id 
                                 ? 'bg-primary/10 text-primary border border-primary/30' 
                                 : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700/50 hover:text-slate-800 dark:hover:text-slate-200'
                             }`}
                           >
                              <div className="w-12 h-12 bg-white rounded-md p-1 flex items-center justify-center shrink-0 mr-3 overflow-hidden shadow-sm">
                                 <img 
-                                   src={variant.image_url} 
-                                   alt={variant.name} 
+                                   src={product.image_url} 
+                                   alt={product.name} 
                                    className="max-w-full max-h-full object-contain"
                                    onError={(e) => {
                                      (e.target as HTMLImageElement).style.display = 'none';
@@ -348,8 +351,8 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                                  </div>
                              </div>
                              <div className="min-w-0">
-                                <div className="font-medium text-sm truncate">{variant.name}</div>
-                                <div className="text-[10px] opacity-70">{variant.mcu}</div>
+                                <div className="font-medium text-sm truncate">{product.name}</div>
+                                <div className="text-[10px] opacity-70">{product.mcu}</div>
                              </div>
                           </div>
                         ))}
@@ -406,37 +409,59 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
       </div>
 
       {/* Right Column: Firmware Details */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-zinc-900">
+      <div className="flex-1 min-w-[320px] flex flex-col overflow-hidden bg-white dark:bg-zinc-900">
         {selectedProduct ? (
           <>
             {/* Header Product Info */}
-            <div className="p-6 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-               <div className="flex items-start justify-between">
-                 <div>
-                    <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">{selectedProduct.name}</h2>
-                    <p className="text-slate-600 dark:text-slate-400 max-w-2xl">{selectedProduct.description}</p>
-                    <div className="flex items-center space-x-4 mt-4">
+            <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                 <div className="min-w-0 flex-1">
+                    <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white mb-2 truncate">{selectedProduct.name}</h2>
+                    <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 line-clamp-2 sm:line-clamp-none">{selectedProduct.description}</p>
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-3 sm:mt-4">
                         {selectedProduct.github_repo && (
-                          <a href={selectedProduct.github_repo} target="_blank" rel="noreferrer" className="flex items-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors text-sm">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const mode = localStorage.getItem('lilygo_link_open_mode') || 'internal';
+                              if (window.ipcRenderer) {
+                                window.ipcRenderer.invoke('open-url', selectedProduct.github_repo, mode);
+                              } else {
+                                window.open(selectedProduct.github_repo, '_blank');
+                              }
+                            }}
+                            className="flex items-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors text-sm shrink-0 bg-transparent border-none cursor-pointer p-0"
+                          >
                               <Github size={16} className="mr-1.5" /> GitHub Repo
-                          </a>
+                          </button>
                         )}
                         {selectedProduct.product_page && (
-                          <a href={selectedProduct.product_page} target="_blank" rel="noreferrer" className="flex items-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors text-sm">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const mode = localStorage.getItem('lilygo_link_open_mode') || 'internal';
+                              if (window.ipcRenderer) {
+                                window.ipcRenderer.invoke('open-url', selectedProduct.product_page, mode);
+                              } else {
+                                window.open(selectedProduct.product_page, '_blank');
+                              }
+                            }}
+                            className="flex items-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors text-sm shrink-0 bg-transparent border-none cursor-pointer p-0"
+                          >
                               <ExternalLink size={16} className="mr-1.5" /> Product Page
-                          </a>
+                          </button>
                         )}
                     </div>
                  </div>
                  {/* Large Image Preview */}
-                 <div className="w-32 h-32 bg-white dark:bg-white rounded-xl p-2 flex items-center justify-center shadow-2xl">
+                 <div className="w-24 h-24 sm:w-32 sm:h-32 bg-white dark:bg-white rounded-xl p-2 flex items-center justify-center shadow-2xl shrink-0">
                     <img src={selectedProduct.image_url} alt="" className="max-w-full max-h-full object-contain" />
                  </div>
                </div>
             </div>
 
             {/* Firmware List */}
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 min-h-0">
                 <h3 className="text-xl font-semibold mb-4 flex items-center text-slate-900 dark:text-white">
                     <FileCode className="mr-2 text-primary" /> 
                     Available Firmware
@@ -446,7 +471,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                 </h3>
 
                 {relatedFirmwares.length === 0 ? (
-                    <div className="p-8 border border-dashed border-slate-300 dark:border-zinc-700 rounded-xl text-center text-slate-500">
+                    <div className="p-6 sm:p-8 border border-dashed border-slate-300 dark:border-zinc-700 rounded-xl text-center text-slate-500 text-sm sm:text-base min-w-0">
                         No firmware found for this device in the manifest.
                     </div>
                 ) : (
@@ -457,9 +482,9 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                             const progress = downloadProgress[fw.download_url] || 0;
 
                             return (
-                                <div key={idx} className="bg-slate-100 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 rounded-xl p-4 hover:border-primary/50 transition-colors group">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex-1">
+                                <div key={idx} className="bg-slate-100 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 rounded-xl p-4 hover:border-primary/50 transition-colors group min-w-0">
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                        <div className="flex-1 min-w-0">
                                             <div className="flex items-center space-x-3 mb-1">
                                                 <h4 className="text-lg font-medium text-slate-800 dark:text-slate-200">{fw.name}</h4>
                                                 <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
@@ -478,7 +503,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                                             </div>
                                         </div>
                                         
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 shrink-0">
                                             {isDownloading ? (
                                                 <div className="flex flex-col items-end min-w-[120px]">
                                                     <div className="text-xs text-primary mb-1">Downloading {progress}%</div>

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, dialog, nativeImage, nativeTheme } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, dialog, nativeImage, nativeTheme, shell } from 'electron'
 import path from 'node:path'
 
 // Set app name for "Open with" dialog when handling lilygo-spark:// deep links
@@ -262,6 +262,8 @@ function createWindow() {
   win = new BrowserWindow({
     width: 1200,
     height: 800,
+    minWidth: 900,
+    minHeight: 600,
     // Temporarily use vite logo as icon
     icon: path.join(publicPath, 'LILYGO.png'),
     backgroundColor: '#0f172a', // Matches Tailwind slate-900
@@ -415,6 +417,22 @@ ipcMain.handle('write-serial', handleWriteSerial);
 
 // 5. Open External URL
 ipcMain.handle('open-external', handleOpenExternal);
+
+// 6. Open URL (external browser or internal window)
+ipcMain.handle('open-url', async (_event, url: string, mode: 'external' | 'internal' = 'external') => {
+  if (mode === 'internal') {
+    const child = new BrowserWindow({
+      parent: win ?? undefined,
+      width: 1000,
+      height: 700,
+      webPreferences: { nodeIntegration: false, contextIsolation: true },
+    });
+    await child.loadURL(url);
+    child.on('closed', () => { child.destroy(); });
+  } else {
+    await shell.openExternal(url);
+  }
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

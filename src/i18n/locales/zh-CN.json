@@ -50,7 +50,13 @@
       "emerald": "翠绿",
       "violet": "紫色",
       "rose": "玫红"
-    }
+    },
+    "link_open": "链接打开方式",
+    "link_open_options": {
+      "external": "外部浏览器",
+      "internal": "应用内窗口"
+    },
+    "link_open_hint": "产品页、GitHub、新闻等链接将按此设置打开。"
   },
   "burner": {
     "welcome": "欢迎使用 LILYGO Spark！",

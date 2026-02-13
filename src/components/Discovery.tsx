@@ -155,7 +155,28 @@ const Discovery: React.FC = () => {
                         {news.map(item => (
                             <div 
                                 key={item.id}
-                                className="group bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl overflow-hidden hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 flex flex-col"
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => {
+                                    if (!item.url) return;
+                                    const mode = localStorage.getItem('lilygo_link_open_mode') || 'internal';
+                                    if (window.ipcRenderer) {
+                                        window.ipcRenderer.invoke('open-url', item.url, mode);
+                                    } else {
+                                        window.open(item.url, '_blank');
+                                    }
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && item.url) {
+                                        const mode = localStorage.getItem('lilygo_link_open_mode') || 'internal';
+                                        if (window.ipcRenderer) {
+                                            window.ipcRenderer.invoke('open-url', item.url, mode);
+                                        } else {
+                                            window.open(item.url, '_blank');
+                                        }
+                                    }
+                                }}
+                                className="group bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl overflow-hidden hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 flex flex-col cursor-pointer"
                             >
                                 {/* Image Area */}
                                 <div className="h-48 bg-slate-100 dark:bg-zinc-900 overflow-hidden relative">
@@ -215,14 +236,11 @@ const Discovery: React.FC = () => {
                                             ))}
                                         </div>
                                         
-                                        <a 
-                                            href={item.url} 
-                                            target="_blank" 
-                                            rel="noreferrer"
-                                            className="p-2 rounded-full bg-slate-50 dark:bg-zinc-700/50 text-slate-400 hover:text-primary hover:bg-primary/10 transition-colors"
+                                        <span 
+                                            className="p-2 rounded-full bg-slate-50 dark:bg-zinc-700/50 text-slate-400 group-hover:text-primary group-hover:bg-primary/10 transition-colors"
                                         >
                                             <ExternalLink size={16} />
-                                        </a>
+                                        </span>
                                     </div>
                                 </div>
                             </div>

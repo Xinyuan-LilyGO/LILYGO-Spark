@@ -50,7 +50,13 @@
       "emerald": "エメラルド",
       "violet": "バイオレット",
       "rose": "ローズ"
-    }
+    },
+    "link_open": "リンクの開き方",
+    "link_open_options": {
+      "external": "外部ブラウザ",
+      "internal": "アプリ内ウィンドウ"
+    },
+    "link_open_hint": "製品ページ、GitHub、ニュースなどのリンクはこの設定で開きます。"
   },
   "burner": {
     "welcome": "LILYGO Spark へようこそ！",

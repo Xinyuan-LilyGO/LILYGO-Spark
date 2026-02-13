@@ -33,7 +33,13 @@
             "emerald": "Emerald",
             "violet": "Violet",
             "rose": "Rose"
-        }
+        },
+        "link_open": "Link Open Mode",
+        "link_open_options": {
+            "external": "External Browser",
+            "internal": "In-App Window"
+        },
+        "link_open_hint": "Product pages, GitHub, and news links will open in external browser or in-app window."
     },
     "burner": {
         "welcome": "Welcome to LILYGO Spark!",

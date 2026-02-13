@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Globe, Moon, Palette } from 'lucide-react';
+import { Globe, Moon, Palette, ExternalLink } from 'lucide-react';
 import { useTheme, type AccentColor } from '../contexts/ThemeContext';
 
 const ACCENT_COLORS: { id: AccentColor; bg: string }[] = [
@@ -11,6 +11,8 @@ const ACCENT_COLORS: { id: AccentColor; bg: string }[] = [
   { id: 'rose', bg: 'bg-rose-500' },
 ];
 
+const LINK_OPEN_STORAGE_KEY = 'lilygo_link_open_mode';
+
 const SettingsPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { preference: themePreference, setPreference: setThemePreference, accent, setAccent } = useTheme();
@@ -19,6 +21,15 @@ const SettingsPage: React.FC = () => {
   const [currentSelection, setCurrentSelection] = React.useState(() => {
       return localStorage.getItem('i18nextLng') || 'system';
   });
+
+  const [linkOpenMode, setLinkOpenMode] = React.useState<'external' | 'internal'>(() => {
+    return (localStorage.getItem(LINK_OPEN_STORAGE_KEY) as 'external' | 'internal') || 'internal';
+  });
+
+  const handleLinkOpenModeChange = (mode: 'external' | 'internal') => {
+    setLinkOpenMode(mode);
+    localStorage.setItem(LINK_OPEN_STORAGE_KEY, mode);
+  };
 
   const changeLanguage = async (lng: string) => {
     if (lng === 'system') {
@@ -105,6 +116,26 @@ const SettingsPage: React.FC = () => {
             </div>
             <div className="text-xs text-slate-500 dark:text-zinc-400 mt-2">
                 {t(`settings.accent_options.${accent}`)}
+            </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                    <ExternalLink className="text-primary" />
+                    <span className="font-medium text-slate-800 dark:text-slate-200">{t('settings.link_open')}</span>
+                </div>
+                <select 
+                    value={linkOpenMode}
+                    onChange={(e) => handleLinkOpenModeChange(e.target.value as 'external' | 'internal')}
+                    className="bg-white dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                    <option value="internal">{t('settings.link_open_options.internal')}</option>
+                    <option value="external">{t('settings.link_open_options.external')}</option>
+                </select>
+            </div>
+            <div className="text-xs text-slate-500 dark:text-zinc-400 mt-2">
+                {t('settings.link_open_hint')}
             </div>
             </div>
         </div>

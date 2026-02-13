@@ -132,27 +132,33 @@ export function setupConfigHandler() {
         return data;
       }
     }
-    console.error('所有 manifest 地址均失败，主地址及', mirrors.length, '个镜像');
+    console.error('所有 manifest 地址均失败，主地址及', mirrors.length, '个镜像，尝试本地 manifest...');
 
-    let localManifestPath = '';
+    const localPaths: string[] = [];
     if (app.isPackaged) {
-      localManifestPath = path.join(process.resourcesPath, 'firmware_manifest.json');
-      if (!fs.existsSync(localManifestPath)) {
-        localManifestPath = path.join(path.dirname(app.getPath('exe')), 'firmware_manifest.json');
-      }
+      localPaths.push(path.join(process.resourcesPath, 'firmware_manifest.json'));
+      localPaths.push(path.join(path.dirname(app.getPath('exe')), 'firmware_manifest.json'));
     } else {
-      localManifestPath = path.join(app.getAppPath(), '..', 'firmware_manifest.json');
-      if (!fs.existsSync(localManifestPath)) {
-        localManifestPath = path.join(process.cwd(), 'firmware_manifest.json');
+      localPaths.push(path.join(app.getAppPath(), 'firmware_manifest.json'));
+      localPaths.push(path.join(app.getAppPath(), '..', 'firmware_manifest.json'));
+      localPaths.push(path.join(process.cwd(), 'firmware_manifest.json'));
+      localPaths.push(path.join(process.cwd(), '..', 'firmware_manifest.json'));
+    }
+
+    for (const localManifestPath of localPaths) {
+      if (fs.existsSync(localManifestPath)) {
+        try {
+          const data = fs.readFileSync(localManifestPath, 'utf-8');
+          const parsed = JSON.parse(data);
+          console.log('[Manifest] 使用本地 manifest:', localManifestPath);
+          return parsed;
+        } catch (e) {
+          console.warn(`[Manifest] 解析本地文件失败 ${localManifestPath}:`, e);
+        }
       }
     }
 
-    if (fs.existsSync(localManifestPath)) {
-      const data = fs.readFileSync(localManifestPath, 'utf-8');
-      return JSON.parse(data);
-    }
-
-    console.error('Local manifest not found at:', localManifestPath);
+    console.error('Local manifest not found at any:', localPaths);
     return { product_list: [], firmware_list: [] };
   });
 

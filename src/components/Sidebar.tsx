@@ -43,10 +43,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
   ];
 
   return (
-    <div className="w-[220px] mt-1.5 h-full flex-none z-50 flex flex-col bg-surface border-r border-slate-200 dark:border-zinc-700 transition-colors">
+    <div className="w-[220px] h-full flex-none z-50 flex flex-col min-h-0 bg-surface border-r border-slate-200 dark:border-zinc-700 transition-colors overflow-hidden">
       
       {/* Header / Logo */}
-      <div className="flex items-center justify-center h-20 overflow-hidden relative select-none">
+      <div className="flex items-center justify-center h-20 overflow-hidden relative select-none shrink-0">
         <div className="flex items-center">
              <div className="w-10 h-10 bg-gradient-to-br from-primary to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary/30 shrink-0">
                 <Zap size={24} className="text-white fill-white" />
@@ -61,7 +61,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
       </div>
 
       {/* Nav Items - List Style */}
-      <nav className="flex-1 px-3 space-y-4 mt-8 flex flex-col items-center">
+      <nav className="flex-1 min-h-0 overflow-y-auto px-3 space-y-4 mt-3 flex flex-col items-center custom-scrollbar">
         {navItems.map((item) => {
           const isActive = activeTab === item.id;
           const Icon = item.icon;
@@ -98,7 +98,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
       </nav>
 
       {/* Footer: Login / User */}
-      <div className="p-4 border-t border-slate-200 dark:border-zinc-700/30 space-y-3">
+      <div className="p-4 border-t border-slate-200 dark:border-zinc-700/30 space-y-3 shrink-0">
         {user ? (
           <div className="flex items-center gap-3 px-2">
             {user.avatar_url && (
