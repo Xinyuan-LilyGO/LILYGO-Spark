@@ -1,4 +1,4 @@
-import { app, ipcMain } from 'electron';
+import { app, ipcMain, dialog, type BrowserWindow } from 'electron';
 import path from 'path';
 import fs from 'fs';
 
@@ -115,8 +115,76 @@ async function tryFetchManifest(url: string, label: string): Promise<unknown | n
   return null;
 }
 
-export function setupConfigHandler() {
+const CUSTOM_MANIFEST_STORAGE_KEY = 'custom_firmware_manifest_path';
+
+function getCustomManifestPath(): string | null {
+  const userDataPath = app.getPath('userData');
+  const storePath = path.join(userDataPath, 'lilygo_spark_settings.json');
+  try {
+    if (fs.existsSync(storePath)) {
+      const raw = fs.readFileSync(storePath, 'utf-8');
+      const data = JSON.parse(raw);
+      const p = data?.[CUSTOM_MANIFEST_STORAGE_KEY];
+      return typeof p === 'string' && p.trim() ? p.trim() : null;
+    }
+  } catch (e) {
+    console.warn('[Manifest] 读取自定义路径失败:', e);
+  }
+  return null;
+}
+
+function setCustomManifestPath(filePath: string | null): void {
+  const userDataPath = app.getPath('userData');
+  const storePath = path.join(userDataPath, 'lilygo_spark_settings.json');
+  try {
+    let data: Record<string, unknown> = {};
+    if (fs.existsSync(storePath)) {
+      data = JSON.parse(fs.readFileSync(storePath, 'utf-8')) || {};
+    }
+    if (filePath) {
+      data[CUSTOM_MANIFEST_STORAGE_KEY] = filePath;
+    } else {
+      delete data[CUSTOM_MANIFEST_STORAGE_KEY];
+    }
+    fs.writeFileSync(storePath, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('[Manifest] 保存自定义路径失败:', e);
+    throw e;
+  }
+}
+
+function loadManifestFromFile(filePath: string): unknown | null {
+  try {
+    if (fs.existsSync(filePath)) {
+      const data = fs.readFileSync(filePath, 'utf-8');
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    console.warn('[Manifest] 解析文件失败:', filePath, e);
+  }
+  return null;
+}
+
+function getBundledManifestPath(): string {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'firmware_manifest.json');
+  }
+  return path.join(app.getAppPath(), 'firmware_manifest.json');
+}
+
+export function setupConfigHandler(mainWindow?: BrowserWindow | null) {
+  // 1. 自定义路径（高级模式选择）> 2. 网络 > 3. 内置包内 manifest
   ipcMain.handle('get-firmware-manifest', async () => {
+    const customPath = getCustomManifestPath();
+    if (customPath) {
+      const data = loadManifestFromFile(customPath);
+      if (data != null) {
+        console.log('[Manifest] 使用高级模式自定义清单:', customPath);
+        return data;
+      }
+      console.warn('[Manifest] 自定义路径文件无效或不存在，回退到网络');
+    }
+
     const config = getConfig();
     const primaryUrl = config.firmware_manifest_url.trim();
     const mirrors = config.firmware_manifest_mirrors ?? [];
@@ -132,34 +200,54 @@ export function setupConfigHandler() {
         return data;
       }
     }
-    console.error('所有 manifest 地址均失败，主地址及', mirrors.length, '个镜像，尝试本地 manifest...');
+    console.warn('所有 manifest 地址均失败，主地址及', mirrors.length, '个镜像，尝试内置 manifest...');
 
-    const localPaths: string[] = [];
-    if (app.isPackaged) {
-      localPaths.push(path.join(process.resourcesPath, 'firmware_manifest.json'));
-      localPaths.push(path.join(path.dirname(app.getPath('exe')), 'firmware_manifest.json'));
-    } else {
-      localPaths.push(path.join(app.getAppPath(), 'firmware_manifest.json'));
-      localPaths.push(path.join(app.getAppPath(), '..', 'firmware_manifest.json'));
-      localPaths.push(path.join(process.cwd(), 'firmware_manifest.json'));
-      localPaths.push(path.join(process.cwd(), '..', 'firmware_manifest.json'));
+    const bundledPath = getBundledManifestPath();
+    const bundled = loadManifestFromFile(bundledPath);
+    if (bundled != null) {
+      console.log('[Manifest] 使用内置清单:', bundledPath);
+      return bundled;
     }
 
-    for (const localManifestPath of localPaths) {
-      if (fs.existsSync(localManifestPath)) {
-        try {
-          const data = fs.readFileSync(localManifestPath, 'utf-8');
-          const parsed = JSON.parse(data);
-          console.log('[Manifest] 使用本地 manifest:', localManifestPath);
-          return parsed;
-        } catch (e) {
-          console.warn(`[Manifest] 解析本地文件失败 ${localManifestPath}:`, e);
-        }
+    const localPaths = app.isPackaged
+      ? [path.join(path.dirname(app.getPath('exe')), 'firmware_manifest.json')]
+      : [
+          path.join(app.getAppPath(), '..', 'firmware_manifest.json'),
+          path.join(process.cwd(), 'firmware_manifest.json'),
+        ];
+    for (const p of localPaths) {
+      const data = loadManifestFromFile(p);
+      if (data != null) {
+        console.log('[Manifest] 使用本地 manifest:', p);
+        return data;
       }
     }
 
-    console.error('Local manifest not found at any:', localPaths);
+    console.error('Local manifest not found at any:', [bundledPath, ...localPaths]);
     return { product_list: [], firmware_list: [] };
+  });
+
+  ipcMain.handle('get-custom-manifest-path', async () => getCustomManifestPath());
+
+  ipcMain.handle('select-firmware-manifest-file', async () => {
+    const result = await dialog.showOpenDialog(mainWindow ?? undefined, {
+      title: 'Select Firmware Manifest (JSON)',
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+      properties: ['openFile'],
+    });
+    if (result.canceled || !result.filePaths?.[0]) return null;
+    const filePath = result.filePaths[0];
+    const data = loadManifestFromFile(filePath);
+    if (data == null) throw new Error('Invalid or empty JSON file');
+    setCustomManifestPath(filePath);
+    mainWindow?.webContents?.send('manifest-source-changed');
+    return filePath;
+  });
+
+  ipcMain.handle('clear-custom-manifest', async () => {
+    setCustomManifestPath(null);
+    mainWindow?.webContents?.send('manifest-source-changed');
+    return true;
   });
 
   ipcMain.handle('get-api-base-url', async () => {

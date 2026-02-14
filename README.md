@@ -75,6 +75,16 @@ npm run build:linux        # Linux
 npm run build:mac:universal  # macOS universal binary
 ```
 
+### Easter Eggs & Effects
+
+For hackers and makers who enjoy a bit of fun:
+
+| Trigger | Effect |
+|---------|--------|
+| **Konami Code** | Press `↑ ↑ ↓ ↓ ← → ← → B A` anywhere in the app → "ACCESS GRANTED" overlay |
+| **Flash Success** | When firmware flashing completes successfully → "FLASH COMPLETE ✓" celebration |
+| **Device Detected** | When an ESP32 device is detected → "// TARGET ACQUIRED" badge |
+
 ---
 
 ## 中文
@@ -147,3 +157,13 @@ npm run build:win          # Windows
 npm run build:linux        # Linux
 npm run build:mac:universal  # macOS 通用包
 ```
+
+### 彩蛋与特效
+
+为喜欢小惊喜的极客和创客准备：
+
+| 触发条件 | 效果 |
+|----------|------|
+| **Konami 彩蛋** | 在应用任意位置按 `↑ ↑ ↓ ↓ ← → ← → B A` → 显示「ACCESS GRANTED」弹窗 |
+| **烧录成功** | 固件烧录完成时 → 显示「FLASH COMPLETE ✓」庆祝 |
+| **设备检测** | 检测到 ESP32 设备时 → 显示「// TARGET ACQUIRED」标识 |

@@ -24,11 +24,11 @@ const LilygoCommunity: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-slate-50 via-slate-50 to-primary/5 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-900 overflow-hidden">
+    <div className="h-full flex flex-col bg-gradient-to-br from-slate-50 via-slate-50 to-primary/5 dark:from-zinc-950/80 dark:via-zinc-900/50 dark:to-transparent overflow-hidden">
       {/* Header */}
-      <div className="relative p-6 sm:p-8 shrink-0 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-primary/5 dark:from-primary/20 dark:to-primary/10" />
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+      <div className="relative p-6 sm:p-8 shrink-0 overflow-hidden border-b border-slate-200/60 dark:border-white/[0.06]">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-primary/5 dark:from-primary/10 dark:via-primary/5 dark:to-transparent" />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 dark:bg-primary/12 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         <div className="relative">
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
             <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-lg shadow-primary/30">

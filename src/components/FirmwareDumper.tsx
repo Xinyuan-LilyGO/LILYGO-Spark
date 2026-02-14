@@ -301,7 +301,7 @@ const FirmwareDumper: React.FC = () => {
               onClick={handleSelectDeviceClick}
               className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-between border
                 ${port 
-                    ? 'bg-slate-600 dark:bg-zinc-700 hover:bg-slate-500 dark:hover:bg-slate-600 text-white border-slate-400 dark:border-slate-500' 
+                    ? 'bg-primary hover:bg-primary-hover text-white border-primary/50 dark:border-slate-500' 
                     : 'bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-zinc-600'
                 }`}
             >

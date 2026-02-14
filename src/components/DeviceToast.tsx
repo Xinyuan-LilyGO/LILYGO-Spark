@@ -131,10 +131,11 @@ const DeviceToast = () => {
                 </div>
 
                 {device.isEsp && (
-                  <div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-900/50 text-green-300 border border-green-800">
                       ESP32 Device
                     </span>
+                    <span className="font-mono text-[10px] text-emerald-500/90">// TARGET ACQUIRED</span>
                   </div>
                 )}
                 

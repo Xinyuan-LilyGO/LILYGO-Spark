@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useTheme } from './contexts/ThemeContext'
+import { useKonamiCode } from './hooks/useKonamiCode'
 import Burner from './components/Burner'
+import { HackerEasterEgg } from './components/HackerEasterEgg'
 import Discovery from './components/Discovery'
 import DeviceToast from './components/DeviceToast'
 import SettingsPage from './components/SettingsPage'
@@ -21,6 +23,8 @@ interface AuthUser {
 
 function App() {
   const { glassEnabled, resolved } = useTheme();
+  const [konamiShow, setKonamiShow] = useState(false);
+  useKonamiCode(() => setKonamiShow(true));
   const [activeTab, setActiveTab] = useState('firmware') // Default to firmware/community
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -75,6 +79,7 @@ function App() {
 
   return (
     <div className={`flex h-screen text-[rgb(var(--color-text-base))] overflow-hidden transition-all duration-300 ${bgClass}`}>
+      <HackerEasterEgg show={konamiShow} onComplete={() => setKonamiShow(false)} message="ACCESS GRANTED" />
       <DeviceToast />
       
       {/* Sidebar Component */}

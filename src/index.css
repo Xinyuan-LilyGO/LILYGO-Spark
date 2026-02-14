@@ -88,3 +88,24 @@ input, textarea, code, pre, .select-text {
 .animate-fade-in {
   animation: fade-in-scale 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+@keyframes hacker-flash {
+  0% { opacity: 0; transform: scale(0.9); }
+  15% { opacity: 1; transform: scale(1.05); }
+  30% { transform: scale(1); }
+  85% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1); }
+}
+
+.animate-hacker-flash {
+  animation: hacker-flash 2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes flash-success-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5); }
+  50% { opacity: 1; box-shadow: 0 0 30px 10px rgba(16, 185, 129, 0.3); }
+}
+
+.animate-flash-success {
+  animation: flash-success-pulse 1.5s ease-in-out 2;
+}

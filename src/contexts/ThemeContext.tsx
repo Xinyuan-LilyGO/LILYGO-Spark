@@ -7,6 +7,10 @@ export type AccentColor = 'blue' | 'orange' | 'amber' | 'emerald' | 'cyan' | 'vi
 const THEME_STORAGE_KEY = 'lilygo_theme';
 const ACCENT_STORAGE_KEY = 'lilygo_accent';
 const GLASS_STORAGE_KEY = 'lilygo_glass_effect';
+const SOUND_STORAGE_KEY = 'lilygo_sound_enabled';
+const FLASH_STYLE_STORAGE_KEY = 'lilygo_flash_celebration_style';
+
+export type FlashCelebrationStyle = 'fireworks' | 'hacker' | 'minimal' | 'neon' | 'terminal' | 'gradient';
 
 function getSystemTheme(): ResolvedTheme {
   if (typeof window === 'undefined') return 'dark';
@@ -39,6 +43,24 @@ function getStoredGlass(): boolean {
   return true;
 }
 
+function getStoredSoundEnabled(): boolean {
+  try {
+    const stored = localStorage.getItem(SOUND_STORAGE_KEY);
+    if (stored === 'true') return true;
+    if (stored === 'false') return false;
+  } catch {}
+  return true;
+}
+
+function getStoredFlashStyle(): FlashCelebrationStyle {
+  try {
+    const stored = localStorage.getItem(FLASH_STYLE_STORAGE_KEY);
+    const valid: FlashCelebrationStyle[] = ['fireworks', 'hacker', 'minimal', 'neon', 'terminal', 'gradient'];
+    if (stored && valid.includes(stored as FlashCelebrationStyle)) return stored as FlashCelebrationStyle;
+  } catch {}
+  return 'fireworks';
+}
+
 function resolveTheme(pref: ThemePreference): ResolvedTheme {
   if (pref === 'light') return 'light';
   if (pref === 'dark') return 'dark';
@@ -62,9 +84,13 @@ interface ThemeContextValue {
   resolved: ResolvedTheme;
   accent: AccentColor;
   glassEnabled: boolean;
+  soundEnabled: boolean;
+  flashCelebrationStyle: FlashCelebrationStyle;
   setPreference: (p: ThemePreference) => void;
   setAccent: (a: AccentColor) => void;
   setGlassEnabled: (v: boolean) => void;
+  setSoundEnabled: (v: boolean) => void;
+  setFlashCelebrationStyle: (s: FlashCelebrationStyle) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -73,6 +99,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [preference, setPreferenceState] = useState<ThemePreference>(getStoredPreference);
   const [accent, setAccentState] = useState<AccentColor>(getStoredAccent);
   const [glassEnabled, setGlassEnabledState] = useState(getStoredGlass);
+  const [soundEnabled, setSoundEnabledState] = useState(getStoredSoundEnabled);
+  const [flashCelebrationStyle, setFlashCelebrationStyleState] = useState<FlashCelebrationStyle>(getStoredFlashStyle);
   const [systemDark, setSystemDark] = useState(getSystemTheme);
 
   const resolved = resolveTheme(preference);
@@ -91,6 +119,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setGlassEnabled = (v: boolean) => {
     setGlassEnabledState(v);
     localStorage.setItem(GLASS_STORAGE_KEY, String(v));
+  };
+
+  const setSoundEnabled = (v: boolean) => {
+    setSoundEnabledState(v);
+    localStorage.setItem(SOUND_STORAGE_KEY, String(v));
+  };
+
+  const setFlashCelebrationStyle = (s: FlashCelebrationStyle) => {
+    setFlashCelebrationStyleState(s);
+    localStorage.setItem(FLASH_STYLE_STORAGE_KEY, s);
   };
 
   useEffect(() => {
@@ -128,7 +166,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [effectiveResolved]);
 
   return (
-    <ThemeContext.Provider value={{ preference, resolved: effectiveResolved, accent, glassEnabled, setPreference, setAccent, setGlassEnabled }}>
+    <ThemeContext.Provider value={{ preference, resolved: effectiveResolved, accent, glassEnabled, soundEnabled, flashCelebrationStyle, setPreference, setAccent, setGlassEnabled, setSoundEnabled, setFlashCelebrationStyle }}>
       {children}
     </ThemeContext.Provider>
   );

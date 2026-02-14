@@ -12,6 +12,10 @@
     "community": "LILYGO 社区",
     "lilygo_related": "LILYGO 相关"
   },
+  "firmwareCenter": {
+    "only_with_firmware": "仅显示有固件的产品",
+    "product_count": "（共 {{count}} 个）"
+  },
   "community": {
     "title": "LILYGO 相关",
     "subtitle": "官网、GitHub、Wiki、淘宝、AliExpress、社区论坛",
@@ -78,7 +82,31 @@
     "glass": "玻璃拟态",
     "glass_on": "已开启",
     "glass_off": "已关闭",
-    "glass_hint": "侧边栏和设置卡片使用毛玻璃效果，可在低性能设备上关闭以提升流畅度。"
+    "glass_hint": "侧边栏和设置卡片使用毛玻璃效果，可在低性能设备上关闭以提升流畅度。",
+    "sound": "烧录完成音效",
+    "sound_on": "已开启",
+    "sound_off": "已关闭",
+    "sound_hint": "固件烧录完成时播放提示音。",
+    "flash_celebration_style": "烧录成功动画",
+    "flash_style_fireworks": "烟花",
+    "flash_style_hacker": "黑客风格",
+    "flash_style_minimal": "简洁",
+    "flash_style_neon": "霓虹",
+    "flash_style_terminal": "终端",
+    "flash_style_gradient": "渐变",
+    "flash_celebration_style_hint": "烧录完成时显示的庆祝动画样式，可在刷写工具中预览。",
+    "advanced_mode": "高级模式",
+    "firmware_manifest_file": "固件清单文件",
+    "firmware_manifest_file_hint": "选择后，固件中心将优先使用本机 JSON，不再从网络拉取。点清除后恢复从网络获取。",
+    "firmware_manifest_select": "选择文件",
+    "firmware_manifest_clear": "清除",
+    "firmware_manifest_active": "已使用自定义清单，固件中心将从该文件加载。",
+    "easter_eggs": "彩蛋与特效",
+    "easter_eggs_konami": "任意位置输入 Konami 码，显示「ACCESS GRANTED」",
+    "easter_eggs_flash": "烧录成功",
+    "easter_eggs_flash_hint": "固件烧录完成时显示庆祝动画",
+    "easter_eggs_device": "设备检测",
+    "easter_eggs_device_hint": "检测到 ESP32 时显示「TARGET ACQUIRED」"
   },
   "burner": {
     "welcome": "欢迎使用 LILYGO Spark！",
@@ -103,7 +131,8 @@
       "erased": "Flash 已擦除"
     },
     "choose_file": "选择文件",
-    "no_file_chosen": "未选择文件"
+    "no_file_chosen": "未选择文件",
+    "preview_flash": "预览烧录动画"
   },
   "dumper": {
     "title": "固件提取",

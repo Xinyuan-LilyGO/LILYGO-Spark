@@ -48,7 +48,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
   return (
     <div className={`w-[220px] h-full flex-none z-50 flex flex-col min-h-0 border-r transition-all duration-200 overflow-hidden ${
       glassEnabled 
-        ? 'bg-white/40 dark:bg-zinc-900/40 backdrop-blur-2xl backdrop-saturate-150 border-white/20 dark:border-white/10 shadow-[4px_0_24px_-4px_rgba(0,0,0,0.08)] dark:shadow-[4px_0_24px_-4px_rgba(0,0,0,0.3)] ring-1 ring-white/10 inset-ring' 
+        ? 'bg-white/40 dark:bg-zinc-900/40 backdrop-blur-2xl backdrop-saturate-150 border-white/20 dark:border-white/10 shadow-[4px_0_24px_-4px_rgba(0,0,0,0.08)] dark:shadow-[4px_0_24px_-4px_rgba(0,0,0,0.3)] ring-1 ring-white/10' 
         : 'bg-surface border-slate-200 dark:border-zinc-700'
     }`}>
       

@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../contexts/ThemeContext';
+import { playFlashSuccessSound } from '../utils/flashSuccessSound';
+import FlashCelebrationOverlay from './FlashCelebrationOverlay';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
-import { ChevronDown, Usb, Cpu, Check, Layers, Plus, Trash2, FilePlus, Download, Save } from 'lucide-react';
+import { ChevronDown, Usb, Cpu, Check, Layers, Plus, Trash2, FilePlus, Download, Save, Play } from 'lucide-react';
 import SparkMD5 from 'spark-md5';
 
 // Type definitions for Web Serial API
@@ -34,6 +37,7 @@ interface FlashFile {
 
 const Burner: React.FC = () => {
   const { t } = useTranslation();
+  const { soundEnabled, flashCelebrationStyle } = useTheme();
   
   // Mode state
   const [mode, setMode] = useState<'basic' | 'advanced'>('basic');
@@ -62,7 +66,8 @@ const Burner: React.FC = () => {
     const [isDownloading, setIsDownloading] = useState(false);
   // Status key: 'idle', 'ready', 'flashing', 'success', 'error'
   const [status, setStatus] = useState<string>('idle');
-  
+  const [showFlashCelebration, setShowFlashCelebration] = useState(false);
+
   // Port Selection State
   const [availablePorts, setAvailablePorts] = useState<ElectronSerialPortInfo[]>([]);
   const [isSelectingPort, setIsSelectingPort] = useState(false);
@@ -544,6 +549,24 @@ const Burner: React.FC = () => {
         }
       };
 
+  const flashDuration = flashCelebrationStyle === 'fireworks' ? 2600 : 1800;
+
+  // Flash success celebration
+  useEffect(() => {
+    if (status === 'success') {
+      setShowFlashCelebration(true);
+      if (soundEnabled) playFlashSuccessSound();
+      const timer = setTimeout(() => setShowFlashCelebration(false), flashDuration);
+      return () => clearTimeout(timer);
+    }
+  }, [status, soundEnabled, flashDuration]);
+
+  const handlePreviewFlashCelebration = () => {
+    setShowFlashCelebration(true);
+    if (soundEnabled) playFlashSuccessSound();
+    setTimeout(() => setShowFlashCelebration(false), flashDuration);
+  };
+
   // Helper to format vendor/product IDs
   const formatId = (id?: string) => id ? `0x${parseInt(id).toString(16).toUpperCase().padStart(4, '0')}` : 'Unknown';
   
@@ -559,14 +582,17 @@ const Burner: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white p-6 gap-6 transition-colors" onClick={() => {}}>
-      {/* Mode Switcher */}
-      <div className="flex space-x-1 bg-slate-200 dark:bg-zinc-800 p-1 rounded-xl self-start border border-slate-300 dark:border-zinc-700">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white p-6 gap-6 transition-colors relative" onClick={() => {}}>
+      {/* Flash success celebration overlay */}
+      {showFlashCelebration && <FlashCelebrationOverlay style={flashCelebrationStyle} />}
+      {/* Mode Switcher + Preview */}
+      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex space-x-1 bg-slate-200 dark:bg-zinc-800 p-1 rounded-xl border border-slate-300 dark:border-zinc-700">
           <button
               onClick={() => setMode('basic')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center ${
                   mode === 'basic' 
-                      ? 'bg-slate-600 dark:bg-zinc-700 text-white shadow-sm' 
+                      ? 'bg-primary text-white shadow-sm' 
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300 dark:hover:bg-slate-700/50'
               }`}
           >
@@ -577,13 +603,22 @@ const Burner: React.FC = () => {
               onClick={() => setMode('advanced')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center ${
                   mode === 'advanced' 
-                      ? 'bg-slate-600 dark:bg-zinc-700 text-white shadow-sm' 
+                      ? 'bg-primary text-white shadow-sm' 
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300 dark:hover:bg-slate-700/50'
               }`}
           >
               <Layers size={16} className="mr-2" />
               {t('burner.mode_advanced')}
           </button>
+      </div>
+      <button
+        onClick={handlePreviewFlashCelebration}
+        className="px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2 bg-slate-200 dark:bg-zinc-700 hover:bg-slate-300 dark:hover:bg-zinc-600 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-zinc-600 transition-colors"
+        title={t('burner.preview_flash')}
+      >
+        <Play size={14} />
+        {t('burner.preview_flash')}
+      </button>
       </div>
 
       {/* Header / Controls */}
@@ -596,7 +631,7 @@ const Burner: React.FC = () => {
               onClick={handleSelectDeviceClick}
               className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-between border
                 ${port 
-                    ? 'bg-slate-600 dark:bg-zinc-700 hover:bg-slate-500 dark:hover:bg-slate-600 text-white border-slate-400 dark:border-slate-500' 
+                    ? 'bg-primary hover:bg-primary-hover text-white border-primary/50 dark:border-slate-500' 
                     : 'bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-zinc-600'
                 }`}
             >
@@ -661,7 +696,7 @@ const Burner: React.FC = () => {
                           ))
                       )}
                   </div>
-                  <div className="p-2 bg-slate-900/50 border-t border-slate-700 text-[10px] text-center text-slate-500">
+                    <div className="p-2 bg-slate-100 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-700 text-[10px] text-center text-slate-500">
                       {t('burner.select_port_msg')}
                   </div>
               </div>
@@ -669,11 +704,11 @@ const Burner: React.FC = () => {
         </div>
 
         <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1">Tool Strategy</label>
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Tool Strategy</label>
             <select 
                 value={toolStrategy} 
                 onChange={e => setToolStrategy(e.target.value as 'native' | 'js')}
-                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-primary outline-none"
+                className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
             >
                 <option value="native">esptool (Native)</option>
                 <option value="js">esptool-js (Web)</option>
@@ -681,11 +716,11 @@ const Burner: React.FC = () => {
         </div>
 
         <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1">{t('burner.label_chip')}</label>
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">{t('burner.label_chip')}</label>
             <select 
                 value={chipFamily} 
                 onChange={e => setChipFamily(e.target.value)}
-                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-primary outline-none"
+                className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
             >
                 <option value="ESP32">ESP32</option>
                 <option value="ESP32-S3">ESP32-S3</option>
@@ -695,11 +730,11 @@ const Burner: React.FC = () => {
         </div>
 
         <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1">{t('burner.label_baud')}</label>
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">{t('burner.label_baud')}</label>
             <select 
                 value={flashBaudRate} 
                 onChange={e => setFlashBaudRate(Number(e.target.value))}
-                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-primary outline-none"
+                className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
             >
                 <option value={115200}>115200</option>
                 <option value={460800}>460800</option>
@@ -712,21 +747,21 @@ const Burner: React.FC = () => {
             <div className="col-span-1 md:col-span-2 lg:col-span-4 space-y-4">
                 <div className="flex gap-4 items-start">
                     <div className="flex-1">
-                        <label className="block text-sm font-medium text-slate-400 mb-1">{t('burner.label_firmware')}</label>
+                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">{t('burner.label_firmware')}</label>
                         <div className="flex gap-2">
                             <input 
                                 type="text" 
                                 placeholder="Enter firmware URL or select file..."
                                 value={downloadUrl}
                                 onChange={(e) => setDownloadUrl(e.target.value)}
-                                className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-primary outline-none placeholder-slate-500"
+                                className="flex-1 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none placeholder-slate-500 dark:placeholder-slate-400"
                             />
                             <button
                                 onClick={handleDownload}
                                 disabled={!downloadUrl || isDownloading || !!downloadedFile}
                                 className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center
                                     ${(!downloadUrl || isDownloading || !!downloadedFile)
-                                        ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                                        ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
                                         : 'bg-primary hover:bg-primary-hover text-white'
                                     }`}
                             >
@@ -738,7 +773,7 @@ const Burner: React.FC = () => {
                         {/* Download Progress */}
                         {isDownloading && (
                             <div className="mt-2">
-                                <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                                <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                                     <div 
                                         className="h-full bg-primary transition-all duration-300"
                                         style={{ width: `${downloadProgress}%` }}
@@ -753,7 +788,7 @@ const Burner: React.FC = () => {
 
                         {/* Downloaded File Info */}
                         {downloadedFile && (
-                            <div className="mt-3 p-3 bg-slate-700/50 rounded-lg border border-slate-600/50">
+                            <div className="mt-3 p-3 bg-slate-100 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600/50">
                                 <div className="flex justify-between items-start mb-2">
                                     <div className="flex items-center text-emerald-400 text-sm font-medium">
                                         <Check size={16} className="mr-1.5" />
@@ -762,14 +797,14 @@ const Burner: React.FC = () => {
                                     <div className="flex gap-2">
                                         <button 
                                             onClick={handleSaveAs}
-                                            className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-600 rounded transition-colors"
+                                            className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition-colors"
                                             title="Save As..."
                                         >
                                             <Save size={16} />
                                         </button>
                                         <button 
                                             onClick={handleRemoveDownloaded}
-                                            className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-600 rounded transition-colors"
+                                            className="p-1.5 text-slate-500 dark:text-slate-400 hover:text-red-400 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition-colors"
                                             title="Remove"
                                         >
                                             <Trash2 size={16} />
@@ -790,21 +825,21 @@ const Burner: React.FC = () => {
                         )}
                     </div>
 
-                    <div className="w-px bg-slate-700 self-stretch mx-2"></div>
+                    <div className="w-px bg-slate-200 dark:bg-slate-700 self-stretch mx-2"></div>
 
                     <div className="flex-1">
-                        <label className="block text-sm font-medium text-slate-400 mb-1">Local File</label>
+                        <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Local File</label>
                         <input 
                             type="file" 
                             accept=".bin"
                             onChange={handleFileChange}
                             disabled={!!downloadedFile}
-                            className="block w-full text-sm text-slate-400
+                            className="block w-full text-sm text-slate-500 dark:text-slate-400
                               file:mr-4 file:py-2 file:px-4
                               file:rounded-lg file:border-0
                               file:text-sm file:font-semibold
-                              file:bg-slate-700 file:text-slate-300
-                              hover:file:bg-slate-600
+                              file:bg-slate-200 file:text-slate-800 dark:file:bg-slate-700 dark:file:text-slate-300
+                              hover:file:bg-slate-300 dark:hover:file:bg-slate-600
                               disabled:opacity-50 disabled:cursor-not-allowed
                             "
                         />
@@ -820,15 +855,15 @@ const Burner: React.FC = () => {
 
       {/* Advanced File List */}
       {mode === 'advanced' && (
-          <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg">
               <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-bold text-white flex items-center">
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center">
                       <Layers size={20} className="mr-2 text-primary" />
                       Files to Flash
                   </h3>
                   <button 
                       onClick={addFileRow}
-                      className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-sm rounded-lg flex items-center transition-colors"
+                      className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white text-sm rounded-lg flex items-center transition-colors"
                   >
                       <Plus size={16} className="mr-1.5" /> Add File
                   </button>
@@ -836,12 +871,12 @@ const Burner: React.FC = () => {
               
               <div className="space-y-3">
                   {files.map((f, index) => (
-                      <div key={f.id} className={`flex items-center gap-4 p-3 rounded-lg border transition-colors ${f.enable ? 'bg-slate-700/50 border-slate-600' : 'bg-slate-800 border-slate-700 opacity-60'}`}>
+                      <div key={f.id} className={`flex items-center gap-4 p-3 rounded-lg border transition-colors ${f.enable ? 'bg-slate-100 dark:bg-slate-700/50 border-slate-300 dark:border-slate-600' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 opacity-60'}`}>
                           <input 
                               type="checkbox" 
                               checked={f.enable} 
                               onChange={() => toggleFileEnable(index)}
-                              className="w-5 h-5 rounded border-slate-500 bg-slate-700 text-primary focus:ring-primary focus:ring-offset-slate-800"
+                              className="w-5 h-5 rounded border-slate-400 dark:border-slate-500 bg-slate-200 dark:bg-slate-700 text-primary focus:ring-primary focus:ring-offset-slate-100 dark:focus:ring-offset-slate-800"
                           />
                           
                           <div className="flex-1">
@@ -853,20 +888,20 @@ const Burner: React.FC = () => {
                                     file:mr-2 file:py-1 file:px-2
                                     file:rounded-md file:border-0
                                     file:text-xs file:font-semibold
-                                    file:bg-slate-600 file:text-white
-                                    hover:file:bg-slate-500
+                                    file:bg-slate-200 file:text-slate-800 dark:file:bg-slate-600 dark:file:text-white
+                                    hover:file:bg-slate-300 dark:hover:file:bg-slate-500
                                   "
                               />
                           </div>
                           
                           <div className="w-32">
-                              <div className="flex items-center bg-slate-900 rounded-md border border-slate-600 px-2">
+                              <div className="flex items-center bg-slate-100 dark:bg-slate-900 rounded-md border border-slate-300 dark:border-slate-600 px-2">
                                   <span className="text-xs text-slate-500 mr-1">@</span>
                                   <input 
                                       type="text" 
                                       value={f.address} 
                                       onChange={(e) => updateFileAddress(index, e.target.value)}
-                                      className="w-full bg-transparent border-none text-xs text-white py-1.5 focus:ring-0 font-mono"
+                                      className="w-full bg-transparent border-none text-xs text-slate-900 dark:text-white py-1.5 focus:ring-0 font-mono"
                                       placeholder="0x0000"
                                   />
                               </div>
@@ -874,7 +909,7 @@ const Burner: React.FC = () => {
                           
                           <button 
                               onClick={() => removeFileRow(index)}
-                              className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-700 rounded-md transition-colors"
+                              className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md transition-colors"
                           >
                               <Trash2 size={16} />
                           </button>
@@ -886,9 +921,9 @@ const Burner: React.FC = () => {
 
       {/* Action Bar */}
       <div className="flex items-center justify-between bg-white dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700">
-        <div className="flex items-center gap-4 flex-1 mr-8">
-            <span className="text-sm font-medium text-slate-400">Status:</span>
-            <span className={`text-sm font-bold ${status === 'success' ? 'text-emerald-400' : status === 'error' ? 'text-red-400' : 'text-white'}`}>
+                        <div className="flex items-center gap-4 flex-1 mr-8">
+            <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Status:</span>
+            <span className={`text-sm font-bold ${status === 'success' ? 'text-emerald-500 dark:text-emerald-400' : status === 'error' ? 'text-red-500 dark:text-red-400' : 'text-slate-900 dark:text-white'}`}>
                 {getStatusText()}
             </span>
             {/* Removed progress bar here as it conflicted with download progress and was unused for flashing in new design */}
@@ -899,7 +934,7 @@ const Burner: React.FC = () => {
             disabled={!port || status === 'flashing'}
             className={`px-6 py-3 rounded-lg font-bold text-sm shadow-lg transition-all mr-4
                 ${(!port || status === 'flashing')
-                    ? 'bg-slate-700 text-slate-500 cursor-not-allowed' 
+                    ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed' 
                     : connected
                         ? 'bg-red-600 hover:bg-red-500 text-white hover:shadow-red-500/25'
                         : 'bg-emerald-600 hover:bg-emerald-500 text-white hover:shadow-emerald-500/25'
@@ -913,8 +948,8 @@ const Burner: React.FC = () => {
             disabled={!port || (mode === 'basic' && !file && !downloadedFile) || (mode === 'advanced' && files.filter(f => f.enable && f.file).length === 0) || status === 'flashing'}
             className={`px-8 py-3 rounded-lg font-bold text-lg shadow-lg transition-all
                 ${(!port || (mode === 'basic' && !file && !downloadedFile) || (mode === 'advanced' && files.filter(f => f.enable && f.file).length === 0))
-                    ? 'bg-slate-700 text-slate-500 cursor-not-allowed' 
-                    : 'bg-blue-600 hover:bg-primary text-white hover:shadow-primary/25'
+                    ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed' 
+                    : 'bg-primary hover:bg-primary-hover text-white hover:shadow-primary/25'
                 }`}
         >
             {t('burner.btn_flash')}

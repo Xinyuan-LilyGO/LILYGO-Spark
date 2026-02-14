@@ -10,6 +10,7 @@
     "clean": "rimraf dist dist-electron release",
     "prebuild": "node scripts/check-lilygo-config.js && shx mkdir -p build && shx cp public/LILYGO.png build/icon.png",
     "fetch-products": "node scripts/fetch-lilygo-products.js && node scripts/filter-flashable-products.js",
+    "fetch-github-bins": "node scripts/fetch-github-firmware-bins.js",
     "filter-products": "node scripts/filter-flashable-products.js",
     "restructure-manifest": "node scripts/restructure-manifest-by-series.js",
     "prebuild:mac:all": "npm run prebuild",

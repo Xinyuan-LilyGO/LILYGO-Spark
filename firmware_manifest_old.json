@@ -1,0 +1,200 @@
+{
+  "product_list": [
+    {
+      "id": "t-deck-series",
+      "name": "T-Deck Series",
+      "description": "Portable LoRaWAN devices with keyboard",
+      "image_url": "devices/t-deck.jpg",
+      "variants": [
+        {
+          "product_id": "t-deck",
+          "name": "T-Deck",
+          "description": "ESP32-S3 LoRaWAN device with keyboard and trackball",
+          "mcu": "ESP32-S3",
+          "github_repo": "https://github.com/Xinyuan-LilyGO/T-Deck",
+          "product_page": "https://lilygo.cc/products/t-deck",
+          "image_url": "devices/t-deck.jpg"
+        },
+        {
+          "product_id": "t-deck-pro",
+          "name": "T-Deck Pro",
+          "description": "Pro version of T-Deck with enhanced features",
+          "mcu": "ESP32-S3",
+          "github_repo": "https://github.com/Xinyuan-LilyGO/T-Deck-Pro",
+          "product_page": "https://lilygo.cc/products/t-deck-pro",
+          "image_url": "devices/t-deck-pro.jpg"
+        }
+      ]
+    },
+    {
+      "id": "t-beam-series",
+      "name": "T-Beam Series",
+      "description": "LoRaWAN boards with GPS",
+      "image_url": "devices/t-beam.jpg",
+      "variants": [
+        {
+          "product_id": "t-beam",
+          "name": "T-Beam",
+          "description": "ESP32 LoRaWAN board with GPS and battery holder",
+          "mcu": "ESP32",
+          "github_repo": "https://github.com/LilyGO/TTGO-T-Beam",
+          "product_page": "https://lilygo.cc/products/t-beam",
+          "image_url": "devices/t-beam.jpg"
+        },
+        {
+          "product_id": "t-beam-supreme",
+          "name": "T-Beam Supreme",
+          "description": "ESP32-S3 LoRaWAN board with GPS and IMU",
+          "mcu": "ESP32-S3",
+          "github_repo": "https://github.com/Xinyuan-LilyGO/LilyGo-LoRa-Series",
+          "product_page": "https://lilygo.cc/products/t-beam-supreme",
+          "image_url": "devices/t-beam-supreme.jpg"
+        }
+      ]
+    },
+    {
+      "id": "t3-series",
+      "name": "T3 (LoRa) Series",
+      "description": "Classic LoRa development boards",
+      "image_url": "devices/t3.jpg",
+      "variants": [
+        {
+          "product_id": "t3",
+          "name": "T3 (LoRa32)",
+          "description": "ESP32 LoRa development board with OLED",
+          "mcu": "ESP32",
+          "github_repo": "https://github.com/Xinyuan-LilyGO/TTGO-LoRa-Series",
+          "product_page": "https://lilygo.cc/products/lora3",
+          "image_url": "devices/t3.jpg"
+        },
+        {
+          "product_id": "t3-s3",
+          "name": "T3-S3",
+          "description": "ESP32-S3 LoRa 0.96 inch Development Board",
+          "mcu": "ESP32-S3",
+          "github_repo": "https://github.com/Xinyuan-LilyGO/LilyGo-LoRa-Series",
+          "product_page": "https://lilygo.cc/products/t3s3-v1-0",
+          "image_url": "devices/t3-s3.jpg"
+        },
+        {
+          "product_id": "t3-s3-epaper",
+          "name": "T3-S3 E-Paper",
+          "description": "ESP32-S3 with 2.13 inch E-Paper and LoRa",
+          "mcu": "ESP32-S3",
+          "github_repo": "https://github.com/Xinyuan-LilyGO/Lilygo-LoRa-Epaper-series",
+          "product_page": "https://lilygo.cc/products/ts-s3-epaper",
+          "image_url": "devices/t3-s3-epaper.jpg"
+        }
+      ]
+    },
+    {
+      "product_id": "t-watch-s3",
+      "name": "LILYGO T-Watch S3",
+      "description": "Programmable smartwatch based on ESP32-S3",
+      "mcu": "ESP32-S3",
+      "github_repo": "https://github.com/Xinyuan-LilyGO/TTGO_TWatch_Library",
+      "product_page": "https://lilygo.cc/products/t-watch-s3",
+      "image_url": "devices/t-watch-s3.jpg"
+    },
+    {
+      "product_id": "t-lora-pager",
+      "name": "LILYGO T-Lora Pager",
+      "description": "LoRaWAN messaging device with e-paper display",
+      "mcu": "ESP32-S3",
+      "github_repo": "https://github.com/Xinyuan-LilyGO/LilyGoLib",
+      "product_page": "https://lilygo.cc/products/t-lora-pager",
+      "image_url": "devices/t-lora-pager.jpg"
+    }
+  ],
+  "firmware_list": [
+    {
+      "supported_product_ids": ["t-deck"],
+      "name": "Factory Firmware",
+      "version": "Latest",
+      "type": "factory",
+      "filename": "firmware.bin",
+      "download_url": "https://github.com/Xinyuan-LilyGO/T-Deck/raw/master/firmware/firmware.bin",
+      "description": "Official factory firmware for T-Deck",
+      "hash_md5": "",
+      "release_note": "Check GitHub for latest release notes"
+    },
+    {
+      "supported_product_ids": ["t-deck"],
+      "name": "MicroPython (Community)",
+      "version": "Unknown",
+      "type": "micropython",
+      "filename": "micropython_t_deck.bin",
+      "download_url": "https://github.com/varna9000/t-deck-lorawan-micropython/releases/latest/download/firmware.bin",
+      "description": "Community MicroPython port with LoRaWAN support",
+      "hash_md5": "",
+      "release_note": "Community maintained"
+    },
+    {
+      "supported_product_ids": ["t-watch-s3"],
+      "name": "CircuitPython",
+      "version": "10.0.3",
+      "type": "circuitpython",
+      "filename": "adafruit-circuitpython-lilygo_twatch_s3-en_US-10.0.3.bin",
+      "download_url": "https://downloads.circuitpython.org/bin/lilygo_twatch_s3/en_US/adafruit-circuitpython-lilygo_twatch_s3-en_US-10.0.3.bin",
+      "description": "Official CircuitPython support for T-Watch S3",
+      "hash_md5": "",
+      "release_note": "Stable release 10.0.3"
+    },
+    {
+      "supported_product_ids": ["t3"],
+      "name": "MicroPython",
+      "version": "v1.27.0",
+      "type": "micropython",
+      "filename": "LILYGO_TTGO_LORA32-20251209-v1.27.0.bin",
+      "download_url": "https://micropython.org/resources/firmware/LILYGO_TTGO_LORA32-20251209-v1.27.0.bin",
+      "description": "Official MicroPython firmware for LILYGO TTGO LoRa32",
+      "hash_md5": "294f3e71683efc4518e2638df0f45ce9",
+      "hash_sha1": "6025d39917927596df1a52bc70ede756933b2cd1",
+      "release_note": "2025-12-09 Release"
+    },
+    {
+      "supported_product_ids": ["t-beam"],
+      "name": "Meshtastic Firmware",
+      "version": "2.7.15",
+      "type": "lora",
+      "filename": "firmware-tbeam-2.7.15.567b8ea.bin",
+      "download_url": "https://github.com/meshtastic/firmware/releases/download/v2.7.15.567b8ea/firmware-esp32-2.7.15.567b8ea.zip",
+      "description": "Popular mesh networking firmware for T-Beam",
+      "hash_md5": "",
+      "release_note": "Meshtastic Stable Release v2.7.15"
+    },
+    {
+      "supported_product_ids": ["t-deck"],
+      "name": "Meshtastic Firmware",
+      "version": "2.7.15",
+      "type": "lora",
+      "filename": "firmware-t-deck-2.7.15.567b8ea.bin",
+      "download_url": "https://github.com/meshtastic/firmware/releases/download/v2.7.15.567b8ea/firmware-esp32s3-2.7.15.567b8ea.zip",
+      "description": "Popular mesh networking firmware for T-Deck",
+      "hash_md5": "",
+      "release_note": "Meshtastic Stable Release v2.7.15"
+    },
+    {
+      "supported_product_ids": ["t3-s3"],
+      "name": "Meshtastic Firmware (LoRa)",
+      "version": "2.7.15",
+      "type": "lora",
+      "filename": "firmware-tlora-t3s3-v1-2.7.15.567b8ea.bin",
+      "download_url": "https://github.com/meshtastic/firmware/releases/download/v2.7.15.567b8ea/firmware-esp32s3-2.7.15.567b8ea.zip",
+      "description": "Meshtastic LoRaWAN firmware for T3-S3",
+      "hash_md5": "",
+      "release_note": "Meshtastic Stable Release v2.7.15"
+    },
+    {
+      "supported_product_ids": ["t-deck-pro"],
+      "name": "Factory Firmware",
+      "version": "Latest",
+      "type": "factory",
+      "filename": "firmware.bin",
+      "download_url": "https://github.com/Xinyuan-LilyGO/T-Deck-Pro/raw/master/firmware/H693_factory_v1.2_20250412.bin",
+      "description": "Official factory firmware for T-Deck Pro",
+      "hash_md5": "",
+      "release_note": "Check GitHub for latest release notes"
+    }
+  ]
+}

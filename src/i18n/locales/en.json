@@ -12,6 +12,10 @@
         "community": "LILYGO Community",
         "lilygo_related": "LILYGO Related"
     },
+    "firmwareCenter": {
+        "only_with_firmware": "Only show products with firmware",
+        "product_count": "({{count}} total)"
+    },
     "community": {
         "title": "LILYGO Related",
         "subtitle": "Official site, GitHub, Wiki, Taobao, AliExpress, Community",
@@ -61,7 +65,31 @@
         "glass": "Glass Effect",
         "glass_on": "On",
         "glass_off": "Off",
-        "glass_hint": "Sidebar and settings use frosted glass effect. Turn off on low-end devices for better performance."
+        "glass_hint": "Sidebar and settings use frosted glass effect. Turn off on low-end devices for better performance.",
+        "sound": "Flash Success Sound",
+        "sound_on": "On",
+        "sound_off": "Off",
+        "sound_hint": "Play a chime when firmware flashing completes.",
+        "flash_celebration_style": "Flash Success Animation",
+        "flash_style_fireworks": "Fireworks",
+        "flash_style_hacker": "Hacker",
+        "flash_style_minimal": "Minimal",
+        "flash_style_neon": "Neon",
+        "flash_style_terminal": "Terminal",
+        "flash_style_gradient": "Gradient",
+        "flash_celebration_style_hint": "Celebration animation style when flashing completes. Preview in Burner.",
+        "advanced_mode": "Advanced",
+        "firmware_manifest_file": "Firmware Manifest",
+        "firmware_manifest_file_hint": "When set, Firmware Center uses this local JSON instead of network. Clear to fetch from network again.",
+        "firmware_manifest_select": "Select File",
+        "firmware_manifest_clear": "Clear",
+        "firmware_manifest_active": "Using custom manifest. Firmware Center will load from this file.",
+        "easter_eggs": "Easter Eggs & Effects",
+        "easter_eggs_konami": "Enter Konami code anywhere → \"ACCESS GRANTED\" overlay",
+        "easter_eggs_flash": "Flash Success",
+        "easter_eggs_flash_hint": "Celebration when firmware flashing completes",
+        "easter_eggs_device": "Device Detected",
+        "easter_eggs_device_hint": "Shows \"TARGET ACQUIRED\" when ESP32 is detected"
     },
     "burner": {
         "welcome": "Welcome to LILYGO Spark!",
@@ -86,7 +114,8 @@
             "erased": "Flash Erased"
         },
         "choose_file": "Choose File",
-        "no_file_chosen": "No file chosen"
+        "no_file_chosen": "No file chosen",
+        "preview_flash": "Preview Flash Animation"
     },
     "dumper": {
         "title": "Firmware Dumper",

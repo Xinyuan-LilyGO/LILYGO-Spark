@@ -1,6 +1,17 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, ChevronRight, Layers, Github, Save, Trash2, Zap } from 'lucide-react';
 import BurnerModal from './BurnerModal';
+
+interface BinFile {
+  name: string;
+  url: string;
+  path?: string;
+  size?: number;
+  release_tag?: string | null;
+  release_name?: string | null;
+  source?: string;
+}
 
 interface Product {
   product_id: string;
@@ -10,6 +21,7 @@ interface Product {
   github_repo: string;
   product_page: string;
   image_url: string;
+  bin_files?: BinFile[];
 }
 
 interface ProductGroup {
@@ -23,6 +35,7 @@ interface ProductGroup {
   mcu?: string;
   github_repo?: string;
   product_page?: string;
+  bin_files?: BinFile[];
 }
 
 interface Firmware {
@@ -54,12 +67,25 @@ interface DownloadedFile {
     fileName: string;
 }
 
+const STORAGE_KEY_ONLY_WITH_FIRMWARE = 'firmware_center_only_with_firmware';
+
+function productHasFirmware(manifest: Manifest, productId: string, item?: Product | ProductGroup | null): boolean {
+  const inList = manifest.firmware_list.some(f => f.supported_product_ids.includes(productId));
+  const hasBins = (item as { bin_files?: BinFile[] } | null)?.bin_files?.length;
+  return inList || !!hasBins;
+}
+
 const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware: _onSelectFirmware }) => {
+  const { t } = useTranslation();
   const [manifest, setManifest] = useState<Manifest>({ product_list: [], firmware_list: [] });
   const [loading, setLoading] = useState(true);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedSeries, setExpandedSeries] = useState<Set<string>>(new Set());
+  const [onlyWithFirmware, setOnlyWithFirmware] = useState(() => {
+    const stored = localStorage.getItem(STORAGE_KEY_ONLY_WITH_FIRMWARE);
+    return stored !== 'false'; // default true
+  });
   
   // Download state per firmware URL
   const [downloading, setDownloading] = useState<Record<string, boolean>>({});
@@ -100,6 +126,13 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
     loadManifest();
   }, []);
 
+  useEffect(() => {
+    if (!window.ipcRenderer) return;
+    const handler = () => loadManifest();
+    window.ipcRenderer.on('manifest-source-changed', handler);
+    return () => { window.ipcRenderer.off('manifest-source-changed'); };
+  }, []);
+
   const toggleSeries = (seriesId: string, forceState?: boolean) => {
     setExpandedSeries(prev => {
       const next = new Set(prev);
@@ -128,11 +161,35 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
 
   const selectedProduct = findProductById(selectedProductId);
 
-  const relatedFirmwares = manifest.firmware_list.filter(f => 
-    selectedProductId && f.supported_product_ids.includes(selectedProductId)
-  );
+  // firmware_list (curated) + product.bin_files (from GitHub manifest merge)
+  const relatedFirmwares = React.useMemo(() => {
+    const fromList = manifest.firmware_list.filter(f =>
+      selectedProductId && f.supported_product_ids.includes(selectedProductId)
+    );
+    const fromBins: Firmware[] = [];
+    const product = selectedProduct as (Product | ProductGroup) | null;
+    if (product?.bin_files?.length) {
+      for (const b of product.bin_files) {
+        fromBins.push({
+          supported_product_ids: selectedProductId ? [selectedProductId] : [],
+          name: b.name,
+          version: b.release_tag || '—',
+          type: 'bin',
+          filename: b.name,
+          download_url: b.url,
+          description: b.path || (b.source === 'tree' ? 'From repository' : ''),
+        });
+      }
+    }
+    return [...fromList, ...fromBins];
+  }, [manifest.firmware_list, selectedProduct, selectedProductId]);
 
-  // Filter logic
+  const handleOnlyWithFirmwareChange = (checked: boolean) => {
+    setOnlyWithFirmware(checked);
+    localStorage.setItem(STORAGE_KEY_ONLY_WITH_FIRMWARE, String(checked));
+  };
+
+  // Filter logic: search + optionally only products with firmware
   const q = searchQuery?.toLowerCase() ?? '';
   const filteredGroups = manifest.product_list.map(group => {
     const groupName = group.name ?? '';
@@ -140,25 +197,34 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
     if (!group.products || !group.products.some((v: any) => 'product_id' in v)) {
       const matches = groupName.toLowerCase().includes(q) || 
                       (group.mcu ?? '').toLowerCase().includes(q);
-      return matches ? group : null;
+      if (!matches) return null;
+      if (onlyWithFirmware && !productHasFirmware(manifest, group.product_id ?? '', group)) return null;
+      return group;
     }
 
     // If it's a series with products, check if series matches OR any product matches
     const seriesMatches = groupName.toLowerCase().includes(q);
-    const matchingProducts = group.products.filter((v: any) => {
+    let matchingProducts = group.products.filter((v: any) => {
       const vName = (v.name ?? v.title ?? '').toLowerCase();
       const vMcu = (v.mcu ?? '').toLowerCase();
       return vName.includes(q) || vMcu.includes(q);
     });
+    if (onlyWithFirmware) {
+      matchingProducts = matchingProducts.filter((v: Product) =>
+        productHasFirmware(manifest, v.product_id, v)
+      );
+    }
+    const productsToUse = seriesMatches
+      ? (onlyWithFirmware ? group.products!.filter((v: Product) => productHasFirmware(manifest, v.product_id, v)) : group.products)
+      : matchingProducts;
 
-    if (seriesMatches || matchingProducts.length > 0) {
-      return {
-        ...group,
-        products: seriesMatches ? group.products : matchingProducts
-      };
+    if (productsToUse.length > 0) {
+      return { ...group, products: productsToUse };
     }
     return null;
   }).filter(Boolean) as ProductGroup[];
+
+  const filteredProductCount = filteredGroups.reduce((sum, g) => sum + (g.products?.length ?? (g.product_id ? 1 : 0)), 0);
 
   // Auto-expand series if searching
   useEffect(() => {
@@ -265,7 +331,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
 
       {/* Left Column: Device List */}
       <div className="w-[36%] min-w-[260px] max-w-[500px] shrink-0 border-r border-slate-200 dark:border-zinc-700 flex flex-col bg-slate-100/80 dark:bg-zinc-800/50">
-        <div className="p-4 border-b border-slate-200 dark:border-zinc-700">
+        <div className="p-4 border-b border-slate-200 dark:border-zinc-700 space-y-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 dark:text-slate-400" size={18} />
             <input 
@@ -276,6 +342,18 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
               className="w-full bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-primary text-slate-800 dark:text-slate-200 placeholder-slate-500"
             />
           </div>
+          <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+            <input
+              type="checkbox"
+              checked={onlyWithFirmware}
+              onChange={(e) => handleOnlyWithFirmwareChange(e.target.checked)}
+              className="rounded border-slate-300 dark:border-zinc-600 text-primary focus:ring-primary"
+            />
+            <span>
+              {t('firmwareCenter.only_with_firmware')}
+              <span className="text-slate-500 dark:text-zinc-500 ml-1">{t('firmwareCenter.product_count', { count: filteredProductCount })}</span>
+            </span>
+          </label>
         </div>
 
         <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
@@ -491,14 +569,15 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                                                     fw.type === 'factory' ? 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/40 dark:text-green-300 dark:border-green-700' :
                                                     fw.type === 'micropython' ? 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-700' :
                                                     fw.type === 'lora' ? 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-700' :
+                                                    fw.type === 'bin' ? 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-zinc-700 dark:text-zinc-300 dark:border-zinc-600' :
                                                     'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-700'
                                                 }`}>
-                                                    {fw.type.toUpperCase()}
+                                                    {fw.type === 'bin' ? 'REPO' : fw.type.toUpperCase()}
                                                 </span>
                                             </div>
                                             <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">{fw.description}</p>
                                             <div className="flex items-center space-x-4 text-xs text-slate-500 font-mono">
-                                                <span>Ver: {fw.version}</span>
+                                                <span>Version: {fw.version}</span>
                                                 {fw.filename && <span>File: {fw.filename}</span>}
                                             </div>
                                         </div>

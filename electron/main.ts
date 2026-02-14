@@ -355,7 +355,7 @@ function createWindow() {
   checkBluetoothPermission(win);
 
   try {
-    setupConfigHandler();
+    setupConfigHandler(win);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     dialog.showErrorBox('读取配置文件错误', msg);

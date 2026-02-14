@@ -12,6 +12,10 @@
     "community": "LILYGO コミュニティ",
     "lilygo_related": "LILYGO 関連"
   },
+  "firmwareCenter": {
+    "only_with_firmware": "ファームウェアがある製品のみ表示",
+    "product_count": "（{{count}} 件）"
+  },
   "community": {
     "title": "LILYGO 関連",
     "subtitle": "公式サイト、GitHub、Wiki、淘宝、AliExpress、コミュニティ",
@@ -78,7 +82,31 @@
     "glass": "グラス効果",
     "glass_on": "オン",
     "glass_off": "オフ",
-    "glass_hint": "サイドバーと設定カードに毛ガラス効果を適用。低スペックPCではオフにするとパフォーマンスが向上します。"
+    "glass_hint": "サイドバーと設定カードに毛ガラス効果を適用。低スペックPCではオフにするとパフォーマンスが向上します。",
+    "sound": "書き込み完了音",
+    "sound_on": "オン",
+    "sound_off": "オフ",
+    "sound_hint": "ファームウェア書き込み完了時に音を再生します。",
+    "flash_celebration_style": "書き込み成功アニメ",
+    "flash_style_fireworks": "花火",
+    "flash_style_hacker": "ハッカー風",
+    "flash_style_minimal": "ミニマル",
+    "flash_style_neon": "ネオン",
+    "flash_style_terminal": "ターミナル",
+    "flash_style_gradient": "グラデーション",
+    "flash_celebration_style_hint": "書き込み完了時の祝賀アニメーション。Burner でプレビュー可能。",
+    "advanced_mode": "詳細設定",
+    "firmware_manifest_file": "ファームウェアマニフェスト",
+    "firmware_manifest_file_hint": "設定すると、Firmware Center はネットワークではなくこのローカル JSON を優先して使用します。クリアすると再びネットワークから取得します。",
+    "firmware_manifest_select": "ファイルを選択",
+    "firmware_manifest_clear": "クリア",
+    "firmware_manifest_active": "カスタムマニフェストを使用中。Firmware Center はこのファイルから読み込みます。",
+    "easter_eggs": "イースターエッグ＆エフェクト",
+    "easter_eggs_konami": "どこでも Konami コード入力 → 「ACCESS GRANTED」表示",
+    "easter_eggs_flash": "書き込み成功",
+    "easter_eggs_flash_hint": "ファームウェア書き込み完了時に祝賀アニメーション",
+    "easter_eggs_device": "デバイス検出",
+    "easter_eggs_device_hint": "ESP32 検出時に「TARGET ACQUIRED」表示"
   },
   "burner": {
     "welcome": "LILYGO Spark へようこそ！",
@@ -103,7 +131,8 @@
       "erased": "Flash 消去済み"
     },
     "choose_file": "ファイルを選択",
-    "no_file_chosen": "ファイルが選択されていません"
+    "no_file_chosen": "ファイルが選択されていません",
+    "preview_flash": "書き込みアニメをプレビュー"
   },
   "device_toast": {
     "new_device": "新しいデバイスを検出",
