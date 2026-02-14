@@ -1,4 +1,12 @@
 {
+  "common": {
+    "drop_hint": "釋放以上傳",
+    "drop_image": "釋放圖片以轉換",
+    "drop_firmware": "釋放韌體以分析",
+    "drop_image_hint": "支援 PNG、JPG、GIF 等圖片格式",
+    "drop_bin_hint": "支援 .bin 韌體檔案",
+    "drop_file_hint": "將檔案拖放到此處"
+  },
   "app": {
     "title": "LILYGO Spark"
   },
@@ -12,7 +20,7 @@
     "guide": "使用指引",
     "burner": "刷寫工具",
     "firmware": "固件中心",
-    "dumper": "韌體提取工具",
+    "dumper": "從設備提取韌體",
     "upload": "韌體上傳",
     "utilities": "韌體高級工具",
     "firmware_toolbox": "韌體工具箱",
@@ -38,7 +46,7 @@
     "features_title": "功能一覽",
     "feature_firmware": "瀏覽、下載官方與社群固件，支持多產品篩選",
     "feature_burner": "一鍵燒錄 .bin 到 ESP32/ESP32-S3 等設備，支持串口控制台",
-    "feature_dumper": "從設備中讀取並保存固件備份",
+    "feature_dumper": "從設備提取韌體並保存備份",
     "feature_utilities": "固件分析、分區表編輯、串口監控等高級工具",
     "for_developers_title": "致開發者",
     "for_developers_desc": "若你需要自定義固件來源或對接自有流程：",
@@ -69,6 +77,7 @@
   },
   "utilities": {
     "analyzer": "韌體分析器",
+    "analyzer_path_required": "請透過檔案選擇器選擇韌體檔案（拖放的檔案可能無法取得路徑）",
     "partition_editor": "分割表編輯器",
     "image_converter": "圖片轉換",
     "regulator_resistor": "分壓電阻計算器",
@@ -127,6 +136,7 @@
     "led_color_green": "綠",
     "led_color_blue": "藍",
     "led_color_white": "白",
+    "resistor_color_code": "電阻色環計算器",
     "btn_analyze": "分析",
     "btn_export": "導出",
     "btn_import": "導入",
@@ -140,6 +150,27 @@
     "no_partitions": "未檢測到分割表。",
     "analysis_failed": "分析失敗",
     "select_firmware": "點擊選擇韌體 .bin"
+  },
+  "resistor": {
+    "bands": "環",
+    "band": "第",
+    "band_num": "第{{n}}環",
+    "multiplier": "倍率",
+    "tolerance": "誤差",
+    "temp_coef": "溫度係數",
+    "result": "阻值",
+    "color_black": "黑",
+    "color_brown": "棕",
+    "color_red": "紅",
+    "color_orange": "橙",
+    "color_yellow": "黃",
+    "color_green": "綠",
+    "color_blue": "藍",
+    "color_violet": "紫",
+    "color_grey": "灰",
+    "color_white": "白",
+    "color_gold": "金",
+    "color_silver": "銀"
   },
   "settings": {
     "title": "設置",
@@ -228,6 +259,20 @@
     "choose_file": "選擇文件",
     "no_file_chosen": "未選擇文件",
     "preview_flash": "預覽燒錄動畫"
+  },
+  "dumper": {
+    "section_info": "設備資訊",
+    "section_params": "提取參數",
+    "table_port": "埠口",
+    "table_device": "裝置描述",
+    "table_flash_id": "Flash ID",
+    "table_size": "大小",
+    "table_crystal": "晶振",
+    "table_progress": "進度",
+    "label_detected_chip": "檢測到晶片",
+    "terminal_error_port_in_use": "無法開啟串口，可能被佔用。請先斷開刷寫工具的控制台或串口監控，關閉其他佔用該端口的程式後重試。",
+    "terminal_using_native": "使用 esptool 原生二進制提取...",
+    "terminal_fallback_js": "原生提取失敗，回退到 esptool-js..."
   },
   "device_toast": {
     "new_device": "發現新設備",

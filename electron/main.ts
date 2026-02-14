@@ -7,6 +7,7 @@ import { DeviceDetector, DeviceDetectionConfig } from './device-detector'
 import { setupConfigHandler } from './config-handler'
 import { 
     handleAnalyzeFirmware, 
+    handleShowOpenFirmwareForAnalysis,
     handleConnectSerial, 
     handleDisconnectSerial, 
     handleListPorts, 
@@ -17,6 +18,7 @@ import {
     handleDownloadFirmware,
     handleRemoveFile,
     handleFlashFirmwareNative,
+    handleDumpFirmwareNative,
     handleSaveFile,
     getEnhancedPortList,
     setSerialPortCallback,
@@ -386,6 +388,7 @@ ipcMain.on('theme-changed', (_event, _theme: 'light' | 'dark') => {});
 
 // Handle firmware analysis request
 ipcMain.handle('analyze-firmware', handleAnalyzeFirmware);
+ipcMain.handle('show-open-firmware-for-analysis', handleShowOpenFirmwareForAnalysis);
 
 // Handle firmware download
 ipcMain.handle('download-firmware', handleDownloadFirmware);
@@ -395,6 +398,9 @@ ipcMain.handle('remove-file', handleRemoveFile);
 
 // Handle native firmware flashing
 ipcMain.handle('flash-firmware-native', handleFlashFirmwareNative);
+
+// Handle native firmware dump (read flash)
+ipcMain.handle('dump-firmware-native', handleDumpFirmwareNative);
 
 // Handle file save
 ipcMain.handle('save-file', handleSaveFile);

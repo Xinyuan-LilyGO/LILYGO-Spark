@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, FileCode, AlertCircle, Cpu, Upload, Download, Plus, Trash2, Terminal, Activity, RefreshCw, Power, PowerOff, Image as ImageIcon, Calculator, Clock, Zap, Lightbulb } from 'lucide-react';
+import { Search, FileCode, AlertCircle, Cpu, Upload, Download, Plus, Trash2, Terminal, Activity, RefreshCw, Power, PowerOff, Image as ImageIcon, Calculator, Clock, Zap, Lightbulb, CircleDot } from 'lucide-react';
 import SmdResistorCalc from './SmdResistorCalc';
 import LedResistorCalc from './LedResistorCalc';
+import ResistorColorCodeCalc from './ResistorColorCodeCalc';
+import FullWindowDropZone from './FullWindowDropZone';
 
 // Type definitions
 interface AnalysisResult {
@@ -27,8 +29,8 @@ interface AnalysisResult {
     partition_table_offset?: string;
 }
 
-type UtilityTool = 'analyzer' | 'editor' | 'monitor' | 'converter' | 'regulator' | 'rc_calc' | 'smd_resistor' | 'led_resistor';
-type UtilitiesMode = 'full' | 'serial' | 'offline' | 'analyzer' | 'editor' | 'converter' | 'regulator' | 'rc_calc' | 'smd_resistor' | 'led_resistor';
+type UtilityTool = 'analyzer' | 'editor' | 'monitor' | 'converter' | 'regulator' | 'rc_calc' | 'smd_resistor' | 'led_resistor' | 'resistor_color';
+type UtilitiesMode = 'full' | 'serial' | 'offline' | 'analyzer' | 'editor' | 'converter' | 'regulator' | 'rc_calc' | 'smd_resistor' | 'led_resistor' | 'resistor_color';
 
 interface FirmwareUtilitiesProps {
   mode?: UtilitiesMode;
@@ -43,6 +45,7 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
     : mode === 'rc_calc' ? 'rc_calc'
     : mode === 'smd_resistor' ? 'smd_resistor'
     : mode === 'led_resistor' ? 'led_resistor'
+    : mode === 'resistor_color' ? 'resistor_color'
     : mode === 'analyzer' ? 'analyzer'
     : mode === 'editor' ? 'editor'
     : 'analyzer';
@@ -50,15 +53,16 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
 
   const visibleTabs: UtilityTool[] =
     mode === 'serial' ? ['monitor']
-    : mode === 'offline' ? ['converter', 'regulator', 'rc_calc', 'smd_resistor', 'led_resistor']
+    : mode === 'offline' ? ['converter', 'regulator', 'rc_calc', 'smd_resistor', 'led_resistor', 'resistor_color']
     : mode === 'converter' ? ['converter']
     : mode === 'regulator' ? ['regulator']
     : mode === 'rc_calc' ? ['rc_calc']
     : mode === 'smd_resistor' ? ['smd_resistor']
     : mode === 'led_resistor' ? ['led_resistor']
+    : mode === 'resistor_color' ? ['resistor_color']
     : mode === 'analyzer' ? ['analyzer']
     : mode === 'editor' ? ['editor']
-    : ['analyzer', 'editor', 'monitor', 'converter', 'regulator', 'rc_calc', 'smd_resistor', 'led_resistor'];
+    : ['analyzer', 'editor', 'monitor', 'converter', 'regulator', 'rc_calc', 'smd_resistor', 'led_resistor', 'resistor_color'];
   
   // RC Time Constant State (τ = R×C, fc = 1/(2πRC))
   const [rcR, setRcR] = useState(10);
@@ -117,6 +121,25 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
           const url = URL.createObjectURL(file);
           setConvertPreview(url);
           setConvertCode('');
+      }
+  };
+
+  const handleConvertDrop = (files: FileList) => {
+      const file = Array.from(files).find((f) => f.type.startsWith('image/'));
+      if (file) {
+          setConvertFile(file);
+          setConvertPreview(URL.createObjectURL(file));
+          setConvertCode('');
+      }
+  };
+
+  const handleAnalyzerDrop = (files: FileList) => {
+      const file = Array.from(files).find((f) => f.name.toLowerCase().endsWith('.bin'));
+      if (file) {
+          setAnalysisFile(file);
+          setAnalysisResult(null);
+          setLogs([]);
+          handleAnalyze(file);
       }
   };
 
@@ -332,8 +355,19 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
       setIsAnalyzing(true);
       setAnalysisResult(null);
       try {
+          // @ts-ignore - File.path may be undefined for drag-drop in Electron 32+
+          let pathToAnalyze = fileToAnalyze.path;
+          if (!pathToAnalyze && window.ipcRenderer) {
+              const { canceled, filePath } = await window.ipcRenderer.invoke('show-open-firmware-for-analysis');
+              if (canceled || !filePath) { setIsAnalyzing(false); return; }
+              pathToAnalyze = filePath;
+          }
+          if (!pathToAnalyze) {
+              setAnalysisResult({ error: t('utilities.analyzer_path_required') });
+              return;
+          }
           // @ts-ignore
-          const result = await window.ipcRenderer.invoke('analyze-firmware', fileToAnalyze.path);
+          const result = await window.ipcRenderer.invoke('analyze-firmware', pathToAnalyze);
           setAnalysisResult(result);
           
           // Auto-populate editor if partitions found
@@ -357,27 +391,40 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
     { id: 'rc_calc', icon: Clock, label: t('utilities.rc_time_constant') },
     { id: 'smd_resistor', icon: Zap, label: t('utilities.smd_resistor') },
     { id: 'led_resistor', icon: Lightbulb, label: t('utilities.led_resistor') },
+    { id: 'resistor_color', icon: CircleDot, label: t('utilities.resistor_color_code') },
   ];
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white p-6 gap-6 transition-colors">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white p-6 gap-6 transition-colors relative">
+      <FullWindowDropZone
+        active={activeTool === 'converter'}
+        accept="image/*"
+        onDrop={handleConvertDrop}
+        hintKey="common.drop_image"
+      />
+      <FullWindowDropZone
+        active={activeTool === 'analyzer'}
+        accept=".bin"
+        onDrop={handleAnalyzerDrop}
+        hintKey="common.drop_firmware"
+      />
       {/* Tool Switcher - only when multiple tabs visible */}
       {visibleTabs.length > 1 && (
-        <div className="flex space-x-1 bg-slate-200 dark:bg-slate-800 p-1 rounded-xl self-start border border-slate-300 dark:border-slate-700">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 w-full max-w-4xl">
           {tabButtons
             .filter((tb) => visibleTabs.includes(tb.id))
             .map(({ id, icon: Icon, label }) => (
               <button
                 key={id}
                 onClick={() => setActiveTool(id)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center ${
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center sm:justify-start ${
                   activeTool === id
                     ? 'bg-primary text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300 dark:hover:bg-slate-700/50'
+                    : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300 dark:hover:bg-slate-700/50 border border-slate-300 dark:border-slate-700'
                 }`}
               >
-                <Icon size={16} className="mr-2" />
-                {label}
+                <Icon size={16} className="mr-2 shrink-0" />
+                <span className="truncate">{label}</span>
               </button>
             ))}
         </div>
@@ -514,6 +561,8 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
       {activeTool === 'smd_resistor' && <SmdResistorCalc />}
 
       {activeTool === 'led_resistor' && <LedResistorCalc />}
+
+      {activeTool === 'resistor_color' && <ResistorColorCodeCalc />}
 
       {activeTool === 'rc_calc' && (
         <div className="flex-1 flex flex-col gap-6 overflow-auto">

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Upload, FileUp, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import FullWindowDropZone from './FullWindowDropZone';
 
 interface FirmwareUploadProps {
   token: string | null;
@@ -14,17 +15,25 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token }) => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      if (!selectedFile.name.toLowerCase().endsWith('.bin')) {
-        setStatus('error');
-        setMessage('Only .bin files are allowed');
-        setFile(null);
-        return;
-      }
-      setFile(selectedFile);
-      setStatus('idle');
-      setMessage('');
+      applyFile(e.target.files[0]);
     }
+  };
+
+  const applyFile = (selectedFile: File) => {
+    if (!selectedFile.name.toLowerCase().endsWith('.bin')) {
+      setStatus('error');
+      setMessage('Only .bin files are allowed');
+      setFile(null);
+      return;
+    }
+    setFile(selectedFile);
+    setStatus('idle');
+    setMessage('');
+  };
+
+  const handleDrop = (files: FileList) => {
+    const f = Array.from(files).find((x) => x.name.toLowerCase().endsWith('.bin'));
+    if (f) applyFile(f);
   };
 
   const handleUpload = async () => {
@@ -86,7 +95,13 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token }) => {
   }
 
   return (
-    <div className="p-8 max-w-2xl mx-auto">
+    <div className="p-8 max-w-2xl mx-auto relative">
+      <FullWindowDropZone
+        active={!uploading}
+        accept=".bin"
+        onDrop={handleDrop}
+        hintKey="common.drop_firmware"
+      />
       <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
         <Upload className="text-primary" />
         Firmware Upload

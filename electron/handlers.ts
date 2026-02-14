@@ -353,6 +353,105 @@ async function flashFirmwareWithEsptool(
     });
 }
 
+// Dump/read flash using standalone esptool executable, fallback to Python esptool
+async function dumpFirmwareWithEsptool(
+    portPath: string,
+    baudRate: number,
+    address: string,
+    size: string,
+    outputPath: string,
+    logToUI: (msg: string) => void
+): Promise<boolean> {
+    const runReadFlash = (execPath: string, args: string[], cwd?: string): Promise<boolean> => {
+        return new Promise((resolve) => {
+            logToUI(`Running: ${execPath} ${args.join(' ')}`);
+
+            const opts = cwd ? { cwd } : {};
+            const child = execFile(execPath, args, opts);
+
+            child.stdout?.on('data', (data) => {
+                data.toString().split('\n').forEach((line: string) => {
+                    if (line.trim()) logToUI(line.trim());
+                });
+            });
+
+            child.stderr?.on('data', (data) => {
+                data.toString().split('\n').forEach((line: string) => {
+                    if (line.trim()) logToUI(`[stderr] ${line.trim()}`);
+                });
+            });
+
+            child.on('close', (code) => {
+                if (code === 0) {
+                    logToUI('Read flash completed successfully.');
+                    resolve(true);
+                } else {
+                    logToUI(`Read flash failed with exit code ${code}.`);
+                    resolve(false);
+                }
+            });
+
+            child.on('error', (err) => {
+                logToUI(`Failed to start: ${err.message}`);
+                resolve(false);
+            });
+        });
+    };
+
+    let esptoolName = '';
+    let platformDir = '';
+
+    if (process.platform === 'darwin') {
+        platformDir = 'mac';
+        if (app.isPackaged) {
+            esptoolName = 'esptool';
+        } else {
+            esptoolName = process.arch === 'arm64' ? 'esptool-arm64' : 'esptool-x64';
+        }
+    } else if (process.platform === 'win32') {
+        platformDir = 'win';
+        esptoolName = 'esptool.exe';
+    } else if (process.platform === 'linux') {
+        platformDir = 'linux';
+        esptoolName = 'esptool';
+    } else {
+        logToUI(`Unsupported platform: ${process.platform}`);
+        return false;
+    }
+
+    const esptoolPath = app.isPackaged
+        ? path.join(process.resourcesPath, 'tools', esptoolName)
+        : path.join(__dirname, '../resources/tools', platformDir, esptoolName);
+
+    try {
+        await fs.access(esptoolPath, fs.constants.X_OK);
+        const cmdArgs = ['--port', portPath, '--baud', baudRate.toString(), 'read_flash', address, size, outputPath];
+        return runReadFlash(esptoolPath, cmdArgs, undefined);
+    } catch (e) {
+        logToUI(`esptool binary not found: ${esptoolPath}`);
+    }
+
+    // Fallback to Python esptool (dev mode only - packaged app excludes esptool package)
+    if (app.isPackaged) {
+        logToUI('Python esptool fallback not available in packaged app.');
+        return false;
+    }
+
+    const pythonEsptoolPath = path.join(__dirname, '../resources/tools/common/esptool.py');
+    try {
+        await fs.access(pythonEsptoolPath, fs.constants.R_OK);
+    } catch (e) {
+        logToUI(`Python esptool not found: ${pythonEsptoolPath}`);
+        return false;
+    }
+
+    logToUI('Using Python esptool (binary not found)...');
+    const commonDir = path.dirname(pythonEsptoolPath);
+    const pyArgs = [pythonEsptoolPath, '--port', portPath, '--baud', baudRate.toString(), 'read_flash', address, size, outputPath];
+    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    return runReadFlash(pythonCmd, pyArgs, commonDir);
+}
+
 // --- IPC Handlers ---
 
 export async function handleFlashFirmwareNative(
@@ -382,6 +481,48 @@ export async function handleFlashFirmwareNative(
     logToUI(`Starting native flash on ${portPath} @ ${baudRate}...`);
     const success = await flashFirmwareWithEsptool(portPath, baudRate, filePath, offset, logToUI);
     return success;
+}
+
+export async function handleDumpFirmwareNative(
+    event: IpcMainInvokeEvent,
+    portPath: string,
+    baudRate: number,
+    address: string,
+    size: string
+): Promise<{ success: boolean; filePath?: string }> {
+    const webContents = event.sender;
+    const logToUI = (msg: string) => {
+        webContents.send('dump-log', msg + '\r\n');
+        // 解析 esptool 输出，发送进度和速度到前端
+        const progressMatch = msg.match(/(\d+)\s*\(\s*(\d+)\s*%\s*\)/);
+        if (progressMatch) {
+            const pct = parseInt(progressMatch[2], 10);
+            if (!isNaN(pct)) webContents.send('dump-progress', { percent: Math.min(100, pct) });
+        }
+        const doneMatch = msg.match(/Read\s+(\d+)\s+bytes.*?in\s+([\d.]+)\s+seconds(?:.*?([\d.]+)\s*kbit\/s)?/i);
+        if (doneMatch) {
+            webContents.send('dump-progress', { percent: 100 });
+            const kbps = doneMatch[3] ? parseFloat(doneMatch[3]) : null;
+            if (kbps != null && !isNaN(kbps)) webContents.send('dump-progress', { percent: 100, speedKbps: kbps });
+        }
+    };
+
+    if (activeSerialPort && activeSerialPort.isOpen) {
+        logToUI('Closing active serial connection...');
+        await new Promise<void>((resolve) => {
+            activeSerialPort?.close(() => {
+                activeSerialPort = null;
+                resolve();
+            });
+        });
+    }
+
+    const fileName = `firmware_dump_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.bin`;
+    const outputPath = path.join(app.getPath('downloads'), fileName);
+
+    logToUI(`Starting native dump to ${outputPath}...`);
+    const success = await dumpFirmwareWithEsptool(portPath, baudRate, address, size, outputPath, logToUI);
+    return success ? { success: true, filePath: outputPath } : { success: false };
 }
 
 export async function handleDownloadFirmware(event: IpcMainInvokeEvent, url: string) {
@@ -479,6 +620,17 @@ export async function handleRemoveFile(_event: IpcMainInvokeEvent, filePath: str
     }
 }
 
+export async function handleShowOpenFirmwareForAnalysis(event: IpcMainInvokeEvent): Promise<{ canceled: boolean; filePath?: string }> {
+    const win = event.sender.getOwnerBrowserWindow();
+    const result = await dialog.showOpenDialog(win ?? undefined, {
+        title: 'Select firmware file to analyze',
+        filters: [{ name: 'Firmware', extensions: ['bin'] }, { name: 'All', extensions: ['*'] }],
+        properties: ['openFile'],
+    });
+    if (result.canceled || !result.filePaths?.[0]) return { canceled: true };
+    return { canceled: false, filePath: result.filePaths[0] };
+}
+
 export async function handleAnalyzeFirmware(event: IpcMainInvokeEvent, filePath: string) {
     const webContents = event.sender;
     const logToUI = (msg: string) => {
@@ -505,13 +657,21 @@ export async function handleAnalyzeFirmware(event: IpcMainInvokeEvent, filePath:
             scriptPath = path.join(__dirname, '../resources/tools/common/analyze_firmware.py');
         }
 
-        logToUI(`Using Python script: ${scriptPath}`);
+        if (!filePath || typeof filePath !== 'string') {
+            reject('Invalid file path for analysis');
+            return;
+        }
 
-        execFile('python3', [scriptPath, filePath], (error, stdout, stderr) => {
+        logToUI(`Using Python script: ${scriptPath}`);
+        const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+        const scriptDir = path.dirname(scriptPath);
+
+        execFile(pythonCmd, [scriptPath, filePath], { cwd: scriptDir }, (error, stdout, stderr) => {
             if (error) {
+                const errDetail = [stderr, stdout].filter(Boolean).join('\n') || error.message;
                 logToUI(`Python script error: ${error.message}`);
-                if (stderr) logToUI(`Python stderr: ${stderr}`);
-                reject(stderr || error.message);
+                if (errDetail) logToUI(errDetail);
+                reject(errDetail || error.message);
                 return;
             }
 

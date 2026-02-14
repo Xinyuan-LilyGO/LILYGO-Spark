@@ -1,4 +1,12 @@
 {
+  "common": {
+    "drop_hint": "释放以上传",
+    "drop_image": "释放图片以转换",
+    "drop_firmware": "释放固件以分析",
+    "drop_image_hint": "支持 PNG、JPG、GIF 等图片格式",
+    "drop_bin_hint": "支持 .bin 固件文件",
+    "drop_file_hint": "将文件拖放到此处"
+  },
   "app": {
     "title": "LILYGO Spark"
   },
@@ -12,7 +20,7 @@
     "guide": "使用指引",
     "burner": "刷写工具",
     "firmware": "固件中心",
-    "dumper": "固件提取工具",
+    "dumper": "从设备提取固件",
     "upload": "固件上传",
     "utilities": "固件高级工具",
     "firmware_toolbox": "固件工具箱",
@@ -38,7 +46,7 @@
     "features_title": "功能一览",
     "feature_firmware": "浏览、下载官方与社区固件，支持多产品筛选",
     "feature_burner": "一键烧录 .bin 到 ESP32/ESP32-S3 等设备，支持串口控制台",
-    "feature_dumper": "从设备中读取并保存固件备份",
+    "feature_dumper": "从设备提取固件并保存备份",
     "feature_utilities": "固件分析、分区表编辑、串口监控等高级工具",
     "for_developers_title": "致开发者",
     "for_developers_desc": "若你需要自定义固件来源或对接自有流程：",
@@ -69,6 +77,7 @@
   },
   "utilities": {
     "analyzer": "固件分析器",
+    "analyzer_path_required": "请通过文件选择器选择固件文件（拖放的文件可能无法获取路径）",
     "partition_editor": "分区表编辑器",
     "image_converter": "图片转换",
     "regulator_resistor": "分压电阻计算器",
@@ -127,6 +136,7 @@
     "led_color_green": "绿",
     "led_color_blue": "蓝",
     "led_color_white": "白",
+    "resistor_color_code": "电阻色环计算器",
     "btn_analyze": "分析",
     "btn_export": "导出",
     "btn_import": "导入",
@@ -140,6 +150,27 @@
     "no_partitions": "未检测到分区表。",
     "analysis_failed": "分析失败",
     "select_firmware": "点击选择固件 .bin"
+  },
+  "resistor": {
+    "bands": "环",
+    "band": "第",
+    "band_num": "第{{n}}环",
+    "multiplier": "倍率",
+    "tolerance": "误差",
+    "temp_coef": "温度系数",
+    "result": "阻值",
+    "color_black": "黑",
+    "color_brown": "棕",
+    "color_red": "红",
+    "color_orange": "橙",
+    "color_yellow": "黄",
+    "color_green": "绿",
+    "color_blue": "蓝",
+    "color_violet": "紫",
+    "color_grey": "灰",
+    "color_white": "白",
+    "color_gold": "金",
+    "color_silver": "银"
   },
   "settings": {
     "title": "设置",
@@ -230,13 +261,20 @@
     "preview_flash": "预览烧录动画"
   },
   "dumper": {
-    "title": "固件提取",
+    "title": "从设备提取固件",
+    "section_info": "设备信息",
+    "section_params": "提取参数",
     "label_start_address": "起始地址 (Hex)",
     "label_size": "大小 (Hex)",
     "label_baud_rate": "波特率",
     "label_detected_chip": "检测到芯片",
     "label_detected_size": "检测到大小",
-    "label_status": "状态",
+    "table_port": "端口",
+    "table_device": "设备描述",
+    "table_flash_id": "Flash ID",
+    "table_size": "大小",
+    "table_crystal": "晶振",
+    "table_progress": "进度",
     "btn_select_device": "选择设备",
     "btn_detect_info": "检测信息",
     "btn_dump_firmware": "提取固件",
@@ -245,7 +283,7 @@
     "unknown": "未知",
     "no_devices_found": "未发现兼容设备。",
     "check_connections": "请检查连接。",
-    "terminal_init": "固件提取工具已初始化。",
+    "terminal_init": "从设备提取固件已初始化。",
     "terminal_select_device": "请选择一个设备开始。",
     "terminal_device_selected": "设备已选择。",
     "terminal_port_selection_error": "端口选择错误",
@@ -261,7 +299,10 @@
     "terminal_reading_flash": "正在读取 Flash 从",
     "terminal_read_complete": "读取完成！正在保存文件...",
     "terminal_file_saved": "文件已保存。",
-    "terminal_dump_error": "提取错误"
+    "terminal_dump_error": "提取错误",
+    "terminal_using_native": "使用 esptool 原生二进制提取...",
+    "terminal_fallback_js": "原生提取失败，回退到 esptool-js...",
+    "terminal_error_port_in_use": "无法打开串口，可能被占用。请先断开刷写工具的控制台或串口监控，关闭其他占用该端口的程序后重试。"
   },
   "device_toast": {
     "new_device": "发现新设备",

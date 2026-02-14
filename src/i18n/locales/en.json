@@ -1,4 +1,12 @@
 {
+    "common": {
+        "drop_hint": "Release to upload",
+        "drop_image": "Release image to convert",
+        "drop_firmware": "Release firmware to analyze",
+        "drop_image_hint": "Supports PNG, JPG, GIF and other image formats",
+        "drop_bin_hint": "Supports .bin firmware files",
+        "drop_file_hint": "Drop file here"
+    },
     "app": {
         "title": "LILYGO Spark"
     },
@@ -69,6 +77,7 @@
     },
     "utilities": {
         "analyzer": "Firmware Analyzer",
+        "analyzer_path_required": "Please select firmware via file picker (dropped files may not provide path)",
         "partition_editor": "Partition Table Editor",
         "image_converter": "Image Converter",
         "regulator_resistor": "Voltage Divider Calculator",
@@ -127,6 +136,7 @@
         "led_color_green": "Green",
         "led_color_blue": "Blue",
         "led_color_white": "White",
+        "resistor_color_code": "Resistor Color Code",
         "btn_analyze": "Analyze",
         "btn_export": "Export",
         "btn_import": "Import",
@@ -140,6 +150,27 @@
         "no_partitions": "No partition table detected.",
         "analysis_failed": "Analysis failed",
         "select_firmware": "Click to select firmware .bin"
+    },
+    "resistor": {
+        "bands": " bands",
+        "band": "Band ",
+        "band_num": "Band {{n}}",
+        "multiplier": "Multiplier",
+        "tolerance": "Tolerance",
+        "temp_coef": "Temp. Coef.",
+        "result": "Resistance",
+        "color_black": "Black",
+        "color_brown": "Brown",
+        "color_red": "Red",
+        "color_orange": "Orange",
+        "color_yellow": "Yellow",
+        "color_green": "Green",
+        "color_blue": "Blue",
+        "color_violet": "Violet",
+        "color_grey": "Grey",
+        "color_white": "White",
+        "color_gold": "Gold",
+        "color_silver": "Silver"
     },
     "settings": {
         "title": "Settings",
@@ -231,11 +262,19 @@
     },
     "dumper": {
         "title": "Firmware Dumper",
+        "section_info": "Device Info",
+        "section_params": "Dump Params",
         "label_start_address": "Start Address (Hex)",
         "label_size": "Size (Hex)",
         "label_baud_rate": "Baud Rate",
         "label_detected_chip": "Detected Chip",
         "label_detected_size": "Detected Size",
+        "table_port": "Port",
+        "table_device": "Device",
+        "table_flash_id": "Flash ID",
+        "table_size": "Size",
+        "table_crystal": "Crystal",
+        "table_progress": "Progress",
         "label_status": "Status",
         "btn_select_device": "Select Device",
         "btn_detect_info": "Detect Info",
@@ -261,7 +300,10 @@
         "terminal_reading_flash": "Reading flash from",
         "terminal_read_complete": "Read complete! Saving file...",
         "terminal_file_saved": "File saved.",
-        "terminal_dump_error": "Dump Error"
+        "terminal_dump_error": "Dump Error",
+        "terminal_using_native": "Using native esptool binary to dump...",
+        "terminal_fallback_js": "Native dump failed, falling back to esptool-js...",
+        "terminal_error_port_in_use": "Failed to open serial port (may be in use). Disconnect serial monitor, burner console, or other apps using this port, then retry."
     },
     "device_toast": {
         "new_device": "New Device Found",

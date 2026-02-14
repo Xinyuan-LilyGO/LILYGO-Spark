@@ -7,6 +7,7 @@ import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
 import { ChevronDown, Usb, Cpu, Check, Layers, Plus, Trash2, FilePlus, Download, Save, Play } from 'lucide-react';
+import FullWindowDropZone from './FullWindowDropZone';
 import SparkMD5 from 'spark-md5';
 
 // Type definitions for Web Serial API
@@ -230,9 +231,18 @@ const Burner: React.FC = () => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-      xtermRef.current?.writeln(`Selected firmware: ${e.target.files[0].name} (${e.target.files[0].size} bytes)`);
+      applyFirmwareFile(e.target.files[0]);
     }
+  };
+
+  const applyFirmwareFile = (f: File) => {
+    setFile(f);
+    xtermRef.current?.writeln(`Selected firmware: ${f.name} (${f.size} bytes)`);
+  };
+
+  const handleBurnerDrop = (files: FileList) => {
+    const f = Array.from(files).find((x) => x.name.toLowerCase().endsWith('.bin'));
+    if (f && mode === 'basic') applyFirmwareFile(f);
   };
 
   const handleAdvancedFileChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -583,6 +593,12 @@ const Burner: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white p-6 gap-6 transition-colors relative" onClick={() => {}}>
+      <FullWindowDropZone
+        active={mode === 'basic'}
+        accept=".bin"
+        onDrop={handleBurnerDrop}
+        hintKey="common.drop_firmware"
+      />
       {/* Flash success celebration overlay */}
       {showFlashCelebration && <FlashCelebrationOverlay style={flashCelebrationStyle} />}
       {/* Mode Switcher + Preview */}

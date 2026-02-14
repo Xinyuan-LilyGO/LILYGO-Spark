@@ -1,4 +1,12 @@
 {
+  "common": {
+    "drop_hint": "離してアップロード",
+    "drop_image": "離して画像を変換",
+    "drop_firmware": "離してファームウェアを分析",
+    "drop_image_hint": "PNG、JPG、GIF 等をサポート",
+    "drop_bin_hint": ".bin ファームウェアをサポート",
+    "drop_file_hint": "ファイルをここにドロップ"
+  },
   "app": {
     "title": "LILYGO Spark"
   },
@@ -12,7 +20,7 @@
     "guide": "ガイド",
     "burner": "書き込みツール",
     "firmware": "ファームウェア",
-    "dumper": "ファームウェア抽出",
+    "dumper": "デバイスからファームウェアダンプ",
     "upload": "アップロード",
     "utilities": "ユーティリティ",
     "firmware_toolbox": "ファームウェアツールボックス",
@@ -38,7 +46,7 @@
     "features_title": "機能",
     "feature_firmware": "製品フィルター付きで公式・コミュニティファームウェアを閲覧・ダウンロード",
     "feature_burner": "ESP32/ESP32-S3 への .bin ワンクリック書き込み、シリアルコンソール対応",
-    "feature_dumper": "デバイスからファームウェアを読み取りバックアップ",
+    "feature_dumper": "デバイスからファームウェアをダンプしてバックアップ",
     "feature_utilities": "ファームウェア解析、パーティション編集、シリアルモニターなどのツール",
     "for_developers_title": "開発者向け",
     "for_developers_desc": "独自のファームウェアソースやワークフローが必要な場合：",
@@ -69,6 +77,7 @@
   },
   "utilities": {
     "analyzer": "ファームウェア分析",
+    "analyzer_path_required": "ファイル選択でファームウェアを選択してください（ドロップしたファイルはパスを取得できない場合があります）",
     "partition_editor": "パーティションテーブルエディタ",
     "image_converter": "画像変換",
     "regulator_resistor": "分圧抵抗計算",
@@ -127,6 +136,7 @@
     "led_color_green": "緑",
     "led_color_blue": "青",
     "led_color_white": "白",
+    "resistor_color_code": "抵抗カラーコード",
     "btn_analyze": "分析",
     "btn_export": "エクスポート",
     "btn_import": "インポート",
@@ -140,6 +150,27 @@
     "no_partitions": "パーティションテーブルが検出されませんでした。",
     "analysis_failed": "分析に失敗しました",
     "select_firmware": "クリックしてファームウェア .bin を選択"
+  },
+  "resistor": {
+    "bands": "本",
+    "band": "第",
+    "band_num": "第{{n}}本",
+    "multiplier": "倍率",
+    "tolerance": "許容差",
+    "temp_coef": "温度係数",
+    "result": "抵抗値",
+    "color_black": "黒",
+    "color_brown": "茶",
+    "color_red": "赤",
+    "color_orange": "橙",
+    "color_yellow": "黄",
+    "color_green": "緑",
+    "color_blue": "青",
+    "color_violet": "紫",
+    "color_grey": "灰",
+    "color_white": "白",
+    "color_gold": "金",
+    "color_silver": "銀"
   },
   "settings": {
     "title": "設定",
@@ -228,6 +259,20 @@
     "choose_file": "ファイルを選択",
     "no_file_chosen": "ファイルが選択されていません",
     "preview_flash": "書き込みアニメをプレビュー"
+  },
+  "dumper": {
+    "section_info": "デバイス情報",
+    "section_params": "ダンプパラメータ",
+    "table_port": "ポート",
+    "table_device": "デバイス",
+    "table_flash_id": "Flash ID",
+    "table_size": "サイズ",
+    "table_crystal": "クリスタル",
+    "table_progress": "進捗",
+    "label_detected_chip": "検出チップ",
+    "terminal_error_port_in_use": "シリアルポートを開けません（使用中の可能性）。シリアルモニター、書き込みツールのコンソール、または他のアプリを切断してから再試行してください。",
+    "terminal_using_native": "esptool ネイティブバイナリでダンプ中...",
+    "terminal_fallback_js": "ネイティブダンプ失敗、esptool-js にフォールバック..."
   },
   "device_toast": {
     "new_device": "新しいデバイスを検出",
