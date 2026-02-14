@@ -258,6 +258,27 @@ const SettingsPage: React.FC = () => {
             </div>
 
             <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
+            <div className="flex items-center space-x-3">
+                <Zap className="text-primary" />
+                <span className="font-medium text-slate-800 dark:text-slate-200">{t('settings.easter_eggs')}</span>
+            </div>
+            <div className="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-400">
+                <div className="flex items-start gap-2">
+                    <code className="shrink-0 px-1.5 py-0.5 rounded bg-slate-200 dark:bg-zinc-700 font-mono text-xs">↑↑↓↓←→←→BA</code>
+                    <span>{t('settings.easter_eggs_konami')}</span>
+                </div>
+                <div className="flex items-start gap-2">
+                    <span className="shrink-0 font-medium text-emerald-600 dark:text-emerald-400">{t('settings.easter_eggs_flash')}</span>
+                    <span>{t('settings.easter_eggs_flash_hint')}</span>
+                </div>
+                <div className="flex items-start gap-2">
+                    <span className="shrink-0 font-medium text-emerald-600 dark:text-emerald-400">{t('settings.easter_eggs_device')}</span>
+                    <span>{t('settings.easter_eggs_device_hint')}</span>
+                </div>
+            </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
             <button
               type="button"
               onClick={() => setAdvancedExpanded((v) => !v)}
@@ -306,27 +327,6 @@ const SettingsPage: React.FC = () => {
                 </div>
               </div>
             )}
-            </div>
-
-            <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
-            <div className="flex items-center space-x-3">
-                <Zap className="text-primary" />
-                <span className="font-medium text-slate-800 dark:text-slate-200">{t('settings.easter_eggs')}</span>
-            </div>
-            <div className="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-400">
-                <div className="flex items-start gap-2">
-                    <code className="shrink-0 px-1.5 py-0.5 rounded bg-slate-200 dark:bg-zinc-700 font-mono text-xs">↑↑↓↓←→←→BA</code>
-                    <span>{t('settings.easter_eggs_konami')}</span>
-                </div>
-                <div className="flex items-start gap-2">
-                    <span className="shrink-0 font-medium text-emerald-600 dark:text-emerald-400">{t('settings.easter_eggs_flash')}</span>
-                    <span>{t('settings.easter_eggs_flash_hint')}</span>
-                </div>
-                <div className="flex items-start gap-2">
-                    <span className="shrink-0 font-medium text-emerald-600 dark:text-emerald-400">{t('settings.easter_eggs_device')}</span>
-                    <span>{t('settings.easter_eggs_device_hint')}</span>
-                </div>
-            </div>
             </div>
         </div>
       </div>

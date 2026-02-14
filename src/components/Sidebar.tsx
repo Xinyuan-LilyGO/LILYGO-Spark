@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Settings, Zap, LayoutGrid, Download, Wrench, Github, LogOut, Upload, Compass, Users } from 'lucide-react';
+import { Settings, Zap, LayoutGrid, Github, LogOut, Upload, Compass, Users, BookOpen, Terminal, FileCode } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface AuthUser {
@@ -15,6 +16,50 @@ interface SidebarProps {
   user: AuthUser | null;
   onLogout: () => void;
 }
+
+const LoginButtonWithTooltip: React.FC<{ onLogin: () => void; tooltipText: string; loginLabel: string }> = ({ onLogin, tooltipText, loginLabel }) => {
+  const [tooltip, setTooltip] = useState<{ x: number; y: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  const handleMouseEnter = () => {
+    if (btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setTooltip({ x: rect.left + rect.width / 2, y: rect.top });
+    }
+  };
+  const handleMouseLeave = () => setTooltip(null);
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onClick={onLogin}
+        className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 dark:bg-surface-hover dark:hover:bg-zinc-600 dark:text-zinc-200 transition-colors border border-slate-200 dark:border-zinc-600"
+      >
+        <Github size={18} className="shrink-0" />
+        <span className="font-medium">{loginLabel}</span>
+      </button>
+      {tooltip && document.body &&
+        createPortal(
+          <div
+            className="fixed px-2 py-1.5 bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 text-[11px] rounded border border-slate-200 dark:border-zinc-600 shadow-lg leading-relaxed z-[9999]"
+            style={{
+              left: tooltip.x,
+              top: tooltip.y - 8,
+              transform: 'translate(-50%, -100%)',
+              width: 'max-content',
+              maxWidth: 220,
+            }}
+          >
+            {tooltipText}
+          </div>,
+          document.body
+        )}
+    </>
+  );
+};
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogout }) => {
   const { t } = useTranslation();
@@ -37,11 +82,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
   const navItems = [
     { id: 'discovery', icon: Compass, label: 'Discovery' }, // TODO: i18n
     { id: 'firmware', icon: LayoutGrid, label: t('nav.firmware') },
-    { id: 'burner', icon: Zap, label: t('nav.burner') },
-    { id: 'upload', icon: Upload, label: t('nav.upload') },
-    { id: 'dumper', icon: Download, label: t('nav.dumper') },
-    { id: 'utilities', icon: Wrench, label: t('nav.utilities') },
     { id: 'community', icon: Users, label: t('nav.lilygo_related') },
+    { id: 'tools', icon: Zap, label: t('nav.firmware_toolbox') },
+    { id: 'serial_tools', icon: Terminal, label: t('nav.serial_tools') },
+    { id: 'offline_tools', icon: FileCode, label: t('nav.convert_tools') },
+    { id: 'guide', icon: BookOpen, label: t('nav.guide') },
     { id: 'settings', icon: Settings, label: t('nav.settings') },
   ];
 
@@ -104,35 +149,39 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
         })}
       </nav>
 
-      {/* Footer: Login / User */}
-      <div className="p-4 border-t border-slate-200 dark:border-zinc-700/30 space-y-3 shrink-0">
+      {/* Footer: Login / User + Upload Entry */}
+      <div className="p-3 border-t border-slate-200 dark:border-zinc-700/30 space-y-2.5 shrink-0">
         {user ? (
-          <div className="flex items-center gap-3 px-2">
-            {user.avatar_url && (
-              <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full" />
-            )}
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{user.name || user.login}</div>
-              <div className="text-xs text-slate-500 dark:text-slate-500 truncate">@{user.login}</div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              {user.avatar_url && (
+                <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full shrink-0 ring-2 ring-slate-200 dark:ring-zinc-600" />
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{user.name || user.login}</div>
+                <div className="text-xs text-slate-500 truncate">@{user.login}</div>
+              </div>
+              <button
+                onClick={onLogout}
+                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-200 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-700 transition-colors shrink-0"
+                title={t('sidebar.logout')}
+              >
+                <LogOut size={15} />
+              </button>
             </div>
             <button
-              onClick={onLogout}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-200 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-700 transition-colors"
-              title="退出登录"
+              onClick={() => setActiveTab('upload')}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30 dark:border-primary/40 transition-colors text-sm font-medium"
+              title={t('nav.upload')}
             >
-              <LogOut size={16} />
+              <Upload size={16} />
+              <span>{t('nav.upload')}</span>
             </button>
           </div>
         ) : (
-          <button
-            onClick={handleLogin}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 dark:bg-surface-hover dark:hover:bg-zinc-700 dark:text-zinc-300 dark:hover:text-white transition-colors border border-slate-300 dark:border-zinc-600/50"
-          >
-            <Github size={18} />
-            <span>使用 GitHub 登录</span>
-          </button>
+          <LoginButtonWithTooltip onLogin={handleLogin} tooltipText={t('sidebar.login_to_upload_tooltip')} loginLabel={t('sidebar.login_with_github')} />
         )}
-        <div className="text-xs text-slate-500 dark:text-zinc-500 text-center">v0.1.0-alpha</div>
+        <div className="text-[11px] text-slate-400 dark:text-zinc-500 text-center">v0.1.0-alpha</div>
       </div>
     </div>
   );

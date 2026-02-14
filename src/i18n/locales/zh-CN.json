@@ -2,15 +2,53 @@
   "app": {
     "title": "LILYGO Spark"
   },
+  "sidebar": {
+    "logout": "退出登录",
+    "login_with_github": "使用 GitHub 登录",
+    "login_to_upload": "登录解锁更多",
+    "login_to_upload_tooltip": "登录后上传固件等"
+  },
   "nav": {
+    "guide": "使用指引",
     "burner": "刷写工具",
     "firmware": "固件中心",
     "dumper": "固件提取工具",
     "upload": "固件上传",
     "utilities": "固件高级工具",
+    "firmware_toolbox": "固件工具箱",
+    "serial_tools": "串口工具",
+    "convert_tools": "图片与转换",
     "settings": "设置",
     "community": "LILYGO 社区",
     "lilygo_related": "LILYGO 相关"
+  },
+  "guide": {
+    "title": "使用指引",
+    "subtitle": "LILYGO Spark 产品初衷与快速上手指南",
+    "purpose_title": "产品初衷",
+    "purpose_text": "LILYGO Spark 是一款面向 LILYGO 及其他 ESP 设备的跨平台固件中心与烧录工具。让开发者、创客和爱好者能够轻松浏览、下载并烧录官方及社区固件。",
+    "purpose_1": "支持 ESP32、ESP32-S3、ESP32-C6 等乐鑫芯片系列",
+    "purpose_2": "一站式浏览与下载 LILYGO 官方及社区固件",
+    "purpose_3": "跨平台支持 Windows、macOS、Linux，支持自动检测 LILYGO 板子",
+    "quick_start_title": "快速上手",
+    "step1_title": "固件中心 — 选择产品和固件",
+    "step1_desc": "在左侧选择你的 LILYGO 设备型号，浏览官方或社区固件，点击下载并可直接烧录。",
+    "step2_title": "刷写工具 — 连接设备并烧录",
+    "step2_desc": "用 USB 连接板子，选择串口，选择 .bin 固件文件，点击「开始刷写」即可完成烧录。",
+    "features_title": "功能一览",
+    "feature_firmware": "浏览、下载官方与社区固件，支持多产品筛选",
+    "feature_burner": "一键烧录 .bin 到 ESP32/ESP32-S3 等设备，支持串口控制台",
+    "feature_dumper": "从设备中读取并保存固件备份",
+    "feature_utilities": "固件分析、分区表编辑、串口监控等高级工具",
+    "for_developers_title": "致开发者",
+    "for_developers_desc": "若你需要自定义固件来源或对接自有流程：",
+    "for_developers_1": "固件清单来自 GitHub Releases 及仓库文件树，LILYGO 官方 .bin 多托管在对应产品仓库",
+    "for_developers_2": "在 设置 → 高级模式 中可指定本地 manifest JSON，优先使用自定义清单而非网络获取",
+    "for_developers_3": "欢迎参与贡献和反馈",
+    "link_repo": "仓库",
+    "link_releases": "Releases",
+    "open_source": "开源项目，欢迎在",
+    "open_source_link": "GitHub 参与贡献和反馈"
   },
   "firmwareCenter": {
     "only_with_firmware": "仅显示有固件的产品",

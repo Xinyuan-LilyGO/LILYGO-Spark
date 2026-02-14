@@ -25,9 +25,29 @@ interface AnalysisResult {
     partition_table_offset?: string;
 }
 
-const FirmwareUtilities: React.FC = () => {
+type UtilityTool = 'analyzer' | 'editor' | 'monitor' | 'converter';
+type UtilitiesMode = 'full' | 'serial' | 'offline' | 'analyzer' | 'editor' | 'converter';
+
+interface FirmwareUtilitiesProps {
+  mode?: UtilitiesMode;
+}
+
+const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) => {
   const { t } = useTranslation();
-  const [activeTool, setActiveTool] = useState<'analyzer' | 'editor' | 'monitor' | 'converter'>('analyzer');
+  const defaultTool: UtilityTool =
+    mode === 'serial' ? 'monitor'
+    : mode === 'offline' || mode === 'converter' ? 'converter'
+    : mode === 'analyzer' ? 'analyzer'
+    : mode === 'editor' ? 'editor'
+    : 'analyzer';
+  const [activeTool, setActiveTool] = useState<UtilityTool>(defaultTool);
+
+  const visibleTabs: UtilityTool[] =
+    mode === 'serial' ? ['monitor']
+    : mode === 'offline' || mode === 'converter' ? ['converter']
+    : mode === 'analyzer' ? ['analyzer']
+    : mode === 'editor' ? ['editor']
+    : ['analyzer', 'editor', 'monitor', 'converter'];
   
   // Converter State
   const [convertFile, setConvertFile] = useState<File | null>(null);
@@ -306,55 +326,36 @@ const FirmwareUtilities: React.FC = () => {
       }
   };
 
+  const tabButtons: { id: UtilityTool; icon: typeof Search; label: string }[] = [
+    { id: 'analyzer', icon: Search, label: t('utilities.analyzer') },
+    { id: 'monitor', icon: Activity, label: 'Serial Monitor' },
+    { id: 'editor', icon: FileCode, label: t('utilities.partition_editor') },
+    { id: 'converter', icon: ImageIcon, label: 'Image Converter' },
+  ];
+
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white p-6 gap-6 transition-colors">
-      {/* Tool Switcher */}
-      <div className="flex space-x-1 bg-slate-200 dark:bg-slate-800 p-1 rounded-xl self-start border border-slate-300 dark:border-slate-700">
-          <button
-              onClick={() => setActiveTool('analyzer')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center ${
-                  activeTool === 'analyzer' 
-                      ? 'bg-primary text-white shadow-sm' 
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300 dark:hover:bg-slate-700/50'
-              }`}
-          >
-              <Search size={16} className="mr-2" />
-              {t('utilities.analyzer')}
-          </button>
-          <button
-              onClick={() => setActiveTool('monitor')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center ${
-                  activeTool === 'monitor' 
-                      ? 'bg-primary text-white shadow-sm' 
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300 dark:hover:bg-slate-700/50'
-              }`}
-          >
-              <Activity size={16} className="mr-2" />
-              Serial Monitor
-          </button>
-          <button
-              onClick={() => setActiveTool('editor')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center ${
-                  activeTool === 'editor' 
-                      ? 'bg-primary text-white shadow-sm' 
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300 dark:hover:bg-slate-700/50'
-              }`}
-          >
-              <FileCode size={16} className="mr-2" />
-              {t('utilities.partition_editor')}
-          </button>
-          <button
-              onClick={() => setActiveTool('converter')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center ${
-                  activeTool === 'converter' 
-                      ? 'bg-primary text-white shadow-sm' 
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300 dark:hover:bg-slate-700/50'
-              }`}
-          >
-              <ImageIcon size={16} className="mr-2" />
-              Image Converter
-          </button>
-      </div>
+      {/* Tool Switcher - only when multiple tabs visible */}
+      {visibleTabs.length > 1 && (
+        <div className="flex space-x-1 bg-slate-200 dark:bg-slate-800 p-1 rounded-xl self-start border border-slate-300 dark:border-slate-700">
+          {tabButtons
+            .filter((tb) => visibleTabs.includes(tb.id))
+            .map(({ id, icon: Icon, label }) => (
+              <button
+                key={id}
+                onClick={() => setActiveTool(id)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center ${
+                  activeTool === id
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300 dark:hover:bg-slate-700/50'
+                }`}
+              >
+                <Icon size={16} className="mr-2" />
+                {label}
+              </button>
+            ))}
+        </div>
+      )}
 
       {activeTool === 'converter' && (
         <div className="flex-1 flex flex-col gap-6 overflow-hidden">

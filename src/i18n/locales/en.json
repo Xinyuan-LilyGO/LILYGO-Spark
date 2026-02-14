@@ -2,12 +2,22 @@
     "app": {
         "title": "LILYGO Spark"
     },
+    "sidebar": {
+        "logout": "Log out",
+        "login_with_github": "Login with GitHub",
+        "login_to_upload": "Login to unlock more",
+        "login_to_upload_tooltip": "Login to upload firmware and more"
+    },
     "nav": {
+        "guide": "Guide",
         "firmware": "Firmware Center",
         "dumper": "Firmware Dumper",
         "burner": "Firmware Burner",
         "upload": "Upload",
         "utilities": "Firmware Utilities",
+        "firmware_toolbox": "Firmware Toolbox",
+        "serial_tools": "Serial Tools",
+        "convert_tools": "Image & Convert",
         "settings": "Settings",
         "community": "LILYGO Community",
         "lilygo_related": "LILYGO Related"
@@ -15,6 +25,34 @@
     "firmwareCenter": {
         "only_with_firmware": "Only show products with firmware",
         "product_count": "({{count}} total)"
+    },
+    "guide": {
+        "title": "User Guide",
+        "subtitle": "LILYGO Spark purpose and quick start",
+        "purpose_title": "Our Purpose",
+        "purpose_text": "LILYGO Spark is a cross-platform firmware hub and burner for LILYGO and other ESP devices. It lets developers, makers, and enthusiasts easily browse, download, and flash official or community firmware.",
+        "purpose_1": "Supports ESP32, ESP32-S3, ESP32-C6 and other Espressif chips",
+        "purpose_2": "One-stop browse and download of LILYGO official and community firmware",
+        "purpose_3": "Cross-platform on Windows, macOS, Linux with automatic board detection",
+        "quick_start_title": "Quick Start",
+        "step1_title": "Firmware Center — Choose product and firmware",
+        "step1_desc": "Select your LILYGO device on the left, browse official or community firmware, download, and flash directly.",
+        "step2_title": "Burner — Connect and flash",
+        "step2_desc": "Connect your board via USB, select the serial port, choose a .bin firmware file, then click \"Start Flashing\" to burn.",
+        "features_title": "Features",
+        "feature_firmware": "Browse and download official or community firmware with product filtering",
+        "feature_burner": "One-click flash .bin to ESP32/ESP32-S3, serial console supported",
+        "feature_dumper": "Read and backup firmware from device",
+        "feature_utilities": "Firmware analyzer, partition editor, serial monitor and more",
+        "for_developers_title": "For Developers",
+        "for_developers_desc": "If you need custom firmware sources or your own workflow:",
+        "for_developers_1": "Firmware manifests pull from GitHub Releases and repo file trees; LILYGO .bin files are hosted in product repos",
+        "for_developers_2": "In Settings → Advanced, you can specify a local manifest JSON to override the network manifest",
+        "for_developers_3": "Contributions and feedback welcome",
+        "link_repo": "Repository",
+        "link_releases": "Releases",
+        "open_source": "Open source. ",
+        "open_source_link": "Visit GitHub to contribute and share feedback"
     },
     "community": {
         "title": "LILYGO Related",

@@ -230,7 +230,8 @@ export function setupConfigHandler(mainWindow?: BrowserWindow | null) {
   ipcMain.handle('get-custom-manifest-path', async () => getCustomManifestPath());
 
   ipcMain.handle('select-firmware-manifest-file', async () => {
-    const result = await dialog.showOpenDialog(mainWindow ?? undefined, {
+    if (!mainWindow) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
       title: 'Select Firmware Manifest (JSON)',
       filters: [{ name: 'JSON', extensions: ['json'] }],
       properties: ['openFile'],

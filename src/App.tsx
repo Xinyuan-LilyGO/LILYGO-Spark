@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react'
 import { useTheme } from './contexts/ThemeContext'
 import { useKonamiCode } from './hooks/useKonamiCode'
-import Burner from './components/Burner'
+import FirmwareToolsPage from './components/FirmwareToolsPage'
 import { HackerEasterEgg } from './components/HackerEasterEgg'
 import Discovery from './components/Discovery'
 import DeviceToast from './components/DeviceToast'
 import SettingsPage from './components/SettingsPage'
 import Sidebar from './components/Sidebar'
 import FirmwareCommunity from './components/FirmwareCommunity'
-import FirmwareDumper from './components/FirmwareDumper'
 import FirmwareUtilities from './components/FirmwareUtilities'
 import FirmwareUpload from './components/FirmwareUpload'
 import LilygoCommunity from './components/LilygoCommunity'
+import GuidePage from './components/GuidePage'
 
 const AUTH_STORAGE_KEY = 'lilygo_auth';
 
@@ -25,7 +25,7 @@ function App() {
   const { glassEnabled, resolved } = useTheme();
   const [konamiShow, setKonamiShow] = useState(false);
   useKonamiCode(() => setKonamiShow(true));
-  const [activeTab, setActiveTab] = useState('firmware') // Default to firmware/community
+  const [activeTab, setActiveTab] = useState('firmware') // Default to firmware center
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
@@ -94,6 +94,12 @@ function App() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         <div key={activeTab} className="flex-1 flex flex-col min-h-0 overflow-hidden animate-fade-in">
         {/* Tab Content */}
+        {activeTab === 'guide' && (
+            <div className="h-full overflow-auto">
+                <GuidePage />
+            </div>
+        )}
+
         {activeTab === 'discovery' && (
              <Discovery />
         )}
@@ -102,21 +108,21 @@ function App() {
              <LilygoCommunity />
         )}
 
-        {activeTab === 'burner' && (
+        {activeTab === 'tools' && (
             <div className="h-full overflow-auto">
-                <Burner />
-            </div>
-        )}
-
-        {activeTab === 'dumper' && (
-            <div className="h-full overflow-auto">
-                <FirmwareDumper />
+                <FirmwareToolsPage />
             </div>
         )}
         
-        {activeTab === 'utilities' && (
+        {activeTab === 'serial_tools' && (
             <div className="h-full overflow-auto">
-                <FirmwareUtilities />
+                <FirmwareUtilities mode="serial" />
+            </div>
+        )}
+        
+        {activeTab === 'offline_tools' && (
+            <div className="h-full overflow-auto">
+                <FirmwareUtilities mode="offline" />
             </div>
         )}
         
