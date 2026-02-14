@@ -82,10 +82,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
   const navItems = [
     { id: 'discovery', icon: Compass, label: 'Discovery' }, // TODO: i18n
     { id: 'firmware', icon: LayoutGrid, label: t('nav.firmware') },
-    { id: 'community', icon: Users, label: t('nav.lilygo_related') },
     { id: 'tools', icon: Zap, label: t('nav.firmware_toolbox') },
     { id: 'serial_tools', icon: Terminal, label: t('nav.serial_tools') },
     { id: 'offline_tools', icon: FileCode, label: t('nav.convert_tools') },
+    { id: 'community', icon: Users, label: t('nav.lilygo_related') },
     { id: 'guide', icon: BookOpen, label: t('nav.guide') },
     { id: 'settings', icon: Settings, label: t('nav.settings') },
   ];

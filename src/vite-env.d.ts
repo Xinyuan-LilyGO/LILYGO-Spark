@@ -1,5 +1,9 @@
 /// <reference types="vite/client" />
 
+declare global {
+  const __INCLUDE_WIN_FONTS__: boolean
+}
+
 declare module 'rss-parser/dist/rss-parser.min.js' {
   interface ParserItem {
     guid?: string

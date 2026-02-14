@@ -5,6 +5,7 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
+    "dev:win": "cross-env VITE_PLATFORM=win32 vite",
     "postinstall": "electron-builder install-app-deps",
     "build": "npm run clean && npm run prebuild && npm run build:compile && electron-builder",
     "clean": "rimraf dist dist-electron release",
@@ -16,6 +17,7 @@
     "prebuild:mac:all": "npm run prebuild",
     "prebuild:mac": "npm run prebuild",
     "build:compile": "tsc && vite build",
+    "build:compile:win": "tsc && cross-env VITE_PLATFORM=win32 vite build",
     "build:all": "npm run build:compile && npm run build:mac:all && npm run build:win:all && npm run build:linux:all",
     "build:mac": "npm run build:compile && electron-builder --mac",
     "build:mac:all": "npm run prebuild && npm run build:mac:arm64:only && npm run build:mac:x64:only && npm run build:mac:universal:only",
@@ -25,11 +27,11 @@
     "build:mac:x64:only": "electron-builder --mac --x64",
     "build:mac:universal": "npm run build:compile && electron-builder --mac --universal",
     "build:mac:universal:only": "electron-builder --mac --universal",
-    "build:win": "npm run build:compile && electron-builder --win",
-    "build:win:all": "npm run prebuild && npm run build:win:x64:only && npm run build:win:arm64:only",
-    "build:win:x64": "npm run build:compile && electron-builder --win --x64",
+    "build:win": "npm run build:compile:win && electron-builder --win",
+    "build:win:all": "npm run prebuild && npm run build:compile:win && npm run build:win:x64:only && npm run build:win:arm64:only",
+    "build:win:x64": "npm run build:compile:win && electron-builder --win --x64",
     "build:win:x64:only": "electron-builder --win --x64",
-    "build:win:arm64": "npm run build:compile && electron-builder --win --arm64",
+    "build:win:arm64": "npm run build:compile:win && electron-builder --win --arm64",
     "build:win:arm64:only": "electron-builder --win --arm64",
     "build:linux": "npm run build:compile && electron-builder --linux",
     "build:linux:all": "npm run build:linux:arm64:only && npm run build:linux:x64:only",
@@ -54,6 +56,8 @@
     "electron-mac-permissions": "^2.2.2"
   },
   "dependencies": {
+    "@fontsource/noto-sans-sc": "^5.2.9",
+    "@fontsource/noto-sans-tc": "^5.2.9",
     "@types/multer": "^2.0.0",
     "ali-oss": "^6.23.0",
     "clsx": "^2.1.0",
@@ -74,6 +78,7 @@
     "xterm-addon-fit": "^0.8.0"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
     "@types/spark-md5": "^3.0.5",

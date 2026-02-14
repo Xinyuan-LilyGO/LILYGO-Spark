@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, FileCode, AlertCircle, Cpu, Upload, Download, Plus, Trash2, Terminal, Activity, RefreshCw, Power, PowerOff, Image as ImageIcon } from 'lucide-react';
+import { Search, FileCode, AlertCircle, Cpu, Upload, Download, Plus, Trash2, Terminal, Activity, RefreshCw, Power, PowerOff, Image as ImageIcon, Calculator, Clock, Zap, Lightbulb } from 'lucide-react';
+import SmdResistorCalc from './SmdResistorCalc';
+import LedResistorCalc from './LedResistorCalc';
 
 // Type definitions
 interface AnalysisResult {
@@ -25,8 +27,8 @@ interface AnalysisResult {
     partition_table_offset?: string;
 }
 
-type UtilityTool = 'analyzer' | 'editor' | 'monitor' | 'converter';
-type UtilitiesMode = 'full' | 'serial' | 'offline' | 'analyzer' | 'editor' | 'converter';
+type UtilityTool = 'analyzer' | 'editor' | 'monitor' | 'converter' | 'regulator' | 'rc_calc' | 'smd_resistor' | 'led_resistor';
+type UtilitiesMode = 'full' | 'serial' | 'offline' | 'analyzer' | 'editor' | 'converter' | 'regulator' | 'rc_calc' | 'smd_resistor' | 'led_resistor';
 
 interface FirmwareUtilitiesProps {
   mode?: UtilitiesMode;
@@ -37,6 +39,10 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
   const defaultTool: UtilityTool =
     mode === 'serial' ? 'monitor'
     : mode === 'offline' || mode === 'converter' ? 'converter'
+    : mode === 'regulator' ? 'regulator'
+    : mode === 'rc_calc' ? 'rc_calc'
+    : mode === 'smd_resistor' ? 'smd_resistor'
+    : mode === 'led_resistor' ? 'led_resistor'
     : mode === 'analyzer' ? 'analyzer'
     : mode === 'editor' ? 'editor'
     : 'analyzer';
@@ -44,11 +50,27 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
 
   const visibleTabs: UtilityTool[] =
     mode === 'serial' ? ['monitor']
-    : mode === 'offline' || mode === 'converter' ? ['converter']
+    : mode === 'offline' ? ['converter', 'regulator', 'rc_calc', 'smd_resistor', 'led_resistor']
+    : mode === 'converter' ? ['converter']
+    : mode === 'regulator' ? ['regulator']
+    : mode === 'rc_calc' ? ['rc_calc']
+    : mode === 'smd_resistor' ? ['smd_resistor']
+    : mode === 'led_resistor' ? ['led_resistor']
     : mode === 'analyzer' ? ['analyzer']
     : mode === 'editor' ? ['editor']
-    : ['analyzer', 'editor', 'monitor', 'converter'];
+    : ['analyzer', 'editor', 'monitor', 'converter', 'regulator', 'rc_calc', 'smd_resistor', 'led_resistor'];
   
+  // RC Time Constant State (τ = R×C, fc = 1/(2πRC))
+  const [rcR, setRcR] = useState(10);
+  const [rcROhm, setRcROhm] = useState<'ohm' | 'kohm' | 'Mohm'>('kohm');
+  const [rcC, setRcC] = useState(0.1);
+  const [rcCF, setRcCF] = useState<'pF' | 'nF' | 'uF' | 'mF' | 'F'>('uF');
+
+  // Regulator State (voltage divider: Vout = Vref * (1 + R2/R1))
+  const [regulatorVref, setRegulatorVref] = useState(1.25);
+  const [regulatorVout, setRegulatorVout] = useState(3.3);
+  const [regulatorR1, setRegulatorR1] = useState(240);
+
   // Converter State
   const [convertFile, setConvertFile] = useState<File | null>(null);
   const [convertPreview, setConvertPreview] = useState<string | null>(null);
@@ -330,7 +352,11 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
     { id: 'analyzer', icon: Search, label: t('utilities.analyzer') },
     { id: 'monitor', icon: Activity, label: 'Serial Monitor' },
     { id: 'editor', icon: FileCode, label: t('utilities.partition_editor') },
-    { id: 'converter', icon: ImageIcon, label: 'Image Converter' },
+    { id: 'converter', icon: ImageIcon, label: t('utilities.image_converter') },
+    { id: 'regulator', icon: Calculator, label: t('utilities.regulator_resistor') },
+    { id: 'rc_calc', icon: Clock, label: t('utilities.rc_time_constant') },
+    { id: 'smd_resistor', icon: Zap, label: t('utilities.smd_resistor') },
+    { id: 'led_resistor', icon: Lightbulb, label: t('utilities.led_resistor') },
   ];
 
   return (
@@ -423,6 +449,159 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
                     </div>
                 </div>
             </div>
+        </div>
+      )}
+
+      {activeTool === 'regulator' && (
+        <div className="flex-1 flex flex-col gap-6 overflow-auto">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg max-w-2xl">
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+              <Calculator size={20} />
+              {t('utilities.regulator_resistor')}
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+              {t('utilities.regulator_desc')}
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{t('utilities.regulator_vref')}</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={regulatorVref}
+                  onChange={(e) => setRegulatorVref(parseFloat(e.target.value) || 0)}
+                  className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{t('utilities.regulator_vout')}</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={regulatorVout}
+                  onChange={(e) => setRegulatorVout(parseFloat(e.target.value) || 0)}
+                  className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{t('utilities.regulator_r1')}</label>
+                <input
+                  type="number"
+                  value={regulatorR1}
+                  onChange={(e) => setRegulatorR1(parseInt(e.target.value) || 0)}
+                  className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{t('utilities.regulator_r2')}</label>
+                <div className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm font-mono text-primary">
+                  {regulatorVref > 0 && regulatorR1 > 0 && regulatorVout >= regulatorVref
+                    ? (() => {
+                        const r2 = regulatorR1 * (regulatorVout / regulatorVref - 1);
+                        return r2 > 0 ? `${r2.toFixed(1)} Ω` : '—';
+                      })()
+                    : '—'}
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 p-3 bg-slate-100 dark:bg-slate-900/50 rounded-lg text-xs text-slate-600 dark:text-slate-400 font-mono">
+              Vout = Vref × (1 + R2/R1) → R2 = R1 × (Vout/Vref − 1)
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTool === 'smd_resistor' && <SmdResistorCalc />}
+
+      {activeTool === 'led_resistor' && <LedResistorCalc />}
+
+      {activeTool === 'rc_calc' && (
+        <div className="flex-1 flex flex-col gap-6 overflow-auto">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg max-w-2xl">
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
+              <Clock size={20} />
+              {t('utilities.rc_time_constant')}
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+              {t('utilities.rc_desc')}
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{t('utilities.rc_r')}</label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    step="any"
+                    value={rcR}
+                    onChange={(e) => setRcR(parseFloat(e.target.value) || 0)}
+                    className="flex-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm"
+                  />
+                  <select
+                    value={rcROhm}
+                    onChange={(e) => setRcROhm(e.target.value as any)}
+                    className="bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm w-20"
+                  >
+                    <option value="ohm">Ω</option>
+                    <option value="kohm">kΩ</option>
+                    <option value="Mohm">MΩ</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">{t('utilities.rc_c')}</label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    step="any"
+                    value={rcC}
+                    onChange={(e) => setRcC(parseFloat(e.target.value) || 0)}
+                    className="flex-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm"
+                  />
+                  <select
+                    value={rcCF}
+                    onChange={(e) => setRcCF(e.target.value as any)}
+                    className="bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm w-20"
+                  >
+                    <option value="pF">pF</option>
+                    <option value="nF">nF</option>
+                    <option value="uF">µF</option>
+                    <option value="mF">mF</option>
+                    <option value="F">F</option>
+                  </select>
+                </div>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">τ (tau)</label>
+                <div className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm font-mono text-primary">
+                  {(() => {
+                    const rMult = rcROhm === 'ohm' ? 1 : rcROhm === 'kohm' ? 1e3 : 1e6;
+                    const cMult = rcCF === 'pF' ? 1e-12 : rcCF === 'nF' ? 1e-9 : rcCF === 'uF' ? 1e-6 : rcCF === 'mF' ? 1e-3 : 1;
+                    const tauSec = rcR * rMult * rcC * cMult;
+                    if (tauSec >= 1) return `${tauSec.toFixed(4)} s`;
+                    if (tauSec >= 1e-3) return `${(tauSec * 1e3).toFixed(4)} ms`;
+                    if (tauSec >= 1e-6) return `${(tauSec * 1e6).toFixed(4)} µs`;
+                    return `${(tauSec * 1e9).toFixed(4)} ns`;
+                  })()}
+                </div>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">fc (-3dB)</label>
+                <div className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm font-mono text-primary">
+                  {(() => {
+                    const rMult = rcROhm === 'ohm' ? 1 : rcROhm === 'kohm' ? 1e3 : 1e6;
+                    const cMult = rcCF === 'pF' ? 1e-12 : rcCF === 'nF' ? 1e-9 : rcCF === 'uF' ? 1e-6 : rcCF === 'mF' ? 1e-3 : 1;
+                    const fc = 1 / (2 * Math.PI * rcR * rMult * rcC * cMult);
+                    if (fc >= 1e6) return `${(fc / 1e6).toFixed(4)} MHz`;
+                    if (fc >= 1e3) return `${(fc / 1e3).toFixed(4)} kHz`;
+                    return `${fc.toFixed(4)} Hz`;
+                  })()}
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 p-3 bg-slate-100 dark:bg-slate-900/50 rounded-lg text-xs text-slate-600 dark:text-slate-400 font-mono">
+              τ = R × C · fc = 1/(2πRC)
+            </div>
+          </div>
         </div>
       )}
 

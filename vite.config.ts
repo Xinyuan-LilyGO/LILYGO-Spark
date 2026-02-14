@@ -4,7 +4,10 @@ import electron from 'vite-plugin-electron/simple'
 import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  define: {
+    __INCLUDE_WIN_FONTS__: process.env.VITE_PLATFORM === 'win32',
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
@@ -33,4 +36,4 @@ export default defineConfig({
       renderer: {},
     }),
   ],
-})
+}))
