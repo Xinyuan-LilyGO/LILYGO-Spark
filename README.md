@@ -96,6 +96,40 @@ npm run build:linux        # Linux
 npm run build:mac:universal  # macOS universal binary
 ```
 
+### Release & Updates
+
+This project uses GitHub Actions for CI/CD, supporting **Stable** and **Canary** update channels.
+
+#### 1. Release Stable Version
+
+Stable releases follow strict SemVer (e.g., `v0.1.0`). Triggered only by pushing a `v*` Git Tag.
+
+**Steps:**
+
+1. Update `version` in `package.json` (e.g., `0.1.0`).
+2. Commit and Tag:
+   ```bash
+   git commit -am "release: v0.1.0"
+   git tag v0.1.0
+   git push origin main --tags
+   ```
+3. GitHub Actions will build and publish to "Latest" release. Users on default settings will see the update.
+
+#### 2. Release Canary Version
+
+Canary builds are for testing latest changes. Version format: `v{Version}-canary.{Date}.{Time}`.
+
+**Triggers:**
+
+*   **Auto**: Push to `main` branch.
+*   **Manual**: Run `Build/release` workflow in GitHub Actions.
+
+**How to Update:**
+
+Users must enable "Canary Channel" in "Settings -> Advanced" to receive these updates.
+
+---
+
 ### Easter Eggs & Effects
 
 For hackers and makers who enjoy a bit of fun:
@@ -198,6 +232,46 @@ npm run build:win          # Windows
 npm run build:linux        # Linux
 npm run build:mac:universal  # macOS 通用包
 ```
+
+### 发布与更新
+
+本项目采用自动化 CI/CD 流程（GitHub Actions）进行构建和发布，支持 **Stable（正式版）** 和 **Canary（测试版）** 两个更新频道。
+
+#### 1. 发布 Stable 正式版
+
+正式版版本号严格遵循 SemVer 规范（如 `v0.1.0`）。只有打上 `v*` 格式的 Git Tag 才会触发正式版构建。
+
+**操作步骤：**
+
+1. 修改 `package.json` 中的 `version` 字段（如 `0.1.0`）。
+2. 提交代码并打 Tag：
+   ```bash
+   git commit -am "release: v0.1.0"
+   git tag v0.1.0
+   git push origin main --tags
+   ```
+3. GitHub Actions 会自动构建，并发布到 GitHub Releases 的 `Latest` 标记下。用户在默认设置下即可检测到更新。
+
+#### 2. 发布 Canary 测试版
+
+测试版用于快速迭代，包含最新的功能修复。版本号格式为 `v{版本}-canary.{日期}.{时间}`（如 `v0.1.0-canary.20260215.120000`）。
+
+**触发方式：**
+
+*   **自动触发**：每次向 `main` 分支推送代码（Push）或合并 PR 时，会自动构建 Canary 版本。
+*   **手动触发**：在 GitHub Actions 页面手动运行 `Build/release` workflow。
+
+**用户如何获取：**
+
+用户需在「设置 -> 高级模式」中开启「Canary 更新频道」，即可检测并更新到最新的 Canary 版本。
+
+#### 3. 版本号比较规则
+
+应用内置的更新检测遵循 SemVer 优先原则：
+*   `0.1.0` (正式版) > `0.1.0-canary...` (测试版)
+*   `0.1.0-canary.20260216...` (新测试版) > `0.1.0-canary.20260215...` (旧测试版)
+
+---
 
 ### 彩蛋与特效
 
