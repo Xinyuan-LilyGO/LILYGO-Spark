@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
-import { ChevronDown, Usb, Check, Download, RefreshCw, Trash2, Copy, ArrowDownCircle, Activity, Box, Settings } from 'lucide-react';
+import { ChevronDown, Usb, Check, Download, RefreshCw, Trash2, Copy, ArrowDownCircle, Activity, Box, Settings, AlertTriangle } from 'lucide-react';
 import { formatPortPath, hexToHumanSize } from '../utils/formatters';
 
 // Type definitions for Web Serial API
@@ -49,6 +49,7 @@ const FirmwareDumper: React.FC = () => {
   
   // Port Selection State
   const [availablePorts, setAvailablePorts] = useState<ElectronSerialPortInfo[]>([]);
+  const [missingDrivers, setMissingDrivers] = useState<any[]>([]);
   const [isSelectingPort, setIsSelectingPort] = useState(false);
   const [selectedPortId, setSelectedPortId] = useState<string | null>(null);
   
@@ -96,7 +97,23 @@ const FirmwareDumper: React.FC = () => {
         window.ipcRenderer.on('serial-ports-available', (_event, ports: ElectronSerialPortInfo[]) => {
           setAvailablePorts(ports);
           setIsSelectingPort(true);
+          
+          // Check for missing drivers when ports are refreshed
+          window.ipcRenderer.invoke('check-missing-drivers').then((drivers: any[]) => {
+              if (Array.isArray(drivers)) {
+                  setMissingDrivers(drivers);
+              }
+          }).catch(console.error);
         });
+    }
+    
+    // Initial check
+    if (window.ipcRenderer) {
+        window.ipcRenderer.invoke('check-missing-drivers').then((drivers: any[]) => {
+            if (Array.isArray(drivers)) {
+                setMissingDrivers(drivers);
+            }
+        }).catch(console.error);
     }
     
     const handleClickOutside = (event: MouseEvent) => {
@@ -424,6 +441,30 @@ const FirmwareDumper: React.FC = () => {
           </div>
           
           <div className="p-4 flex flex-col gap-4">
+            {/* Missing Drivers Warning */}
+            {missingDrivers.length > 0 && (
+              <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-xs text-amber-800 dark:text-amber-200">
+                <div className="font-bold flex items-center gap-1.5 mb-1.5">
+                  <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400" />
+                  <span>{t('dumper.missing_driver_title')}</span>
+                </div>
+                <div className="mb-2 opacity-90 leading-relaxed">{t('dumper.missing_driver_desc')}</div>
+                <div className="space-y-1 mb-2">
+                  {missingDrivers.map((d, i) => (
+                    <div key={i} className="font-mono text-[10px] bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded truncate" title={d.InstanceId}>
+                      {d.FriendlyName || 'Unknown USB Serial Device'}
+                    </div>
+                  ))}
+                </div>
+                <button 
+                  className="text-amber-700 dark:text-amber-400 font-medium underline hover:text-amber-900 dark:hover:text-amber-300 transition-colors"
+                  onClick={() => window.ipcRenderer.invoke('open-external', 'https://www.wch.cn/downloads/CH341SER_EXE.html')}
+                >
+                  {t('dumper.download_driver')} (CH34x)
+                </button>
+              </div>
+            )}
+
             {/* Port Selection Row */}
             <div className="flex gap-3 relative" ref={portSelectRef}>
               <div className="relative flex-1 min-w-0">

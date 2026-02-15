@@ -273,7 +273,10 @@
     "label_detected_chip": "検出チップ",
     "terminal_error_port_in_use": "シリアルポートを開けません（使用中の可能性）。シリアルモニター、書き込みツールのコンソール、または他のアプリを切断してから再試行してください。",
     "terminal_using_native": "esptool ネイティブバイナリでダンプ中...",
-    "terminal_fallback_js": "ネイティブダンプ失敗、esptool-js にフォールバック..."
+    "terminal_fallback_js": "ネイティブダンプ失敗、esptool-js にフォールバック...",
+    "missing_driver_title": "ドライバが見つかりません",
+    "missing_driver_desc": "ドライバがインストールされていないUSBシリアルデバイスが見つかりました。ドライバをインストールしてください。",
+    "download_driver": "ドライバをダウンロード"
   },
   "device_toast": {
     "new_device": "新しいデバイスを検出",

@@ -304,7 +304,10 @@
         "terminal_dump_error": "Dump Error",
         "terminal_using_native": "Using native esptool binary to dump...",
         "terminal_fallback_js": "Native dump failed, falling back to esptool-js...",
-        "terminal_error_port_in_use": "Failed to open serial port (may be in use). Disconnect serial monitor, burner console, or other apps using this port, then retry."
+        "terminal_error_port_in_use": "Failed to open serial port (may be in use). Disconnect serial monitor, burner console, or other apps using this port, then retry.",
+        "missing_driver_title": "Missing Driver Detected",
+        "missing_driver_desc": "USB Serial devices without drivers found. Please install the driver.",
+        "download_driver": "Download Driver"
     },
     "device_toast": {
         "new_device": "New Device Found",

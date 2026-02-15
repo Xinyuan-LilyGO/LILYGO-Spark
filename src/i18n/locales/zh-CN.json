@@ -303,7 +303,10 @@
     "terminal_dump_error": "提取错误",
     "terminal_using_native": "使用 esptool 原生二进制提取...",
     "terminal_fallback_js": "原生提取失败，回退到 esptool-js...",
-    "terminal_error_port_in_use": "无法打开串口，可能被占用。请先断开刷写工具的控制台或串口监控，关闭其他占用该端口的程序后重试。"
+    "terminal_error_port_in_use": "无法打开串口，可能被占用。请先断开刷写工具的控制台或串口监控，关闭其他占用该端口的程序后重试。",
+    "missing_driver_title": "检测到缺少驱动",
+    "missing_driver_desc": "发现未安装驱动的 USB 串口设备，请安装驱动后使用。",
+    "download_driver": "下载驱动"
   },
   "device_toast": {
     "new_device": "发现新设备",

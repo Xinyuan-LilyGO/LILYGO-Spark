@@ -273,7 +273,10 @@
     "label_detected_chip": "檢測到晶片",
     "terminal_error_port_in_use": "無法開啟串口，可能被佔用。請先斷開刷寫工具的控制台或串口監控，關閉其他佔用該端口的程式後重試。",
     "terminal_using_native": "使用 esptool 原生二進制提取...",
-    "terminal_fallback_js": "原生提取失敗，回退到 esptool-js..."
+    "terminal_fallback_js": "原生提取失敗，回退到 esptool-js...",
+    "missing_driver_title": "檢測到缺少驅動",
+    "missing_driver_desc": "發現未安裝驅動的 USB 串口設備，請安裝驅動後使用。",
+    "download_driver": "下載驅動"
   },
   "device_toast": {
     "new_device": "發現新設備",

@@ -22,7 +22,8 @@ import {
     handleSaveFile,
     getEnhancedPortList,
     setSerialPortCallback,
-    checkBluetoothPermission
+    checkBluetoothPermission,
+    checkMissingDrivers
 } from './handlers'
 
 let win: BrowserWindow | null
@@ -401,6 +402,9 @@ ipcMain.handle('flash-firmware-native', handleFlashFirmwareNative);
 
 // Handle native firmware dump (read flash)
 ipcMain.handle('dump-firmware-native', handleDumpFirmwareNative);
+
+// Check missing drivers (Windows only)
+ipcMain.handle('check-missing-drivers', checkMissingDrivers);
 
 // Handle file save
 ipcMain.handle('save-file', handleSaveFile);

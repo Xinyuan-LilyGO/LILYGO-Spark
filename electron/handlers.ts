@@ -454,6 +454,48 @@ async function dumpFirmwareWithEsptool(
 
 // --- IPC Handlers ---
 
+// Check for missing drivers on Windows (e.g. CH34x, CP210x, FTDI)
+export async function checkMissingDrivers(): Promise<any[]> {
+    if (process.platform !== 'win32') return [];
+
+    return new Promise((resolve) => {
+        // Look for devices with "USB Serial" in name OR specific VIDs, that have error status or non-zero config code
+        // VID_1A86 = WCH (CH34x)
+        // VID_10C4 = Silicon Labs (CP210x)
+        // VID_0403 = FTDI
+        // VID_303A = Espressif
+        const psCommand = `
+            Get-PnpDevice | Where-Object { 
+                ($_.FriendlyName -like '*USB Serial*' -or $_.InstanceId -match 'VID_1A86' -or $_.InstanceId -match 'VID_10C4' -or $_.InstanceId -match 'VID_0403' -or $_.InstanceId -match 'VID_303A') -and 
+                ($_.Status -eq 'Error' -or $_.ConfigManagerErrorCode -ne 0) 
+            } | Select-Object FriendlyName, InstanceId, ProblemDescription, ConfigManagerErrorCode | ConvertTo-Json -Compress
+        `;
+
+        execFile('powershell', ['-Command', psCommand], (error, stdout, _stderr) => {
+            if (error) {
+                console.error('Failed to check missing drivers:', error);
+                resolve([]);
+                return;
+            }
+            
+            try {
+                const output = stdout.trim();
+                if (!output) {
+                    resolve([]);
+                    return;
+                }
+                const result = JSON.parse(output);
+                // PowerShell returns single object if only one result, array if multiple
+                const devices = Array.isArray(result) ? result : [result];
+                resolve(devices);
+            } catch (e) {
+                // If stdout is empty or invalid JSON
+                resolve([]);
+            }
+        });
+    });
+}
+
 export async function handleFlashFirmwareNative(
     event: IpcMainInvokeEvent, 
     portPath: string, 

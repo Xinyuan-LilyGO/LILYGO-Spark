@@ -144,7 +144,7 @@ const ResistorColorCodeCalc: React.FC = () => {
     else setBands(DEFAULT_6);
   }, [bandCount]);
 
-  const { valueOhms, tolerance, ppm, labels, resultText } = useMemo(() => {
+  const { valueOhms, labels, resultText } = useMemo(() => {
     const sigDigits = bandCount === 4 ? 2 : 3;
     let sig = 0;
     for (let i = 0; i < sigDigits; i++) {
