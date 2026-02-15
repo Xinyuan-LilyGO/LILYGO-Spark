@@ -69,6 +69,14 @@ interface DownloadedFile {
 
 const STORAGE_KEY_ONLY_WITH_FIRMWARE = 'firmware_center_only_with_firmware';
 
+/** 在 Electron file:// 协议下，/path 会解析为根目录导致 404，需转为相对路径 */
+function resolveImageUrl(url: string): string {
+  if (!url) return url;
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+  if (url.startsWith('/')) return url.slice(1); // /devices/xxx -> devices/xxx，相对当前文档解析
+  return url;
+}
+
 function productHasFirmware(manifest: Manifest, productId: string, item?: Product | ProductGroup | null): boolean {
   const inList = manifest.firmware_list.some(f => f.supported_product_ids.includes(productId));
   const hasBins = (item as { bin_files?: BinFile[] } | null)?.bin_files?.length;
@@ -380,7 +388,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                       </div>
                       <div className="w-16 h-16 bg-white rounded-lg p-1 flex items-center justify-center shrink-0 overflow-hidden mr-3 shadow-sm">
                          <img 
-                           src={group.image_url} 
+                           src={resolveImageUrl(group.image_url)} 
                            alt={group.name} 
                            className="max-w-full max-h-full object-contain"
                            onError={(e) => {
@@ -416,7 +424,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                           >
                              <div className="w-12 h-12 bg-white rounded-md p-1 flex items-center justify-center shrink-0 mr-3 overflow-hidden shadow-sm">
                                 <img 
-                                   src={product.image_url} 
+                                   src={resolveImageUrl(product.image_url)} 
                                    alt={product.name} 
                                    className="max-w-full max-h-full object-contain"
                                    onError={(e) => {
@@ -457,7 +465,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                   <div className="flex items-center space-x-3 flex-1 min-w-0">
                     <div className="w-16 h-16 bg-white rounded-lg p-1 flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
                        <img 
-                         src={group.image_url} 
+                         src={resolveImageUrl(group.image_url)} 
                          alt={group.name} 
                          className="max-w-full max-h-full object-contain"
                          onError={(e) => {
@@ -533,7 +541,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                  </div>
                  {/* Large Image Preview */}
                  <div className="w-24 h-24 sm:w-32 sm:h-32 bg-white dark:bg-white rounded-xl p-2 flex items-center justify-center shadow-2xl shrink-0">
-                    <img src={selectedProduct.image_url} alt="" className="max-w-full max-h-full object-contain" />
+                    <img src={resolveImageUrl(selectedProduct.image_url)} alt="" className="max-w-full max-h-full object-contain" />
                  </div>
                </div>
             </div>
