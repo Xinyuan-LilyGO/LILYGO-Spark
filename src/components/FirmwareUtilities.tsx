@@ -357,7 +357,7 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
       setAnalysisResult(null);
       try {
           // @ts-ignore - File.path may be undefined for drag-drop in Electron 32+
-          let pathToAnalyze = fileToAnalyze.path;
+          let pathToAnalyze: string | undefined = (fileToAnalyze as any).path;
           
           // Try to get path via webUtils if available (Electron 32+)
           if (!pathToAnalyze && window.electronUtils) {
