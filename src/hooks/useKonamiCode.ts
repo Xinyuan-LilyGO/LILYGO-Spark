@@ -13,28 +13,18 @@ export function useKonamiCode(onTrigger: () => void) {
 
   useEffect(() => {
     let index = 0;
-    console.log('[Konami] listener attached, sequence:', KONAMI.join(' '));
 
     const handler = (e: KeyboardEvent) => {
       const expected = KONAMI[index];
       const actual = getKeyForIndex(e, index);
-      console.log('[Konami]', {
-        key: e.key,
-        code: e.code,
-        index,
-        expected,
-        actual,
-        match: actual === expected,
-      });
       if (actual === expected) {
         index++;
         if (index === KONAMI.length) {
-          console.log('[Konami] ✓ TRIGGERED');
+          console.log('[SecretCode] ✓ TRIGGERED');
           cbRef.current();
           index = 0;
         }
       } else {
-        if (index > 0) console.log('[Konami] ✗ reset to 0');
         index = 0;
       }
     };

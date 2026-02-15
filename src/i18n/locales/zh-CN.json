@@ -18,14 +18,14 @@
   },
   "nav": {
     "guide": "使用指引",
-    "burner": "刷写工具",
     "firmware": "固件中心",
     "dumper": "从设备提取固件",
     "upload": "固件上传",
     "utilities": "固件高级工具",
     "firmware_toolbox": "固件工具箱",
+    "burner": "固件刷写工具",
     "serial_tools": "串口工具",
-    "convert_tools": "哆啦A梦工具集",
+    "convert_tools": "哆啦A梦百宝箱",
     "settings": "设置",
     "community": "LILYGO 社区",
     "lilygo_related": "LILYGO 相关"
@@ -189,7 +189,7 @@
       "light": "浅色",
       "dark": "深色"
     },
-    "accent": "强调色",
+    "accent": "主题色",
     "accent_options": {
       "blue": "蓝色",
       "orange": "橙色",
@@ -259,7 +259,7 @@
     },
     "choose_file": "选择文件",
     "no_file_chosen": "未选择文件",
-    "preview_flash": "预览烧录动画"
+    "preview_flash": "烧录动画"
   },
   "dumper": {
     "title": "从设备提取固件",

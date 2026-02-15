@@ -18,14 +18,14 @@
   },
   "nav": {
     "guide": "使用指引",
-    "burner": "刷寫工具",
     "firmware": "固件中心",
     "dumper": "從設備提取韌體",
     "upload": "韌體上傳",
     "utilities": "韌體高級工具",
     "firmware_toolbox": "韌體工具箱",
+    "burner": "韌體燒錄",
     "serial_tools": "串口工具",
-    "convert_tools": "哆啦A夢工具集",
+    "convert_tools": "哆啦A夢百寶箱",
     "settings": "設置",
     "community": "LILYGO 社區",
     "lilygo_related": "LILYGO 相關"
@@ -189,7 +189,7 @@
       "light": "淺色",
       "dark": "深色"
     },
-    "accent": "強調色",
+    "accent": "主題色",
     "accent_options": {
       "blue": "藍色",
       "orange": "橙色",
@@ -259,7 +259,7 @@
     },
     "choose_file": "選擇文件",
     "no_file_chosen": "未選擇文件",
-    "preview_flash": "預覽燒錄動畫"
+    "preview_flash": "燒錄動畫"
   },
   "dumper": {
     "section_info": "設備資訊",

@@ -18,12 +18,12 @@
   },
   "nav": {
     "guide": "ガイド",
-    "burner": "書き込みツール",
     "firmware": "ファームウェア",
     "dumper": "デバイスからファームウェアダンプ",
     "upload": "アップロード",
     "utilities": "ユーティリティ",
     "firmware_toolbox": "ファームウェアツールボックス",
+    "burner": "ファームウェア書き込み",
     "serial_tools": "シリアルツール",
     "convert_tools": "組込みツール",
     "settings": "設定",
@@ -189,7 +189,7 @@
       "light": "ライト",
       "dark": "ダーク"
     },
-    "accent": "アクセントカラー",
+    "accent": "テーマカラー",
     "accent_options": {
       "blue": "ブルー",
       "orange": "オレンジ",

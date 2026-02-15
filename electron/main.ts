@@ -4,6 +4,7 @@ import path from 'node:path'
 // Set app name for "Open with" dialog when handling lilygo-spark:// deep links
 if (process.defaultApp) app.name = 'LILYGO Spark'
 import { DeviceDetector, DeviceDetectionConfig } from './device-detector'
+import { startUsbHotplugSound, stopUsbHotplugSound } from './usb-hotplug-sound'
 import { setupConfigHandler } from './config-handler'
 import { 
     handleAnalyzeFirmware, 
@@ -369,6 +370,9 @@ function createWindow() {
   // Initialize Device Detector
   deviceDetector = new DeviceDetector(win, deviceDetectionConfig);
   deviceDetector.start();
+
+  // macOS: play sound on USB plug/unplug (like Windows)
+  startUsbHotplugSound();
   
   // Send the config to renderer so it knows whether to enable its own Web Serial listener
   win.webContents.on('did-finish-load', () => {
@@ -461,6 +465,7 @@ ipcMain.handle('open-url', async (_event, url: string, mode: 'external' | 'inter
 });
 
 app.on('window-all-closed', () => {
+  stopUsbHotplugSound();
   if (process.platform !== 'darwin') {
     app.quit()
     win = null

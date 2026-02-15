@@ -502,6 +502,66 @@ const Burner: React.FC = () => {
                 xtermRef.current?.writeln('Error closing monitor. Please try again.');
                 return;
             }
+        } else {
+            // Even if not connected in our state, the port might be open from a previous session or stuck.
+            // Try to open it. If it fails, it might be open elsewhere.
+            // But esptool-js needs the port object.
+            // If the port object is already "open" in the browser's internal state but we think it's closed,
+            // we might have issues.
+            // However, the error "Failed to execute 'open' on 'SerialPort': Failed to open serial port."
+            // usually means it's busy (open by another app or tab) OR we are trying to open it when it's already open.
+            
+            // Wait, esptool-js expects an OPEN port or it opens it?
+            // Let's check esptool-js usage.
+            // Transport(port, true) -> checks port.readable/writable.
+            // If we pass a closed port to Transport, does it open it?
+            // Looking at esptool-js source (or common usage):
+            // usually we do: await port.open({baudRate: ...}); const transport = new Transport(port);
+            
+            // In our code below:
+            // const transport = new Transport(port as any, true);
+            // The second arg 'true' might mean something?
+            
+            // Actually, esptool-js Transport constructor:
+            // constructor(device, serialOptions = { baudRate: 115200 }, resetOptions = {}) 
+            // OR constructor(device) if device is a SerialPort instance?
+            
+            // Let's look at how we init it:
+            // const transport = new Transport(port as any, true);
+            
+            // If we look at standard web serial esptool examples:
+            // await port.open({ baudRate: 115200 });
+            // const transport = new Transport(port);
+            
+            // So we MUST open the port before creating Transport?
+            // OR Transport opens it?
+            
+            // If we look at the error: "Failed to execute 'open' on 'SerialPort': Failed to open serial port."
+            // This error comes from port.open().
+            
+            // So if we are NOT connected, we need to open it.
+            // But if it's already open by US (connected=true), we just closed it above!
+            
+            // So:
+            // 1. If connected, we close it.
+            // 2. Then we try to use it with esptool.
+            
+            // Does esptool-js open the port itself?
+            // If we pass the port instance, esptool-js might try to open it if it's closed?
+            // Or we should open it first.
+            
+            // Let's try opening it explicitly before passing to Transport, 
+            // OR check if Transport expects an open port.
+            // Most examples show opening port first.
+            
+            try {
+                await port.open({ baudRate: 115200 }); // Open with default baud first for sync
+            } catch (e: any) {
+                // If it says "The port is already open", we are good.
+                if (!e.message.includes('already open')) {
+                     throw e;
+                }
+            }
         }
     
         setStatus('flashing');
@@ -517,6 +577,32 @@ const Burner: React.FC = () => {
                 throw new Error('Failed to load esptool-js classes');
             }
     
+            // We need to pass the port. If we just opened it, it's ready.
+            // Note: esptool-js Transport constructor might try to open it if we don't pass options?
+            // Actually, looking at the library, if we pass a SerialPort object, it uses it.
+            // If we pass a USBDevice, it requests a port.
+            // Here 'port' is a SerialPort object from navigator.serial.requestPort().
+            
+            // IMPORTANT: If we closed the port above (to stop monitoring), we need to open it again for esptool?
+            // OR does Transport open it?
+            // The Transport class in esptool-js (v0.2+) usually takes a device and opens it if needed, 
+            // OR takes a port.
+            
+            // Let's try to ensure it's open.
+            // If the error "Failed to execute 'open' on 'SerialPort': Failed to open serial port." happens,
+            // it usually means we are trying to open an already open port OR it's locked.
+            
+            // If we just closed it, we should be able to open it.
+            // But if we didn't close it properly, it might be locked.
+            
+            // Let's try this:
+            // 1. If connected, we closed it.
+            // 2. We explicitly open it.
+            // 3. We pass it to Transport.
+            
+            // Wait, if we use `new Transport(port, true)`, the second arg is `useOwnReset`.
+            // It doesn't seem to control opening.
+            
             const transport = new Transport(port as any, true);
             
             // Monkey-patch getInfo if missing to satisfy ESPLoader constructor
@@ -557,10 +643,28 @@ const Burner: React.FC = () => {
             xtermRef.current?.writeln('Flash complete! Resetting...');
             
             // Reset
-            await transport.setDTR(false);
-            await transport.setRTS(true);
-            await new Promise(r => setTimeout(r, 100));
-            await transport.setRTS(false);
+            // await transport.setDTR(false);
+            // await transport.setRTS(true);
+            // await new Promise(r => setTimeout(r, 100));
+            // await transport.setRTS(false);
+            
+            // Use esptool-js hard reset if available or manual
+            try {
+                await transport.setDTR(false);
+                await transport.setRTS(true);
+                await new Promise(r => setTimeout(r, 100));
+                await transport.setRTS(false);
+            } catch (e) {
+                console.warn('Reset failed:', e);
+            }
+            
+            // Close port after flashing so we can reconnect monitor if needed
+            try {
+                await transport.disconnect();
+                await port.close();
+            } catch (e) {
+                console.warn('Disconnect failed:', e);
+            }
             
             setStatus('success');
             

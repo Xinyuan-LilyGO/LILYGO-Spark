@@ -46,6 +46,13 @@ html, body, #root {
   -webkit-user-drag: none;
 }
 
+/* Settings page: unified style for each setting block */
+.settings-item {
+  
+}
+.dark .settings-item {
+}
+
 /* Allow selection in text fields */
 input, textarea, code, pre, .select-text {
   user-select: text;

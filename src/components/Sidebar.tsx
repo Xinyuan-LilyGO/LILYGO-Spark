@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Settings, Zap, LayoutGrid, Github, LogOut, Upload, Compass, Users, BookOpen, Terminal, FileCode } from 'lucide-react';
+import { Settings, Zap, LayoutGrid, Github, LogOut, Upload, Compass, Users, BookOpen, Terminal, FileCode, Wrench } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface AuthUser {
@@ -82,7 +82,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
   const navItems = [
     { id: 'discovery', icon: Compass, label: 'Discovery' }, // TODO: i18n
     { id: 'firmware', icon: LayoutGrid, label: t('nav.firmware') },
-    { id: 'tools', icon: Zap, label: t('nav.firmware_toolbox') },
+    { id: 'burner', icon: Zap, label: t('nav.burner') },
+    { id: 'tools', icon: Wrench, label: t('nav.firmware_toolbox') },
     { id: 'serial_tools', icon: Terminal, label: t('nav.serial_tools') },
     { id: 'offline_tools', icon: FileCode, label: t('nav.convert_tools') },
     { id: 'community', icon: Users, label: t('nav.lilygo_related') },

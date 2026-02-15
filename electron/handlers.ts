@@ -70,6 +70,17 @@ export async function getEnhancedPortList(portList: Electron.SerialPort[]): Prom
             ...electronPort,
             // Prefer serialport's manufacturer if available, as Electron's list often misses it on macOS
             manufacturer, 
+            // Use full path from node-serialport if available (e.g. /dev/tty.usb... instead of cu.usb...)
+            // This is crucial for esptool to find the port on macOS/Linux
+            portName: (() => {
+                let p = matched?.path || electronPort.portName;
+                // Safety fix: On macOS, Electron often returns "cu.usbmodem..." without "/dev/"
+                // If we didn't match a serialport entry (or it also lacked /dev/), ensure we have the prefix
+                if (process.platform !== 'win32' && !p.startsWith('/') && (p.startsWith('cu.') || p.startsWith('tty.'))) {
+                    p = `/dev/${p}`;
+                }
+                return p;
+            })()
         };
     });
 }

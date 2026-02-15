@@ -20,10 +20,10 @@
         "guide": "Guide",
         "firmware": "Firmware Center",
         "dumper": "Firmware Dumper",
-        "burner": "Firmware Burner",
         "upload": "Upload",
         "utilities": "Firmware Utilities",
         "firmware_toolbox": "Firmware Toolbox",
+        "burner": "Firmware Burner",
         "serial_tools": "Serial Tools",
         "convert_tools": "Embedded Tools",
         "settings": "Settings",
@@ -189,7 +189,7 @@
             "light": "Light",
             "dark": "Dark"
         },
-        "accent": "Accent Color",
+        "accent": "Theme Color",
         "accent_options": {
             "blue": "Blue",
             "orange": "Orange",

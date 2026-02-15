@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useTheme } from './contexts/ThemeContext'
 import { useKonamiCode } from './hooks/useKonamiCode'
 import FirmwareToolsPage from './components/FirmwareToolsPage'
+import Burner from './components/Burner'
 import { HackerEasterEgg } from './components/HackerEasterEgg'
 import Discovery from './components/Discovery'
 import DeviceToast from './components/DeviceToast'
@@ -111,6 +112,12 @@ function App() {
         {activeTab === 'tools' && (
             <div className="h-full overflow-auto">
                 <FirmwareToolsPage />
+            </div>
+        )}
+        
+        {activeTab === 'burner' && (
+            <div className="h-full overflow-auto">
+                <Burner />
             </div>
         )}
         

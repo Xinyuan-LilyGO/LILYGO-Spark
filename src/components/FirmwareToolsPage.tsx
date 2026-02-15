@@ -1,18 +1,16 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Zap, Download, Search, FileCode } from 'lucide-react';
-import Burner from './Burner';
 import FirmwareDumper from './FirmwareDumper';
 import FirmwareUtilities from './FirmwareUtilities';
 
-type ToolTab = 'burner' | 'dumper' | 'analyzer' | 'editor';
+type ToolTab = 'dumper' | 'analyzer' | 'editor';
 
 const FirmwareToolsPage: React.FC = () => {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<ToolTab>('burner');
+  const [activeTab, setActiveTab] = useState<ToolTab>('dumper');
 
   const tabs: { id: ToolTab; icon: typeof Zap; labelKey: string }[] = [
-    { id: 'burner', icon: Zap, labelKey: 'nav.burner' },
     { id: 'dumper', icon: Download, labelKey: 'nav.dumper' },
     { id: 'analyzer', icon: Search, labelKey: 'utilities.analyzer' },
     { id: 'editor', icon: FileCode, labelKey: 'utilities.partition_editor' },
@@ -39,7 +37,6 @@ const FirmwareToolsPage: React.FC = () => {
         </div>
       </div>
       <div className="flex-1 min-h-0 overflow-auto">
-        {activeTab === 'burner' && <Burner />}
         {activeTab === 'dumper' && <FirmwareDumper />}
         {activeTab === 'analyzer' && <FirmwareUtilities mode="analyzer" />}
         {activeTab === 'editor' && <FirmwareUtilities mode="editor" />}
