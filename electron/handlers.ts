@@ -621,8 +621,9 @@ export async function handleRemoveFile(_event: IpcMainInvokeEvent, filePath: str
 }
 
 export async function handleShowOpenFirmwareForAnalysis(event: IpcMainInvokeEvent): Promise<{ canceled: boolean; filePath?: string }> {
-    const win = event.sender.getOwnerBrowserWindow();
-    const result = await dialog.showOpenDialog(win ?? undefined, {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return { canceled: true };
+    const result = await dialog.showOpenDialog(win, {
         title: 'Select firmware file to analyze',
         filters: [{ name: 'Firmware', extensions: ['bin'] }, { name: 'All', extensions: ['*'] }],
         properties: ['openFile'],

@@ -30,7 +30,26 @@ function loadJsonIfExists(filePath: string): Record<string, unknown> | null {
 }
 
 function getBundledConfigPath(): string {
-  return path.join(app.getAppPath(), 'lilygo_config.json');
+  if (app.isPackaged) {
+    return path.join(app.getAppPath(), 'lilygo_config.json');
+  }
+  
+  // In dev mode, try multiple locations
+  const candidates = [
+    path.join(app.getAppPath(), 'lilygo_config.json'),
+    path.join(process.cwd(), 'lilygo_config.json'),
+    path.join(__dirname, '../../lilygo_config.json'),
+  ];
+
+  for (const p of candidates) {
+    if (fs.existsSync(p)) {
+      console.log('[Config] Found config at:', p);
+      return p;
+    }
+  }
+  
+  console.warn('[Config] Config file not found in candidates, defaulting to:', candidates[0]);
+  return candidates[0];
 }
 
 function loadMergedConfig(): LilygoConfig {

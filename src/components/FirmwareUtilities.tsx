@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, FileCode, AlertCircle, Cpu, Upload, Download, Plus, Trash2, Terminal, Activity, RefreshCw, Power, PowerOff, Image as ImageIcon, Calculator, Clock, Zap, Lightbulb, CircleDot } from 'lucide-react';
+import { getPartitionTypeLabel, getPartitionSubtypeLabel } from '../utils/partitionTypes';
 import SmdResistorCalc from './SmdResistorCalc';
 import LedResistorCalc from './LedResistorCalc';
 import ResistorColorCodeCalc from './ResistorColorCodeCalc';
@@ -357,7 +358,17 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
       try {
           // @ts-ignore - File.path may be undefined for drag-drop in Electron 32+
           let pathToAnalyze = fileToAnalyze.path;
+          
+          // Try to get path via webUtils if available (Electron 32+)
+          if (!pathToAnalyze && window.electronUtils) {
+              pathToAnalyze = window.electronUtils.getPathForFile(fileToAnalyze);
+          }
+
           if (!pathToAnalyze && window.ipcRenderer) {
+              // If we still don't have a path, we might need to ask the user to select the file again
+              // But first, let's see if we can avoid this if the user just dropped it.
+              // If we are here, it means webUtils failed or isn't available, and File.path is gone.
+              // We have to ask the user.
               const { canceled, filePath } = await window.ipcRenderer.invoke('show-open-firmware-for-analysis');
               if (canceled || !filePath) { setIsAnalyzing(false); return; }
               pathToAnalyze = filePath;
@@ -682,7 +693,6 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
                                     <FileCode size={32} className="text-primary mb-2" />
                                     <span className="font-mono text-slate-800 dark:text-slate-200">{analysisFile.name}</span>
                                     <span className="text-xs text-slate-500 mt-1">{(analysisFile.size / 1024 / 1024).toFixed(2)} MB</span>
-                                    {!isAnalyzing && <span className="text-xs text-primary mt-2">Click to select another file</span>}
                                 </div>
                             ) : (
                                 <div className="flex flex-col items-center text-slate-600 dark:text-slate-400">
@@ -769,8 +779,12 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
                                                 {analysisResult.partitions.map((p, idx) => (
                                                     <tr key={idx} className="border-b border-slate-200 dark:border-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700/30">
                                                         <td className="p-3 font-sans font-medium text-slate-900 dark:text-white">{p.label}</td>
-                                                        <td className="p-3">{p.type}</td>
-                                                        <td className="p-3">{p.subtype}</td>
+                                                        <td className="p-3">
+                                                            {p.type} <span className="text-xs text-slate-500 dark:text-slate-400">({getPartitionTypeLabel(p.type)})</span>
+                                                        </td>
+                                                        <td className="p-3">
+                                                            {p.subtype} <span className="text-xs text-slate-500 dark:text-slate-400">({getPartitionSubtypeLabel(p.type, p.subtype)})</span>
+                                                        </td>
                                                         <td className="p-3 text-primary/80">{p.offset}</td>
                                                         <td className="p-3 text-emerald-600 dark:text-green-300">{p.size} ({Math.round(p.size_dec/1024)}KB)</td>
                                                         <td className="p-3">{p.encrypted ? 'Yes' : '-'}</td>

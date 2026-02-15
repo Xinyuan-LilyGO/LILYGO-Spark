@@ -1,8 +1,6 @@
 /// <reference types="vite/client" />
 
-declare global {
-  const __INCLUDE_WIN_FONTS__: boolean
-}
+declare const __INCLUDE_WIN_FONTS__: boolean
 
 declare module 'rss-parser/dist/rss-parser.min.js' {
   interface ParserItem {
@@ -25,5 +23,8 @@ interface Window {
     off: (channel: string, ...args: any[]) => void
     send: (channel: string, ...args: any[]) => void
     invoke: (channel: string, ...args: any[]) => Promise<any>
+  }
+  electronUtils?: {
+    getPathForFile: (file: File) => string | undefined
   }
 }

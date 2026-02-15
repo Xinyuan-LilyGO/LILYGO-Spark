@@ -374,10 +374,22 @@ const Burner: React.FC = () => {
             let filePathToFlash = '';
             if (downloadedFile) {
                 filePathToFlash = downloadedFile.path;
-            } else if (file && (file as File & { path?: string }).path) { // file.path exists in Electron environment
-                filePathToFlash = (file as File & { path: string }).path;
+            } else if (file) {
+                // Try to get path via webUtils if available (Electron 32+)
+                if (window.electronUtils) {
+                    filePathToFlash = window.electronUtils.getPathForFile(file) || '';
+                }
+                // Fallback for older Electron or if webUtils failed but path property still exists
+                if (!filePathToFlash && (file as any).path) {
+                    filePathToFlash = (file as any).path;
+                }
+
+                if (!filePathToFlash) {
+                    xtermRef.current?.writeln('Error: Cannot flash local file in browser mode with native tool (requires Electron file path).');
+                    return;
+                }
             } else {
-                 xtermRef.current?.writeln('Error: Cannot flash local file in browser mode with native tool (requires Electron file path).');
+                 xtermRef.current?.writeln('Error: No firmware selected.');
                  return;
             }
 

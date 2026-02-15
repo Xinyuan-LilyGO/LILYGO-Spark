@@ -1,7 +1,18 @@
-import { ipcRenderer, contextBridge } from 'electron'
+import { ipcRenderer, contextBridge, webUtils } from 'electron'
 
 // --------- Expose some API to the Renderer process ---------
 contextBridge.exposeInMainWorld('platform', process.platform as 'win32' | 'darwin' | 'linux')
+
+contextBridge.exposeInMainWorld('electronUtils', {
+  getPathForFile: (file: File) => {
+    try {
+      return webUtils.getPathForFile(file);
+    } catch (e) {
+      console.warn('Failed to get path for file:', e);
+      return undefined;
+    }
+  }
+})
 
 contextBridge.exposeInMainWorld('ipcRenderer', {
   on: (...args: Parameters<typeof ipcRenderer.on>) => {

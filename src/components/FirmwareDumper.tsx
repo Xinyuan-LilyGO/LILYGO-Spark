@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
-import { ChevronDown, Usb, Cpu, Check, Download, RefreshCw, Trash2, Copy, ArrowDownCircle, Activity, Box, Settings } from 'lucide-react';
+import { ChevronDown, Usb, Check, Download, RefreshCw, Trash2, Copy, ArrowDownCircle, Activity, Box, Settings } from 'lucide-react';
+import { formatPortPath, hexToHumanSize } from '../utils/formatters';
 
 // Type definitions for Web Serial API
 interface SerialPort {
@@ -24,22 +25,7 @@ interface ElectronSerialPortInfo {
   usbDriverName?: string;
 }
 
-/** 格式化端口路径 */
-function formatPortPath(portName: string): string {
-  if (!portName) return portName;
-  if (/^COM\d+/i.test(portName)) return portName; // Windows
-  if (portName.startsWith('/')) return portName;  // 已是完整路径
-  return `/dev/${portName}`;                      // macOS/Linux 补全路径
-}
 
-/** 将十六进制大小转为 KB/MB 显示 */
-function hexToHumanSize(hexStr: string): string {
-  const n = parseInt(hexStr, 16);
-  if (isNaN(n) || n <= 0) return '';
-  if (n >= 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
-  if (n >= 1024) return `${(n / 1024).toFixed(0)} KB`;
-  return `${n} B`;
-}
 
 const FirmwareDumper: React.FC = () => {
   const { t } = useTranslation();
@@ -439,19 +425,19 @@ const FirmwareDumper: React.FC = () => {
           
           <div className="p-4 flex flex-col gap-4">
             {/* Port Selection Row */}
-            <div className="flex gap-2 relative" ref={portSelectRef}>
+            <div className="flex gap-3 relative" ref={portSelectRef}>
               <div className="relative flex-1 min-w-0">
                 <button 
                   onClick={handleSelectDeviceClick}
-                  className={`w-full h-9 px-3 rounded-lg text-sm border flex items-center justify-between transition-all
+                  className={`w-full h-10 px-3 rounded-lg text-sm border flex items-center justify-between transition-all
                     ${port 
                       ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' 
                       : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 hover:border-slate-300 dark:hover:border-zinc-600 text-slate-600 dark:text-slate-300'
                     }`}
                 >
                   <div className="flex items-center gap-2 overflow-hidden">
-                    <Usb size={14} className={port ? 'text-indigo-500' : 'text-slate-400'} />
-                    <span className="truncate font-mono">
+                    <Usb size={16} className={port ? 'text-indigo-500' : 'text-slate-400'} />
+                    <span className="truncate font-mono font-medium">
                       {selectedPortId 
                         ? formatPortPath(availablePorts.find(p => p.portId === selectedPortId)?.portName || '') 
                         : t('dumper.btn_select_device')}
@@ -487,10 +473,10 @@ const FirmwareDumper: React.FC = () => {
               <button 
                 onClick={() => handleDetect()}
                 disabled={!port || status === 'detecting' || status === 'dumping'}
-                className="h-9 px-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-200 disabled:dark:bg-zinc-800 disabled:text-slate-400 text-white rounded-lg text-xs font-medium transition-colors shadow-sm flex items-center gap-1.5 whitespace-nowrap"
+                className="h-10 px-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-100 disabled:dark:bg-zinc-800 disabled:text-slate-400 disabled:border disabled:border-slate-200 disabled:dark:border-zinc-700 text-white rounded-lg text-sm font-medium transition-all shadow-sm flex items-center gap-2 whitespace-nowrap active:scale-[0.98]"
               >
-                {status === 'detecting' ? <RefreshCw size={14} className="animate-spin" /> : <Activity size={14} />}
-                {t('dumper.btn_detect_info')}
+                {status === 'detecting' ? <RefreshCw size={16} className="animate-spin" /> : <Activity size={16} />}
+                <span>{t('dumper.btn_detect_info')}</span>
               </button>
             </div>
 
@@ -557,63 +543,70 @@ const FirmwareDumper: React.FC = () => {
             <span className="font-semibold text-sm text-slate-700 dark:text-slate-200">{t('dumper.section_params')}</span>
           </div>
 
-          <div className="p-4 grid grid-cols-[120px_1fr] gap-x-4 gap-y-4 items-center">
+          <div className="p-5 flex flex-col gap-5 h-full">
             {/* Address */}
-            <label className="text-sm font-medium text-slate-600 dark:text-slate-400 text-right">{t('dumper.label_start_address')}</label>
-            <input 
-              type="text" 
-              value={dumpAddress} 
-              onChange={e => setDumpAddress(e.target.value)}
-              className="w-full h-9 bg-white dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 text-sm font-mono text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
-              placeholder="0x000000"
-            />
-
-            {/* Size */}
-            <label className="text-sm font-medium text-slate-600 dark:text-slate-400 text-right">{t('dumper.label_size')}</label>
-            <div className="flex gap-2">
+            <div>
+              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">{t('dumper.label_start_address')}</label>
               <input 
                 type="text" 
-                value={dumpSize} 
-                onChange={e => setDumpSize(e.target.value)}
-                className="flex-1 min-w-0 h-9 bg-white dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 text-sm font-mono text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
-                placeholder="0x400000"
+                value={dumpAddress} 
+                onChange={e => setDumpAddress(e.target.value)}
+                className="w-full h-10 bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 text-sm font-mono text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                placeholder="0x000000"
               />
-              <select 
-                onChange={e => setDumpSize(e.target.value)}
-                className="h-9 w-24 bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg px-2 text-xs text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
-                value={dumpSize}
-              >
-                <option value="0x400000">4MB</option>
-                <option value="0x800000">8MB</option>
-                <option value="0x1000000">16MB</option>
-              </select>
             </div>
-            <div className="col-start-2 text-xs text-slate-400 -mt-2 pl-1">
-              {dumpSize ? hexToHumanSize(dumpSize) : '—'}
+
+            {/* Size */}
+            <div>
+              <div className="flex justify-between items-baseline mb-1.5">
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">{t('dumper.label_size')}</label>
+                {dumpSize && <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400">{hexToHumanSize(dumpSize)}</span>}
+              </div>
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={dumpSize} 
+                  onChange={e => setDumpSize(e.target.value)}
+                  className="flex-1 min-w-0 h-10 bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 text-sm font-mono text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                  placeholder="0x400000"
+                />
+                <select 
+                  onChange={e => setDumpSize(e.target.value)}
+                  className="h-10 w-28 bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-700 rounded-lg px-2 text-xs text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+                  value={dumpSize}
+                >
+                  <option value="0x400000">4MB</option>
+                  <option value="0x800000">8MB</option>
+                  <option value="0x1000000">16MB</option>
+                  <option value="0x2000000">32MB</option>
+                </select>
+              </div>
             </div>
 
             {/* Baud Rate */}
-            <label className="text-sm font-medium text-slate-600 dark:text-slate-400 text-right">{t('dumper.label_baud_rate')}</label>
-            <select 
-              value={flashBaudRate} 
-              onChange={e => setFlashBaudRate(Number(e.target.value))}
-              className="w-full h-9 bg-white dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
-            >
-              <option value={115200}>115200 (Safe)</option>
-              <option value={460800}>460800 (Fast)</option>
-              <option value={921600}>921600 (Very Fast)</option>
-              <option value={1500000}>1500000 (Max)</option>
-            </select>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">{t('dumper.label_baud_rate')}</label>
+              <select 
+                value={flashBaudRate} 
+                onChange={e => setFlashBaudRate(Number(e.target.value))}
+                className="w-full h-10 bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+              >
+                <option value={115200}>115200 (Safe)</option>
+                <option value={460800}>460800 (Fast)</option>
+                <option value={921600}>921600 (Very Fast)</option>
+                <option value={1500000}>1500000 (Max)</option>
+              </select>
+            </div>
 
             {/* Action Button */}
-            <div className="col-span-2 pt-2 border-t border-slate-100 dark:border-zinc-800 mt-2 flex justify-end">
+            <div className="pt-2 mt-auto">
               <button 
                 onClick={handleDump}
                 disabled={!port || status === 'dumping'}
-                className={`h-10 px-6 rounded-lg font-semibold text-sm shadow-sm transition-all flex items-center gap-2
+                className={`w-full h-11 rounded-lg font-semibold text-sm shadow-sm transition-all flex items-center justify-center gap-2
                   ${(!port || status === 'dumping') 
                       ? 'bg-slate-100 dark:bg-zinc-800 text-slate-400 border border-slate-200 dark:border-zinc-700 cursor-not-allowed' 
-                      : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/20 shadow-lg'
+                      : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/20 shadow-lg active:scale-[0.98]'
                   }`}
               >
                 {status === 'dumping' ? (
