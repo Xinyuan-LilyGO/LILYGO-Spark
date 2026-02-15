@@ -454,44 +454,68 @@ async function dumpFirmwareWithEsptool(
 
 // --- IPC Handlers ---
 
+// VID list for common USB serial chips (CH34x, CP210x, FTDI, Espressif)
+const USB_SERIAL_VIDS = ['1A86', '10C4', '0403', '303A'];
+
+function parsePnputilOutput(stdout: string): any[] {
+    const seen = new Set<string>();
+    const devices: any[] = [];
+    // Match USB\VID_xxxx&PID_yyyy style instance IDs in pnputil output
+    const instanceRegex = /(USB\\VID_([0-9A-Fa-f]{4})&PID_[0-9A-Fa-f]{4}[^\s\r\n]*)/g;
+    let m: RegExpExecArray | null;
+    while ((m = instanceRegex.exec(stdout)) !== null) {
+        const instanceId = m[1].trim();
+        if (seen.has(instanceId)) continue;
+        seen.add(instanceId);
+        const vid = m[2].toUpperCase();
+        if (USB_SERIAL_VIDS.includes(vid)) {
+            devices.push({ InstanceId: instanceId, FriendlyName: 'USB Serial' });
+        }
+    }
+    return devices;
+}
+
 // Check for missing drivers on Windows (e.g. CH34x, CP210x, FTDI)
 export async function checkMissingDrivers(): Promise<any[]> {
     if (process.platform !== 'win32') return [];
 
     return new Promise((resolve) => {
-        // Look for devices with "USB Serial" in name OR specific VIDs, that have error status or non-zero config code
-        // VID_1A86 = WCH (CH34x)
-        // VID_10C4 = Silicon Labs (CP210x)
-        // VID_0403 = FTDI
-        // VID_303A = Espressif
-        const psCommand = `
-            Get-PnpDevice | Where-Object { 
-                ($_.FriendlyName -like '*USB Serial*' -or $_.InstanceId -match 'VID_1A86' -or $_.InstanceId -match 'VID_10C4' -or $_.InstanceId -match 'VID_0403' -or $_.InstanceId -match 'VID_303A') -and 
-                ($_.Status -eq 'Error' -or $_.ConfigManagerErrorCode -ne 0) 
-            } | Select-Object FriendlyName, InstanceId, ProblemDescription, ConfigManagerErrorCode | ConvertTo-Json -Compress
-        `;
-
-        execFile('powershell', ['-Command', psCommand], (error, stdout, _stderr) => {
-            if (error) {
-                console.error('Failed to check missing drivers:', error);
-                resolve([]);
-                return;
+        // Prefer pnputil (built-in, no PowerShell) - Windows 10+
+        const pnputilPath = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'pnputil.exe');
+        execFile(pnputilPath, ['/enum-devices', '/problem'], { timeout: 8000 }, (error, stdout) => {
+            if (!error && stdout) {
+                const devices = parsePnputilOutput(stdout);
+                if (devices.length > 0) {
+                    resolve(devices);
+                    return;
+                }
             }
-            
-            try {
-                const output = stdout.trim();
-                if (!output) {
+            // Fallback: PowerShell Get-PnpDevice
+            const psCommand = `
+                Get-PnpDevice | Where-Object { 
+                    ($_.FriendlyName -like '*USB Serial*' -or $_.InstanceId -match 'VID_1A86' -or $_.InstanceId -match 'VID_10C4' -or $_.InstanceId -match 'VID_0403' -or $_.InstanceId -match 'VID_303A') -and 
+                    ($_.Status -eq 'Error' -or $_.ConfigManagerErrorCode -ne 0) 
+                } | Select-Object FriendlyName, InstanceId, ProblemDescription, ConfigManagerErrorCode | ConvertTo-Json -Compress
+            `;
+            execFile('powershell', ['-Command', psCommand], (psError, psStdout, _psStderr) => {
+                if (psError) {
+                    console.error('Failed to check missing drivers:', psError);
                     resolve([]);
                     return;
                 }
-                const result = JSON.parse(output);
-                // PowerShell returns single object if only one result, array if multiple
-                const devices = Array.isArray(result) ? result : [result];
-                resolve(devices);
-            } catch (e) {
-                // If stdout is empty or invalid JSON
-                resolve([]);
-            }
+                try {
+                    const output = (psStdout || '').trim();
+                    if (!output) {
+                        resolve([]);
+                        return;
+                    }
+                    const result = JSON.parse(output);
+                    const devices = Array.isArray(result) ? result : [result];
+                    resolve(devices);
+                } catch {
+                    resolve([]);
+                }
+            });
         });
     });
 }
