@@ -11,7 +11,8 @@ contextBridge.exposeInMainWorld('electronUtils', {
       console.warn('Failed to get path for file:', e);
       return undefined;
     }
-  }
+  },
+  getAppVersion: () => ipcRenderer.invoke('get-app-version')
 })
 
 contextBridge.exposeInMainWorld('ipcRenderer', {

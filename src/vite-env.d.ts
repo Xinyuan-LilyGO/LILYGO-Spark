@@ -26,5 +26,6 @@ interface Window {
   }
   electronUtils?: {
     getPathForFile: (file: File) => string | undefined
+    getAppVersion: () => Promise<string>
   }
 }

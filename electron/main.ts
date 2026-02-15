@@ -1,14 +1,13 @@
 import { app, BrowserWindow, ipcMain, Menu, dialog, nativeImage, nativeTheme, shell } from 'electron'
 import path from 'node:path'
+import { setupUpdater } from './updater'
 
 // Set app name for "Open with" dialog when handling lilygo-spark:// deep links
 if (process.defaultApp) app.name = 'LILYGO Spark'
 import { DeviceDetector, DeviceDetectionConfig } from './device-detector'
-import { startUsbHotplugSound, stopUsbHotplugSound } from './usb-hotplug-sound'
-import { setupConfigHandler } from './config-handler'
+import { setupConfigHandler, getDeveloperMode } from './config-handler'
 import { 
     handleAnalyzeFirmware, 
-    handleShowOpenFirmwareForAnalysis,
     handleConnectSerial, 
     handleDisconnectSerial, 
     handleListPorts, 
@@ -19,12 +18,10 @@ import {
     handleDownloadFirmware,
     handleRemoveFile,
     handleFlashFirmwareNative,
-    handleDumpFirmwareNative,
     handleSaveFile,
     getEnhancedPortList,
     setSerialPortCallback,
-    checkBluetoothPermission,
-    checkMissingDrivers
+    checkBluetoothPermission
 } from './handlers'
 
 let win: BrowserWindow | null
@@ -149,18 +146,6 @@ process.on('uncaughtException', (error) => {
     console.error('Uncaught Exception:', error);
 });
 
-// The built directory structure
-//
-// ├─┬─ dist
-// │ ├─ index.html
-// │ ├─ assets
-// │ └─ ...
-// ├─┬─ dist-electron
-// │ ├─ main.js
-// │ └─ preload.js
-//
-
-// ...
 // Function to setup application menu
 function setupApplicationMenu(isDev: boolean, publicPath: string) {
   if (process.platform !== 'darwin') {
@@ -168,18 +153,15 @@ function setupApplicationMenu(isDev: boolean, publicPath: string) {
     return;
   }
 
-  // Check developer mode from settings
+  // Check developer mode setting
+  // Note: getDeveloperMode is synchronous in main process
   let developerMode = false;
   try {
-    const userDataPath = app.getPath('userData');
-    const storePath = path.join(userDataPath, 'lilygo_spark_settings.json');
-    const fs = require('fs');
-    if (fs.existsSync(storePath)) {
-      const data = JSON.parse(fs.readFileSync(storePath, 'utf-8'));
-      developerMode = !!data?.developer_mode;
-    }
+      // We need to import getDeveloperMode from config-handler
+      // It is already imported at the top
+      developerMode = getDeveloperMode();
   } catch (e) {
-    console.warn('Failed to read developer mode for menu:', e);
+      console.error('Failed to get developer mode:', e);
   }
 
   const showDevTools = isDev || developerMode;
@@ -304,6 +286,8 @@ function createWindow() {
   // Prevent white flash by showing window only when ready
   win.once('ready-to-show', () => {
     win?.show()
+    // Check for updates
+    setupUpdater(win!);
   })
 
   // Test active push message to Renderer-process.
@@ -395,9 +379,6 @@ function createWindow() {
   // Initialize Device Detector
   deviceDetector = new DeviceDetector(win, deviceDetectionConfig);
   deviceDetector.start();
-
-  // macOS: play sound on USB plug/unplug (like Windows)
-  startUsbHotplugSound();
   
   // Send the config to renderer so it knows whether to enable its own Web Serial listener
   win.webContents.on('did-finish-load', () => {
@@ -418,7 +399,6 @@ ipcMain.on('theme-changed', (_event, _theme: 'light' | 'dark') => {});
 
 // Handle firmware analysis request
 ipcMain.handle('analyze-firmware', handleAnalyzeFirmware);
-ipcMain.handle('show-open-firmware-for-analysis', handleShowOpenFirmwareForAnalysis);
 
 // Handle firmware download
 ipcMain.handle('download-firmware', handleDownloadFirmware);
@@ -429,14 +409,11 @@ ipcMain.handle('remove-file', handleRemoveFile);
 // Handle native firmware flashing
 ipcMain.handle('flash-firmware-native', handleFlashFirmwareNative);
 
-// Handle native firmware dump (read flash)
-ipcMain.handle('dump-firmware-native', handleDumpFirmwareNative);
-
-// Check missing drivers (Windows only)
-ipcMain.handle('check-missing-drivers', checkMissingDrivers);
-
 // Handle file save
 ipcMain.handle('save-file', handleSaveFile);
+
+// Handle get app version
+ipcMain.handle('get-app-version', () => app.getVersion());
 
 // ------------------------------
 // Custom Serial Console Handlers
@@ -460,29 +437,13 @@ ipcMain.handle('open-external', handleOpenExternal);
 // 6. Open URL (external browser or internal window)
 ipcMain.handle('open-url', async (_event, url: string, mode: 'external' | 'internal' = 'external') => {
   if (mode === 'internal') {
-    const isDev = !app.isPackaged && process.env.VITE_DEV_SERVER_URL !== undefined;
-    const distPath = path.join(__dirname, '../dist');
-    const preloadPath = path.join(__dirname, 'preload.js');
-    const shellPath = path.join(distPath, 'browser-shell.html');
-
     const child = new BrowserWindow({
       parent: win ?? undefined,
-      width: 1100,
-      height: 750,
-      minWidth: 600,
-      minHeight: 400,
-      webPreferences: {
-        preload: preloadPath,
-        nodeIntegration: false,
-        contextIsolation: true,
-        webviewTag: true,
-      },
+      width: 1000,
+      height: 700,
+      webPreferences: { nodeIntegration: false, contextIsolation: true },
     });
-    if (isDev) {
-      await child.loadURL(`${process.env.VITE_DEV_SERVER_URL}/browser-shell.html?url=${encodeURIComponent(url)}`);
-    } else {
-      await child.loadFile(shellPath, { query: { url } });
-    }
+    await child.loadURL(url);
     child.on('closed', () => { child.destroy(); });
   } else {
     await shell.openExternal(url);
@@ -490,7 +451,6 @@ ipcMain.handle('open-url', async (_event, url: string, mode: 'external' | 'inter
 });
 
 app.on('window-all-closed', () => {
-  stopUsbHotplugSound();
   if (process.platform !== 'darwin') {
     app.quit()
     win = null

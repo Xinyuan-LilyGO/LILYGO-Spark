@@ -41,7 +41,7 @@ jobs:
       tag_name: ${{ steps.tag.outputs.tag_name }}
       release_name: ${{ steps.tag.outputs.release_name }}
       is_prerelease: ${{ steps.tag.outputs.is_prerelease }}
-      tag_prefix: ${{ steps.tag.outputs.tag_prefix }}
+      build_version: ${{ steps.tag.outputs.build_version }}
     steps:
       - uses: actions/checkout@v4
       - name: Check if release needed
@@ -53,28 +53,38 @@ jobs:
             echo "should_release=true" >> $GITHUB_OUTPUT
           fi
 
+      - name: Get Package Version
+        id: package-version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
       - name: Generate Tag Name
         if: steps.check.outputs.should_release == 'true'
         id: tag
         run: |
-          TIME_STR=$(date -d "+8 hours" +'%Y%m%d-%H%M%S')
+          TIME_STR=$(date -u +'%Y%m%d.%H%M%S')
           SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
+          BASE_VERSION="${{ steps.package-version.outputs.version }}"
           
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            echo "tag_prefix=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-            echo "tag_name=${{ github.ref_name }}-uploading" >> $GITHUB_OUTPUT
-            echo "release_name=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            # Stable release triggered by tag
+            TAG_NAME=${{ github.ref_name }}
+            # Remove 'v' for build version
+            BUILD_VERSION=${TAG_NAME#v}
+            
+            echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
+            echo "release_name=${TAG_NAME}" >> $GITHUB_OUTPUT
             echo "is_prerelease=false" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "tag_prefix=manual-${TIME_STR}-${SHA_SHORT}" >> $GITHUB_OUTPUT
-            echo "tag_name=manual-${TIME_STR}-${SHA_SHORT}-uploading" >> $GITHUB_OUTPUT
-            echo "release_name=Manual Build ${TIME_STR} (${SHA_SHORT})" >> $GITHUB_OUTPUT
-            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            echo "build_version=${BUILD_VERSION}" >> $GITHUB_OUTPUT
           else
-            echo "tag_prefix=build-${TIME_STR}-${SHA_SHORT}" >> $GITHUB_OUTPUT
-            echo "tag_name=build-${TIME_STR}-${SHA_SHORT}-uploading" >> $GITHUB_OUTPUT
-            echo "release_name=Build ${TIME_STR} (${SHA_SHORT})" >> $GITHUB_OUTPUT
+            # Canary/Nightly release
+            # Format: v0.1.0-canary.20260215.223038
+            CANARY_VER="${BASE_VERSION}-canary.${TIME_STR}"
+            TAG_NAME="v${CANARY_VER}"
+            
+            echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
+            echo "release_name=Canary ${TAG_NAME} (${SHA_SHORT})" >> $GITHUB_OUTPUT
             echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            echo "build_version=${CANARY_VER}" >> $GITHUB_OUTPUT
           fi
 
       - name: Create Release
@@ -86,6 +96,7 @@ jobs:
           body: |
             Automated build for commit ${{ github.sha }}
             Triggered by: ${{ github.event_name }}
+            Version: ${{ steps.tag.outputs.build_version }}
           prerelease: ${{ steps.tag.outputs.is_prerelease }}
           generate_release_notes: true
         env:
@@ -115,6 +126,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-electron-
       - run: npm ci
+      
+      - name: Set Version
+        if: needs.setup.outputs.should_release == 'true'
+        run: npm version ${{ needs.setup.outputs.build_version }} --no-git-tag-version
+
       - run: npm run prebuild
       - run: npm run build:compile
       - run: npm run build:mac:${{ matrix.arch }}:only
@@ -158,6 +174,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-electron-
       - run: npm ci
+
+      - name: Set Version
+        if: needs.setup.outputs.should_release == 'true'
+        run: npm version ${{ needs.setup.outputs.build_version }} --no-git-tag-version
+
       - run: npm run prebuild
       - run: npm run build:compile
       - name: Build Windows
@@ -202,6 +223,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-electron-
       - run: npm ci
+
+      - name: Set Version
+        if: needs.setup.outputs.should_release == 'true'
+        run: npm version ${{ needs.setup.outputs.build_version }} --no-git-tag-version
+
       - run: npm run prebuild
       - run: npm run build:compile
       - run: sudo apt-get update && sudo apt-get install -y rpm
@@ -235,30 +261,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Finalize Tag (Success)
-        if: success() && github.ref != 'refs/tags/v*'
-        run: |
-          OLD_TAG="${{ needs.setup.outputs.tag_name }}"
-          NEW_TAG="${{ needs.setup.outputs.tag_prefix }}-ok"
-          gh release edit "$OLD_TAG" --tag "$NEW_TAG"
-          git push origin ":refs/tags/$OLD_TAG"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Finalize Tag (Failure)
-        if: failure() && github.ref != 'refs/tags/v*'
-        run: |
-          OLD_TAG="${{ needs.setup.outputs.tag_name }}"
-          NEW_TAG="${{ needs.setup.outputs.tag_prefix }}-failed"
-          gh release edit "$OLD_TAG" --tag "$NEW_TAG"
-          git push origin ":refs/tags/$OLD_TAG"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Cleanup old builds
         if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         run: |
-          RELEASES_TO_DELETE=$(gh release list --limit 100 | grep -E "^(build-|manual-)" | awk '{print $1}' | tail -n +21)
+          # Keep last 20 releases
+          RELEASES_TO_DELETE=$(gh release list --limit 100 | grep "canary" | awk '{print $1}' | tail -n +21)
           if [ -n "$RELEASES_TO_DELETE" ]; then
             for TAG in $RELEASES_TO_DELETE; do
               gh release delete "$TAG" --yes --cleanup-tag

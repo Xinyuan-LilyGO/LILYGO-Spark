@@ -50,6 +50,10 @@
     "burner",
     "lilygo"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Xinyuan-LilyGO/LILYGO-Spark.git"
+  },
   "author": {
     "name": "LilyGo Community",
     "email": "info@lilygo.cc"
@@ -142,6 +146,7 @@
     ],
     "asar": true,
     "mac": {
+      "publish": ["github"],
       "protocols": [
         {
           "name": "LILYGO Spark Auth",
@@ -172,6 +177,7 @@
       "format": "ULFO"
     },
     "win": {
+      "publish": ["github"],
       "protocols": [
         {
           "name": "LILYGO Spark Auth",
@@ -214,6 +220,7 @@
       "artifactName": "LILYGO-Spark-${version}-windows-${arch}-portable.${ext}"
     },
     "linux": {
+      "publish": ["github"],
       "protocols": [
         {
           "name": "LILYGO Spark Auth",

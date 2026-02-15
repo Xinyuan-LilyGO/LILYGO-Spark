@@ -136,8 +136,40 @@ async function tryFetchManifest(url: string, label: string): Promise<unknown | n
 
 const CUSTOM_MANIFEST_STORAGE_KEY = 'custom_firmware_manifest_path';
 const DEVELOPER_MODE_STORAGE_KEY = 'developer_mode';
+const CANARY_UPDATE_STORAGE_KEY = 'canary_update';
 
-function getDeveloperMode(): boolean {
+export function getCanaryUpdate(): boolean {
+  const userDataPath = app.getPath('userData');
+  const storePath = path.join(userDataPath, 'lilygo_spark_settings.json');
+  try {
+    if (fs.existsSync(storePath)) {
+      const raw = fs.readFileSync(storePath, 'utf-8');
+      const data = JSON.parse(raw);
+      return !!data?.[CANARY_UPDATE_STORAGE_KEY];
+    }
+  } catch (e) {
+    console.warn('[Config] 读取Canary更新设置失败:', e);
+  }
+  return false;
+}
+
+export function setCanaryUpdate(enabled: boolean): void {
+  const userDataPath = app.getPath('userData');
+  const storePath = path.join(userDataPath, 'lilygo_spark_settings.json');
+  try {
+    let data: Record<string, unknown> = {};
+    if (fs.existsSync(storePath)) {
+      data = JSON.parse(fs.readFileSync(storePath, 'utf-8')) || {};
+    }
+    data[CANARY_UPDATE_STORAGE_KEY] = enabled;
+    fs.writeFileSync(storePath, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('[Config] 保存Canary更新设置失败:', e);
+    throw e;
+  }
+}
+
+export function getDeveloperMode(): boolean {
   const userDataPath = app.getPath('userData');
   const storePath = path.join(userDataPath, 'lilygo_spark_settings.json');
   try {
@@ -285,6 +317,13 @@ export function setupConfigHandler(mainWindow?: BrowserWindow | null, onSettings
   ipcMain.handle('set-developer-mode', async (_event, enabled: boolean) => {
     setDeveloperMode(enabled);
     if (onSettingsChanged) onSettingsChanged();
+    return true;
+  });
+
+  ipcMain.handle('get-canary-update', async () => getCanaryUpdate());
+
+  ipcMain.handle('set-canary-update', async (_event, enabled: boolean) => {
+    setCanaryUpdate(enabled);
     return true;
   });
 

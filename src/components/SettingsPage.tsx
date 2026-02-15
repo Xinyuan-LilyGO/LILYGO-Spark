@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Globe, Moon, Palette, ExternalLink, Sparkles, Zap, Volume2, CheckCircle, ChevronDown, ChevronRight, FileJson, FolderOpen, X, SlidersHorizontal } from 'lucide-react';
+import { Globe, Moon, Palette, ExternalLink, Sparkles, Zap, Volume2, CheckCircle, ChevronDown, ChevronRight, FileJson, FolderOpen, X, SlidersHorizontal, RefreshCw } from 'lucide-react';
 import { useTheme, type AccentColor, type FlashCelebrationStyle } from '../contexts/ThemeContext';
 
 const ACCENT_COLORS: { id: AccentColor; bg: string }[] = [
@@ -33,13 +33,50 @@ const SettingsPage: React.FC = () => {
   const [customManifestPath, setCustomManifestPath] = React.useState<string | null>(null);
   const [manifestLoading, setManifestLoading] = React.useState(false);
   const [developerMode, setDeveloperMode] = React.useState(false);
+  const [canaryUpdate, setCanaryUpdate] = React.useState(false);
+  const [checkingUpdate, setCheckingUpdate] = React.useState(false);
+  const [appVersion, setAppVersion] = React.useState('0.0.0');
 
   React.useEffect(() => {
     if (window.ipcRenderer) {
       window.ipcRenderer.invoke('get-custom-manifest-path').then((p: string | null) => setCustomManifestPath(p));
       window.ipcRenderer.invoke('get-developer-mode').then((enabled: boolean) => setDeveloperMode(enabled));
+      window.ipcRenderer.invoke('get-canary-update').then((enabled: boolean) => setCanaryUpdate(enabled));
+      if (window.electronUtils?.getAppVersion) {
+          window.electronUtils.getAppVersion().then((v: string) => setAppVersion(v));
+      }
+      
+      // Listen for update messages
+      const updateHandler = (_event: any, message: { text: string, data?: any }) => {
+          console.log('Update message:', message);
+          if (message.text.includes('App is up to date')) {
+             setCheckingUpdate(false);
+             // You might want to show a toast here
+             alert(t('settings.update_not_found'));
+          } else if (message.text.includes('Update available')) {
+             setCheckingUpdate(false);
+          } else if (message.text.includes('Error')) {
+             setCheckingUpdate(false);
+             alert(t('settings.update_error') + ': ' + message.text);
+          }
+      };
+      window.ipcRenderer.on('update-message', updateHandler);
+      return () => { window.ipcRenderer.off('update-message', updateHandler); };
     }
   }, []);
+
+  const handleCheckUpdate = async () => {
+      if (!window.ipcRenderer) return;
+      setCheckingUpdate(true);
+      try {
+          await window.ipcRenderer.invoke('check-for-updates');
+          // Timeout to reset state if no response
+          setTimeout(() => setCheckingUpdate(false), 10000);
+      } catch (e) {
+          console.error('Check update failed:', e);
+          setCheckingUpdate(false);
+      }
+  };
 
   React.useEffect(() => {
     if (!window.ipcRenderer) return;
@@ -78,6 +115,13 @@ const SettingsPage: React.FC = () => {
     setDeveloperMode(enabled);
     if (window.ipcRenderer) {
       await window.ipcRenderer.invoke('set-developer-mode', enabled);
+    }
+  };
+
+  const handleCanaryUpdateChange = async (enabled: boolean) => {
+    setCanaryUpdate(enabled);
+    if (window.ipcRenderer) {
+      await window.ipcRenderer.invoke('set-canary-update', enabled);
     }
   };
 
@@ -288,6 +332,25 @@ const SettingsPage: React.FC = () => {
             </div>
 
             <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                    <RefreshCw className={`text-primary ${checkingUpdate ? 'animate-spin' : ''}`} />
+                    <span className="font-medium text-slate-800 dark:text-slate-200">{t('settings.check_update')}</span>
+                </div>
+                <button
+                    onClick={handleCheckUpdate}
+                    disabled={checkingUpdate}
+                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                >
+                    {checkingUpdate ? t('settings.checking_update') : t('settings.check_update_btn')}
+                </button>
+            </div>
+            <div className="text-xs text-slate-500 dark:text-zinc-400 mt-2">
+                v{appVersion}
+            </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
             <button
               type="button"
               onClick={() => setAdvancedExpanded((v) => !v)}
@@ -333,6 +396,27 @@ const SettingsPage: React.FC = () => {
                   {customManifestPath && (
                     <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">{t('settings.firmware_manifest_active')}</p>
                   )}
+                </div>
+
+                <div className="pt-4 border-t border-slate-200 dark:border-zinc-700/50">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Zap className="text-primary" size={18} />
+                        <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">{t('settings.canary_update')}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-zinc-400">{t('settings.canary_update_hint')}</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={canaryUpdate}
+                            onChange={(e) => handleCanaryUpdateChange(e.target.checked)}
+                            className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-200 dark:bg-zinc-600 peer-focus:ring-2 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all after:border after:border-slate-300 dark:after:border-zinc-500 peer-checked:bg-primary"></div>
+                    </label>
+                  </div>
                 </div>
 
                 <div className="pt-4 border-t border-slate-200 dark:border-zinc-700/50">
