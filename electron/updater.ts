@@ -1,6 +1,8 @@
 import { app, dialog, shell, BrowserWindow, ipcMain } from 'electron';
-import { autoUpdater } from 'electron-updater';
+import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import https from 'https';
+import fs from 'fs';
+import path from 'path';
 
 import { getCanaryUpdate } from './config-handler';
 
@@ -27,7 +29,7 @@ export function setupUpdater(win: BrowserWindow) {
     sendStatusToWindow('Checking for update...');
   });
 
-  autoUpdater.on('update-available', (info) => {
+  autoUpdater.on('update-available', (info: UpdateInfo) => {
     sendStatusToWindow('Update available.', info);
     dialog.showMessageBox(win, {
       type: 'info',
@@ -37,8 +39,11 @@ export function setupUpdater(win: BrowserWindow) {
     }).then((result) => {
       if (result.response === 0) {
         if (process.platform === 'darwin') {
-           // macOS: Manual download via browser
-           shell.openExternal(`https://github.com/${GITHUB_REPO}/releases/latest`);
+           // macOS: Manual download via browser or internal download
+           const isCanary = getCanaryUpdate();
+           // We can try to use autoUpdater to download if it works, but usually it fails on unsigned mac apps.
+           // Let's stick to our custom downloader for macOS to be safe and provide "one-click" experience (download -> open dmg).
+           checkForUpdatesMacOS(win, isCanary); 
         } else {
            // Windows/Linux: Auto download
            autoUpdater.downloadUpdate();
@@ -47,11 +52,11 @@ export function setupUpdater(win: BrowserWindow) {
     });
   });
 
-  autoUpdater.on('update-not-available', (info) => {
+  autoUpdater.on('update-not-available', (info: UpdateInfo) => {
     sendStatusToWindow('Update not available.', info);
   });
 
-  autoUpdater.on('error', (err) => {
+  autoUpdater.on('error', (err: Error) => {
     sendStatusToWindow('Error in auto-updater. ' + err);
     // Fallback for macOS if electron-updater fails (likely due to code signing)
     if (process.platform === 'darwin') {
@@ -60,7 +65,7 @@ export function setupUpdater(win: BrowserWindow) {
     }
   });
 
-  autoUpdater.on('download-progress', (progressObj) => {
+  autoUpdater.on('download-progress', (progressObj: ProgressInfo) => {
     let log_message = "Download speed: " + progressObj.bytesPerSecond;
     log_message = log_message + ' - Downloaded ' + progressObj.percent + '%';
     log_message = log_message + ' (' + progressObj.transferred + "/" + progressObj.total + ')';
@@ -68,7 +73,7 @@ export function setupUpdater(win: BrowserWindow) {
     win.webContents.send('update-progress', progressObj);
   });
 
-  autoUpdater.on('update-downloaded', (info) => {
+  autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
     sendStatusToWindow('Update downloaded', info);
     dialog.showMessageBox(win, {
       type: 'info',
@@ -207,7 +212,19 @@ function processRelease(win: BrowserWindow, release: any) {
             cancelId: 1
         }).then((result) => {
             if (result.response === 0) {
+                // Find DMG asset
+                const dmgAsset = release.assets.find((a: any) => a.name.endsWith('.dmg') && !a.name.includes('blockmap'));
+                const zipAsset = release.assets.find((a: any) => a.name.endsWith('.zip') && !a.name.includes('blockmap'));
+                
+                // Prefer ZIP for custom install, fallback to DMG
+                if (zipAsset && zipAsset.browser_download_url) {
+                    installMacUpdate(win, zipAsset.browser_download_url, zipAsset.name);
+                } else if (dmgAsset && dmgAsset.browser_download_url) {
+                    downloadMacOSUpdate(win, dmgAsset.browser_download_url, dmgAsset.name);
+                } else {
+                    // Fallback to browser if no suitable asset found
                     shell.openExternal(release.html_url);
+                }
             }
         });
     } else {
@@ -215,6 +232,193 @@ function processRelease(win: BrowserWindow, release: any) {
         sendStatusToWindow('App is up to date.', { version: currentVersion });
     }
 }
+
+import { exec } from 'child_process';
+
+function installMacUpdate(win: BrowserWindow, url: string, filename: string) {
+    const downloadPath = path.join(app.getPath('downloads'), filename);
+    sendStatusToWindow(`Starting download to ${downloadPath}...`);
+    
+    const file = fs.createWriteStream(downloadPath);
+    const request = https.get(url, {
+        headers: {
+            'User-Agent': 'LILYGO-Spark-Updater'
+        }
+    }, (response) => {
+        if (response.statusCode === 302 || response.statusCode === 301) {
+            if (response.headers.location) {
+                installMacUpdate(win, response.headers.location, filename);
+            }
+            return;
+        }
+
+        if (response.statusCode !== 200) {
+            sendStatusToWindow(`Download failed: HTTP ${response.statusCode}`);
+            return;
+        }
+
+        const len = parseInt(response.headers['content-length'] || '0', 10);
+        let cur = 0;
+        const total = len;
+
+        response.on('data', (chunk) => {
+            cur += chunk.length;
+            file.write(chunk);
+            if (total > 0) {
+                const percent = (cur / total) * 100;
+                win.webContents.send('update-progress', {
+                    percent: percent,
+                    transferred: cur,
+                    total: total,
+                    bytesPerSecond: 0
+                });
+            }
+        });
+
+        response.on('end', () => {
+            file.end();
+            sendStatusToWindow('Download complete. Preparing to install...');
+            
+            // Unzip and Swap Logic
+            const tempDir = path.join(app.getPath('temp'), 'spark-update-' + Date.now());
+            fs.mkdirSync(tempDir, { recursive: true });
+            
+            // Unzip
+            exec(`unzip -o "${downloadPath}" -d "${tempDir}"`, (err) => {
+                if (err) {
+                    sendStatusToWindow(`Unzip error: ${err.message}`);
+                    return;
+                }
+                
+                // Find .app in tempDir
+                const files = fs.readdirSync(tempDir);
+                const appName = files.find(f => f.endsWith('.app'));
+                if (!appName) {
+                    sendStatusToWindow('Error: No .app found in update');
+                    return;
+                }
+                
+                const newAppPath = path.join(tempDir, appName);
+                const currentAppPath = app.getPath('exe').split('.app')[0] + '.app';
+                
+                sendStatusToWindow(`Ready to replace ${currentAppPath} with ${newAppPath}`);
+                
+                dialog.showMessageBox(win, {
+                    type: 'info',
+                    title: 'Update Ready',
+                    message: 'Update downloaded and extracted.',
+                    detail: 'The application will now restart to complete the update.',
+                    buttons: ['Restart and Update', 'Cancel']
+                }).then((result) => {
+                    if (result.response === 0) {
+                        // Create swap script
+                        const scriptPath = path.join(tempDir, 'swap.sh');
+                        const script = `#!/bin/bash
+sleep 1
+echo "Replacing app..."
+rm -rf "${currentAppPath}"
+mv "${newAppPath}" "${currentAppPath}"
+xattr -cr "${currentAppPath}"
+open "${currentAppPath}"
+`;
+                        fs.writeFileSync(scriptPath, script, { mode: 0o755 });
+                        
+                        // Run script detached
+                        const child = require('child_process').spawn('/bin/bash', [scriptPath], {
+                            detached: true,
+                            stdio: 'ignore'
+                        });
+                        child.unref();
+                        app.quit();
+                    }
+                });
+            });
+        });
+    });
+
+    request.on('error', (err) => {
+        fs.unlink(downloadPath, () => {});
+        sendStatusToWindow(`Download error: ${err.message}`);
+    });
+
+    file.on('error', (err) => {
+        fs.unlink(downloadPath, () => {});
+        sendStatusToWindow(`File write error: ${err.message}`);
+    });
+}
+
+function downloadMacOSUpdate(win: BrowserWindow, url: string, filename: string) {
+    const downloadPath = path.join(app.getPath('downloads'), filename);
+    sendStatusToWindow(`Starting download to ${downloadPath}...`);
+    
+    const file = fs.createWriteStream(downloadPath);
+    const request = https.get(url, {
+        headers: {
+            'User-Agent': 'LILYGO-Spark-Updater'
+        }
+    }, (response) => {
+        if (response.statusCode === 302 || response.statusCode === 301) {
+            // Handle redirect
+            if (response.headers.location) {
+                downloadMacOSUpdate(win, response.headers.location, filename);
+            }
+            return;
+        }
+
+        if (response.statusCode !== 200) {
+            sendStatusToWindow(`Download failed: HTTP ${response.statusCode}`);
+            return;
+        }
+
+        const len = parseInt(response.headers['content-length'] || '0', 10);
+        let cur = 0;
+        const total = len;
+
+        response.on('data', (chunk) => {
+            cur += chunk.length;
+            file.write(chunk);
+            
+            // Emit progress
+            if (total > 0) {
+                const percent = (cur / total) * 100;
+                // Throttle updates?
+                win.webContents.send('update-progress', {
+                    percent: percent,
+                    transferred: cur,
+                    total: total,
+                    bytesPerSecond: 0 // Not calculated for simplicity
+                });
+            }
+        });
+
+        response.on('end', () => {
+            file.end();
+            sendStatusToWindow('Download complete.');
+            dialog.showMessageBox(win, {
+                type: 'info',
+                title: 'Download Complete',
+                message: 'Update downloaded to your Downloads folder.',
+                detail: `File: ${filename}\n\nPlease open the DMG and drag the app to Applications folder to update.`,
+                buttons: ['Open DMG', 'Close']
+            }).then((result) => {
+                if (result.response === 0) {
+                    shell.openPath(downloadPath);
+                }
+            });
+        });
+    });
+
+    request.on('error', (err) => {
+        fs.unlink(downloadPath, () => {}); // Delete partial file
+        sendStatusToWindow(`Download error: ${err.message}`);
+    });
+
+    file.on('error', (err) => {
+        fs.unlink(downloadPath, () => {}); // Delete partial file
+        sendStatusToWindow(`File write error: ${err.message}`);
+    });
+}
+
 
 /**
  * Compare two SemVer strings.
