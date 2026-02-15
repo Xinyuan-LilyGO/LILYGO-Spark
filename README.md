@@ -6,6 +6,27 @@ A cross-platform firmware hub and burner for LILYGO and other ESP devices.
 
 ## English
 
+### Release & Update Strategy
+
+The project uses a dual-channel update strategy managed by GitHub Actions.
+
+#### 1. Stable Release
+*   **Trigger**: Push a git tag starting with `v` (e.g., `v0.1.0`).
+*   **Process**:
+    *   GitHub Actions builds the app.
+    *   Sets the package version to match the tag (e.g., `0.1.0`).
+    *   Creates a GitHub Release with the tag name.
+    *   Uploads artifacts (dmg, exe, AppImage, etc.).
+*   **Update Check**: Users on the default channel will receive this update.
+
+#### 2. Canary (Nightly) Release
+*   **Trigger**: Push to the `main` branch or manually trigger the `Build/release` workflow via GitHub Actions UI.
+*   **Process**:
+    *   GitHub Actions builds the app.
+    *   Generates a version number: `v{BaseVersion}-canary.{YYYYMMDD}.{HHMMSS}` (e.g., `v0.1.0-canary.20260215.120000`).
+    *   Creates a Pre-release on GitHub.
+*   **Update Check**: Users who enabled "Canary Channel" in Settings will receive this update.
+
 ### Configuration File `lilygo_config.json`
 
 The app relies on **`lilygo_config.json`** (committed to the repo) for API base URL, firmware manifest URL, and OSS domain. This file is bundled with the app when building.
@@ -88,6 +109,26 @@ For hackers and makers who enjoy a bit of fun:
 ---
 
 ## 中文
+
+### 版本发布与更新策略
+
+本项目采用 GitHub Actions 管理的双通道更新策略。
+
+#### 1. 正式版 (Stable Release)
+*   **触发方式**: 推送以 `v` 开头的 Git Tag（例如 `v0.1.0`）。
+*   **流程**:
+    *   GitHub Actions 自动构建应用。
+    *   将应用内部版本号修改为与 Tag 一致（如 `0.1.0`）。
+    *   创建 GitHub Release 并上传构建产物（dmg, exe, AppImage 等）。
+*   **更新检测**: 默认通道的用户会收到此更新推送。
+
+#### 2. 金丝雀版 (Canary Release)
+*   **触发方式**: 推送代码到 `main` 分支，或在 GitHub Actions 页面手动触发 `Build/release` 工作流。
+*   **流程**:
+    *   GitHub Actions 自动构建应用。
+    *   生成带时间戳的版本号：`v{基础版本}-canary.{年月日}.{时分秒}`（例如 `v0.1.0-canary.20260215.120000`）。
+    *   创建一个 Pre-release（预发布版本）。
+*   **更新检测**: 在设置中开启「Canary 更新频道」的用户会收到此更新推送。
 
 ### 配置文件 `lilygo_config.json`
 
