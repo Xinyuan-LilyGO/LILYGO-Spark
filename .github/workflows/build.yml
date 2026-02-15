@@ -34,7 +34,65 @@ jobs:
       - run: npm ci
       - run: npm run build:compile
 
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      tag_name: ${{ steps.tag.outputs.tag_name }}
+      release_name: ${{ steps.tag.outputs.release_name }}
+      is_prerelease: ${{ steps.tag.outputs.is_prerelease }}
+      tag_prefix: ${{ steps.tag.outputs.tag_prefix }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check if release needed
+        id: check
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          else
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate Tag Name
+        if: steps.check.outputs.should_release == 'true'
+        id: tag
+        run: |
+          TIME_STR=$(date -d "+8 hours" +'%Y%m%d-%H%M%S')
+          SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
+          
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "tag_prefix=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "tag_name=${{ github.ref_name }}-uploading" >> $GITHUB_OUTPUT
+            echo "release_name=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "tag_prefix=manual-${TIME_STR}-${SHA_SHORT}" >> $GITHUB_OUTPUT
+            echo "tag_name=manual-${TIME_STR}-${SHA_SHORT}-uploading" >> $GITHUB_OUTPUT
+            echo "release_name=Manual Build ${TIME_STR} (${SHA_SHORT})" >> $GITHUB_OUTPUT
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "tag_prefix=build-${TIME_STR}-${SHA_SHORT}" >> $GITHUB_OUTPUT
+            echo "tag_name=build-${TIME_STR}-${SHA_SHORT}-uploading" >> $GITHUB_OUTPUT
+            echo "release_name=Build ${TIME_STR} (${SHA_SHORT})" >> $GITHUB_OUTPUT
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        if: steps.check.outputs.should_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag_name }}
+          name: ${{ steps.tag.outputs.release_name }}
+          body: |
+            Automated build for commit ${{ github.sha }}
+            Triggered by: ${{ github.event_name }}
+          prerelease: ${{ steps.tag.outputs.is_prerelease }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build-mac:
+    needs: setup
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'mac' || inputs.target == 'all' }}
     runs-on: macos-latest
     strategy:
@@ -66,8 +124,17 @@ jobs:
         with:
           name: macOS-artifacts-${{ matrix.arch }}
           path: release/*.dmg
+      - name: Upload to Release
+        if: needs.setup.outputs.should_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.setup.outputs.tag_name }}
+          files: release/*.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-win:
+    needs: setup
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'win' || inputs.target == 'all' }}
     runs-on: windows-latest
     strategy:
@@ -101,8 +168,17 @@ jobs:
         with:
           name: Windows-artifacts-${{ matrix.arch }}-${{ matrix.target }}
           path: release/*.exe
+      - name: Upload to Release
+        if: needs.setup.outputs.should_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.setup.outputs.tag_name }}
+          files: release/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-linux:
+    needs: setup
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'linux' || inputs.target == 'all' }}
     runs-on: ubuntu-latest
     strategy:
@@ -140,69 +216,31 @@ jobs:
             release/*.AppImage
             release/*.deb
             release/*.rpm
-
-  release:
-    needs: [build-mac, build-win, build-linux]
-    if: ${{ github.event_name != 'pull_request' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: dist/
-          merge-multiple: true
-
-      - name: Prepare files
-        run: |
-          mkdir -p upload
-          find dist/ -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" \) -exec cp {} upload/ \;
-          ls -lh upload/
-
-      - name: Generate Tag Name
-        id: tag
-        run: |
-          TIME_STR=$(date -d "+8 hours" +'%Y%m%d-%H%M%S')
-          SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
-          
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            echo "tag_name=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-            echo "release_name=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-            echo "is_prerelease=false" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "tag_prefix=manual-${TIME_STR}-${SHA_SHORT}" >> $GITHUB_OUTPUT
-            echo "release_name=Manual Build ${TIME_STR} (${SHA_SHORT})" >> $GITHUB_OUTPUT
-            echo "is_prerelease=true" >> $GITHUB_OUTPUT
-          else
-            echo "tag_prefix=build-${TIME_STR}-${SHA_SHORT}" >> $GITHUB_OUTPUT
-            echo "release_name=Build ${TIME_STR} (${SHA_SHORT})" >> $GITHUB_OUTPUT
-            echo "is_prerelease=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Create Release
-        id: create_release
+      - name: Upload to Release
+        if: needs.setup.outputs.should_release == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          # 先用临时 tag 创建，成功后再改名
-          tag_name: ${{ steps.tag.outputs.tag_prefix || steps.tag.outputs.tag_name }}-uploading
-          name: ${{ steps.tag.outputs.release_name }}
-          body: |
-            Automated build for commit ${{ github.sha }}
-            Triggered by: ${{ github.event_name }}
-          prerelease: ${{ steps.tag.outputs.is_prerelease }}
-          files: upload/*
-          generate_release_notes: true
+          tag_name: ${{ needs.setup.outputs.tag_name }}
+          files: |
+            release/*.AppImage
+            release/*.deb
+            release/*.rpm
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  finalize:
+    needs: [setup, build-mac, build-win, build-linux]
+    if: needs.setup.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
       - name: Finalize Tag (Success)
         if: success() && github.ref != 'refs/tags/v*'
         run: |
-          OLD_TAG="${{ steps.tag.outputs.tag_prefix }}-uploading"
-          NEW_TAG="${{ steps.tag.outputs.tag_prefix }}-ok"
-          # 使用 API 修改 release 的 tag
+          OLD_TAG="${{ needs.setup.outputs.tag_name }}"
+          NEW_TAG="${{ needs.setup.outputs.tag_prefix }}-ok"
           gh release edit "$OLD_TAG" --tag "$NEW_TAG"
-          # 删除旧 tag
           git push origin ":refs/tags/$OLD_TAG"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -210,8 +248,8 @@ jobs:
       - name: Finalize Tag (Failure)
         if: failure() && github.ref != 'refs/tags/v*'
         run: |
-          OLD_TAG="${{ steps.tag.outputs.tag_prefix }}-uploading"
-          NEW_TAG="${{ steps.tag.outputs.tag_prefix }}-failed"
+          OLD_TAG="${{ needs.setup.outputs.tag_name }}"
+          NEW_TAG="${{ needs.setup.outputs.tag_prefix }}-failed"
           gh release edit "$OLD_TAG" --tag "$NEW_TAG"
           git push origin ":refs/tags/$OLD_TAG"
         env:
