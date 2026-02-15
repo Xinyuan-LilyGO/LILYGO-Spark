@@ -163,12 +163,7 @@
       "artifactName": "LILYGO-Spark-${version}-macOS-${arch}.${ext}",
       "target": [
         {
-          "target": "dmg",
-          "arch": [
-            "x64",
-            "arm64",
-            "universal"
-          ]
+          "target": "dmg"
         }
       ]
     },
