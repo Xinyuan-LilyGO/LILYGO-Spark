@@ -272,7 +272,8 @@ async function flashFirmwareWithEsptool(
     baudRate: number, 
     filePath: string, 
     offset: string, 
-    logToUI: (msg: string) => void
+    logToUI: (msg: string) => void,
+    onProgress?: (percent: number) => void
 ): Promise<boolean> {
     let esptoolName = '';
     let platformDir = '';
@@ -334,9 +335,21 @@ async function flashFirmwareWithEsptool(
 
         child.stdout?.on('data', (data) => {
             // Stream output to UI
-            const lines = data.toString().split('\n');
+            const output = data.toString();
+            const lines = output.split('\n');
             for (const line of lines) {
                 if (line.trim()) logToUI(line.trim());
+                
+                // Parse progress from output like "Writing at 0x0000e000... (100 %)"
+                if (onProgress) {
+                    const match = line.match(/\((\d+)\s*%\)/);
+                    if (match) {
+                        const percent = parseInt(match[1], 10);
+                        if (!isNaN(percent)) {
+                            onProgress(percent);
+                        }
+                    }
+                }
             }
         });
 
@@ -556,7 +569,10 @@ export async function handleFlashFirmwareNative(
     }
 
     logToUI(`Starting native flash on ${portPath} @ ${baudRate}...`);
-    const success = await flashFirmwareWithEsptool(portPath, baudRate, filePath, offset, logToUI);
+    const onProgress = (percent: number) => {
+        webContents.send('flash-progress', { percent });
+    };
+    const success = await flashFirmwareWithEsptool(portPath, baudRate, filePath, offset, logToUI, onProgress);
     return success;
 }
 

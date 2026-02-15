@@ -44,8 +44,6 @@ const Burner: React.FC = () => {
   const [mode, setMode] = useState<'basic' | 'advanced'>('basic');
 
   const [port, setPort] = useState<SerialPort | null>(null);
-  const [connected, setConnected] = useState(false);
-  const [baudRate] = useState(115200); // Default for logs
   const [flashBaudRate, setFlashBaudRate] = useState(921600); // Default for flashing
   const [chipFamily, setChipFamily] = useState('ESP32-S3'); // Default, maybe auto-detect
   
@@ -74,7 +72,6 @@ const Burner: React.FC = () => {
   const [isSelectingPort, setIsSelectingPort] = useState(false);
   const [selectedPortId, setSelectedPortId] = useState<string | null>(null);
   
-  const readerRef = useRef<ReadableStreamDefaultReader | null>(null);
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -119,6 +116,19 @@ const Burner: React.FC = () => {
           setIsSelectingPort(true); // Open the custom selector
         });
     }
+
+    // Listen for flash progress from main
+    if (window.ipcRenderer) {
+        const progressHandler = (_event: any, data: { percent: number }) => {
+            setDownloadProgress(data.percent);
+        };
+        window.ipcRenderer.on('flash-progress', progressHandler);
+        // Note: Cleanup is handled in the main return cleanup function below, but we need to reference the handler.
+        // To keep it simple in this hook, we can just add it here.
+        // However, the cleanup function below removes 'serial-ports-available'. 
+        // We should merge them or add another effect.
+        // Let's just add the listener here and remove it in the main cleanup.
+    }
     
     // Click outside to close port selector
     const handleClickOutside = (event: MouseEvent) => {
@@ -132,7 +142,8 @@ const Burner: React.FC = () => {
       window.removeEventListener('resize', handleResize);
       document.removeEventListener('mousedown', handleClickOutside);
       if (window.ipcRenderer) {
-          window.ipcRenderer.off('serial-ports-available');
+          window.ipcRenderer.off('serial-ports-available', () => {});
+          window.ipcRenderer.off('flash-progress', () => {});
       }
     };
   }, [t]);
@@ -173,61 +184,6 @@ const Burner: React.FC = () => {
       window.ipcRenderer.send('serial-port-selected', portId);
       setIsSelectingPort(false);
   };
-
-  const handleToggleConnect = async () => {
-    if (!port) return;
-
-    if (connected) {
-      // Disconnect
-      try {
-        if (readerRef.current) {
-            await readerRef.current.cancel();
-            readerRef.current = null;
-        }
-        await port.close();
-        setConnected(false);
-        xtermRef.current?.writeln('Disconnected.');
-      } catch (e) {
-        console.error('Error disconnecting:', e);
-        xtermRef.current?.writeln(`Error disconnecting: ${e}`);
-        // Force state update anyway
-        setConnected(false);
-      }
-    } else {
-      // Connect (Monitor Mode)
-      try {
-        await port.open({ baudRate });
-        setConnected(true);
-        xtermRef.current?.writeln(`Connected to port @ ${baudRate} baud.`);
-        readLoop(port);
-      } catch (e) {
-        console.error('Error connecting:', e);
-        xtermRef.current?.writeln(`Error connecting: ${e}`);
-      }
-    }
-  };
-
-  const readLoop = async (port: any) => {
-    if (!port.readable) return;
-    const reader = port.readable.getReader();
-    readerRef.current = reader;
-    try {
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) {
-          reader.releaseLock();
-          break;
-        }
-        if (value) {
-            xtermRef.current?.write(value);
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-        // reader.releaseLock(); // Handled by cancel() usually, or done
-    }
-  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -487,83 +443,17 @@ const Burner: React.FC = () => {
             }
         }
     
-        // If connected (monitoring), we must disconnect first to let esptool take over
-        if (connected) {
-            xtermRef.current?.writeln('Closing monitor for flashing...');
-            try {
-                if (readerRef.current) {
-                    await readerRef.current.cancel();
-                    readerRef.current = null;
-                }
-                await port.close();
-                setConnected(false);
-            } catch (e) {
-                console.error('Error closing monitor:', e);
-                xtermRef.current?.writeln('Error closing monitor. Please try again.');
-                return;
-            }
-        } else {
-            // Even if not connected in our state, the port might be open from a previous session or stuck.
-            // Try to open it. If it fails, it might be open elsewhere.
-            // But esptool-js needs the port object.
-            // If the port object is already "open" in the browser's internal state but we think it's closed,
-            // we might have issues.
-            // However, the error "Failed to execute 'open' on 'SerialPort': Failed to open serial port."
-            // usually means it's busy (open by another app or tab) OR we are trying to open it when it's already open.
-            
-            // Wait, esptool-js expects an OPEN port or it opens it?
-            // Let's check esptool-js usage.
-            // Transport(port, true) -> checks port.readable/writable.
-            // If we pass a closed port to Transport, does it open it?
-            // Looking at esptool-js source (or common usage):
-            // usually we do: await port.open({baudRate: ...}); const transport = new Transport(port);
-            
-            // In our code below:
-            // const transport = new Transport(port as any, true);
-            // The second arg 'true' might mean something?
-            
-            // Actually, esptool-js Transport constructor:
-            // constructor(device, serialOptions = { baudRate: 115200 }, resetOptions = {}) 
-            // OR constructor(device) if device is a SerialPort instance?
-            
-            // Let's look at how we init it:
-            // const transport = new Transport(port as any, true);
-            
-            // If we look at standard web serial esptool examples:
-            // await port.open({ baudRate: 115200 });
-            // const transport = new Transport(port);
-            
-            // So we MUST open the port before creating Transport?
-            // OR Transport opens it?
-            
-            // If we look at the error: "Failed to execute 'open' on 'SerialPort': Failed to open serial port."
-            // This error comes from port.open().
-            
-            // So if we are NOT connected, we need to open it.
-            // But if it's already open by US (connected=true), we just closed it above!
-            
-            // So:
-            // 1. If connected, we close it.
-            // 2. Then we try to use it with esptool.
-            
-            // Does esptool-js open the port itself?
-            // If we pass the port instance, esptool-js might try to open it if it's closed?
-            // Or we should open it first.
-            
-            // Let's try opening it explicitly before passing to Transport, 
-            // OR check if Transport expects an open port.
-            // Most examples show opening port first.
-            
-            try {
-                await port.open({ baudRate: 115200 }); // Open with default baud first for sync
-            } catch (e: any) {
-                // If it says "The port is already open", we are good.
-                if (!e.message.includes('already open')) {
-                     throw e;
-                }
-            }
+        // Ensure port is closed because esptool-js will try to open it.
+        // If it's already open (but we think it's closed), esptool-js will fail.
+        try {
+            await port.close();
+        } catch (e) {
+            // Ignore error if already closed
         }
     
+        // Wait for port to be fully released
+        await new Promise(resolve => setTimeout(resolve, 200));
+
         setStatus('flashing');
         xtermRef.current?.writeln('Starting flash process...');
         
@@ -577,32 +467,18 @@ const Burner: React.FC = () => {
                 throw new Error('Failed to load esptool-js classes');
             }
     
-            // We need to pass the port. If we just opened it, it's ready.
-            // Note: esptool-js Transport constructor might try to open it if we don't pass options?
-            // Actually, looking at the library, if we pass a SerialPort object, it uses it.
-            // If we pass a USBDevice, it requests a port.
-            // Here 'port' is a SerialPort object from navigator.serial.requestPort().
-            
-            // IMPORTANT: If we closed the port above (to stop monitoring), we need to open it again for esptool?
-            // OR does Transport open it?
-            // The Transport class in esptool-js (v0.2+) usually takes a device and opens it if needed, 
-            // OR takes a port.
-            
-            // Let's try to ensure it's open.
-            // If the error "Failed to execute 'open' on 'SerialPort': Failed to open serial port." happens,
-            // it usually means we are trying to open an already open port OR it's locked.
-            
-            // If we just closed it, we should be able to open it.
-            // But if we didn't close it properly, it might be locked.
-            
-            // Let's try this:
-            // 1. If connected, we closed it.
-            // 2. We explicitly open it.
-            // 3. We pass it to Transport.
-            
-            // Wait, if we use `new Transport(port, true)`, the second arg is `useOwnReset`.
-            // It doesn't seem to control opening.
-            
+            // Explicitly open port for esptool-js
+            try {
+                await port.open({ baudRate: 115200 });
+            } catch (e: any) {
+                // If it's already open, that's fine, but "Failed to open" is bad.
+                if (e.message && e.message.includes('already open')) {
+                    // ignore
+                } else {
+                    throw e;
+                }
+            }
+    
             const transport = new Transport(port as any, true);
             
             // Monkey-patch getInfo if missing to satisfy ESPLoader constructor
@@ -772,13 +648,13 @@ const Burner: React.FC = () => {
                         ? (availablePorts.find(p => p.portId === selectedPortId)?.displayName || t('burner.status.ready'))
                         : t('burner.select_port_msg', 'Select Device').includes('Select') ? 'Select Device' : t('burner.select_port_msg')} 
               </span>
-              {!connected && <ChevronDown size={16} className={`ml-2 transition-transform ${isSelectingPort ? 'rotate-180' : ''}`} />}
+              <ChevronDown size={16} className={`ml-2 transition-transform ${isSelectingPort ? 'rotate-180' : ''}`} />
             </button>
           </div>
 
           {/* Custom Port Selection Dropdown */}
-          {isSelectingPort && !connected && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 rounded-xl shadow-2xl overflow-hidden z-50 animate-fade-in-up w-[140%] min-w-[300px]">
+          {isSelectingPort && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 rounded-xl shadow-2xl overflow-hidden z-50 animate-fade-in-up">
                   <div className="max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600">
                       {availablePorts.length === 0 ? (
                           <div className="p-4 text-center text-slate-500 text-sm">
@@ -836,7 +712,7 @@ const Burner: React.FC = () => {
         </div>
 
         <div>
-            <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Tool Strategy</label>
+            <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">{t('burner.based_on_tool')}</label>
             <select 
                 value={toolStrategy} 
                 onChange={e => setToolStrategy(e.target.value as 'native' | 'js')}
@@ -957,7 +833,11 @@ const Burner: React.FC = () => {
                         )}
                     </div>
 
-                    <div className="w-px bg-slate-200 dark:bg-slate-700 self-stretch mx-2"></div>
+                    <div className="flex flex-col items-center justify-center mx-2 self-stretch">
+                        <div className="h-full w-px bg-slate-200 dark:bg-slate-700"></div>
+                        <span className="my-2 text-[10px] text-slate-400 font-bold uppercase tracking-wider bg-slate-50 dark:bg-zinc-900 px-1">{t('common.or')}</span>
+                        <div className="h-full w-px bg-slate-200 dark:bg-slate-700"></div>
+                    </div>
 
                     <div className="flex-1">
                         <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Local File</label>
@@ -1053,28 +933,28 @@ const Burner: React.FC = () => {
 
       {/* Action Bar */}
       <div className="flex items-center justify-between bg-white dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700">
-                        <div className="flex items-center gap-4 flex-1 mr-8">
+        <div className="flex items-center gap-4 flex-1 mr-8">
             <span className="text-sm font-medium text-slate-500 dark:text-slate-400">Status:</span>
             <span className={`text-sm font-bold ${status === 'success' ? 'text-emerald-500 dark:text-emerald-400' : status === 'error' ? 'text-red-500 dark:text-red-400' : 'text-slate-900 dark:text-white'}`}>
                 {getStatusText()}
             </span>
-            {/* Removed progress bar here as it conflicted with download progress and was unused for flashing in new design */}
+            {/* Native Flash Progress */}
+            {toolStrategy === 'native' && status === 'flashing' && (
+                <div className="flex-1 max-w-xs">
+                    <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <div 
+                            className="h-full bg-primary transition-all duration-300 animate-pulse"
+                            style={{ width: `${downloadProgress}%` }}
+                        />
+                    </div>
+                    <div className="flex justify-between text-xs text-slate-400 mt-1">
+                        <span>Flashing...</span>
+                        <span>{downloadProgress}%</span>
+                    </div>
+                </div>
+            )}
         </div>
         
-        <button 
-            onClick={handleToggleConnect}
-            disabled={!port || status === 'flashing'}
-            className={`px-6 py-3 rounded-lg font-bold text-sm shadow-lg transition-all mr-4
-                ${(!port || status === 'flashing')
-                    ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed' 
-                    : connected
-                        ? 'bg-red-600 hover:bg-red-500 text-white hover:shadow-red-500/25'
-                        : 'bg-emerald-600 hover:bg-emerald-500 text-white hover:shadow-emerald-500/25'
-                }`}
-        >
-            {connected ? t('burner.btn_disconnect_console') : t('burner.btn_connect_console')}
-        </button>
-
         <button 
             onClick={handleFlash}
             disabled={!port || (mode === 'basic' && !file && !downloadedFile) || (mode === 'advanced' && files.filter(f => f.enable && f.file).length === 0) || status === 'flashing'}

@@ -1,5 +1,6 @@
 {
   "common": {
+    "or": "或",
     "drop_hint": "释放以上传",
     "drop_image": "释放图片以转换",
     "drop_firmware": "释放固件以分析",
@@ -240,6 +241,7 @@
     "mode_basic": "基础模式",
     "mode_advanced": "专业模式",
     "select_port_msg": "选择串口",
+    "based_on_tool": "基于工具",
     "label_port": "端口",
     "label_chip": "芯片系列",
     "label_baud": "波特率 (上传)",

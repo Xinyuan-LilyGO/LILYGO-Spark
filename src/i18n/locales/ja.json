@@ -1,5 +1,6 @@
 {
-  "common": {
+    "common": {
+        "or": "または",
     "drop_hint": "離してアップロード",
     "drop_image": "離して画像を変換",
     "drop_firmware": "離してファームウェアを分析",
@@ -240,6 +241,7 @@
     "mode_basic": "基本モード",
     "mode_advanced": "専門モード",
     "select_port_msg": "シリアルポートを選択",
+    "based_on_tool": "ツール戦略",
     "label_port": "ポート",
     "label_chip": "チップファミリー",
     "label_baud": "ボーレート (書き込み)",

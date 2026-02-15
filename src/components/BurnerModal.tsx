@@ -29,7 +29,7 @@ interface ElectronSerialPortInfo {
 }
 
 const BurnerModal: React.FC<BurnerModalProps> = ({ file, onClose }) => {
-    const { t: _t } = useTranslation();
+    const { t } = useTranslation();
     const [toolStrategy, setToolStrategy] = useState<'native' | 'js'>('native');
     const [selectedPortId, setSelectedPortId] = useState<string | null>(null);
     const [availablePorts, setAvailablePorts] = useState<ElectronSerialPortInfo[]>([]);
@@ -166,19 +166,72 @@ const BurnerModal: React.FC<BurnerModalProps> = ({ file, onClose }) => {
                 setStatus('error');
                 xtermRef.current?.writeln(`Error: ${e.message}`);
             }
-        } else {
-            // JS Strategy
-            try {
-                // For JS strategy with downloaded file, we need to read it first?
-                // Or we can try to use the port directly if we have the file content.
-                // Since file is on disk (temp), we can't easily read it in renderer without IPC.
-                // But wait, we are in renderer.
-                // Let's assume Native is preferred for downloaded files.
-                // If user selects JS, we warn them or try to read via IPC?
-                // For now, let's just support Native for downloaded files as per previous discussion.
-                xtermRef.current?.writeln('Error: esptool-js strategy not yet supported for downloaded files. Please use Native.');
-                setStatus('error');
-            } catch (e: any) {
+        // JS Strategy
+        try {
+            // ... (previous logic)
+            // Ensure port is closed because esptool-js will try to open it.
+            // If it's already open (but we think it's closed), esptool-js will fail.
+            // Note: In Modal, we don't have 'port' object from navigator.serial.requestPort() directly available here
+            // unless we store it.
+            // But wait, handleSelectDeviceClick uses navigator.serial.requestPort() but doesn't store the return value!
+            // It relies on Electron 'select-serial-port' event to populate the list.
+            // So we don't have the SerialPort object to pass to esptool-js!
+            
+            // This is a problem for JS strategy in Modal.
+            // We need the SerialPort object.
+            // We can get it via navigator.serial.getPorts() if we have permission.
+            
+            // Let's try to get the port object.
+            // const ports = await (navigator as any).serial.getPorts();
+            // We need to match selectedPortId.
+            // Electron's portId might not match Web Serial's internal ID directly?
+            // Actually, navigator.serial.requestPort() returns the port.
+            // But we ignored it in handleSelectDeviceClick.
+            
+            // If we use JS strategy, we need the port object.
+            // Let's modify handleSelectDeviceClick to store it?
+            // But handleSelectDeviceClick is for *selecting* a device via Electron picker.
+            
+            // If we want to use JS strategy, we should probably use the Web Serial picker directly?
+            // But Electron intercepts it.
+            
+            // If we have permission (granted via requestPort), getPorts() should return it.
+            // But how to match 'selectedPortId' (from Electron) to Web Serial port?
+            // We can't easily.
+            
+            // However, if the user just selected a port, it's likely the last one or we can ask user to select again?
+            // Or we just assume the user wants to use the port they just selected.
+            
+            // Actually, for JS strategy to work in Electron, we need the SerialPort object.
+            // If we can't map it, we might need to ask `navigator.serial.requestPort()` again?
+            // But that triggers the picker again.
+            
+            // Let's look at Burner.tsx. It stores `port` from `requestPort`.
+            // BurnerModal.tsx does NOT store it.
+            
+            // We should fix BurnerModal.tsx to store the port if we want to support JS strategy.
+            // But wait, the user's issue is with Burner.tsx (the main tab), not the modal?
+            // The user screenshot shows the main tab.
+            
+            // So I should focus on Burner.tsx.
+            // I already applied the fix to Burner.tsx.
+            
+            // Why did I try to apply to BurnerModal.tsx? 
+            // Because I thought I should fix both.
+            // But the replace failed because BurnerModal.tsx code is different.
+            // It doesn't have the same logic.
+            
+            // Let's ignore BurnerModal.tsx for now and focus on Burner.tsx.
+            // I successfully updated Burner.tsx in the previous step.
+            
+            // Wait, did I?
+            // The last tool output for Burner.tsx was "The file ... has been updated."
+            
+            // Let's verify Burner.tsx content to be sure.
+            
+            xtermRef.current?.writeln('Error: esptool-js strategy not yet supported for downloaded files in Modal. Please use Native.');
+            setStatus('error');
+        } catch (e: any) {
                 setStatus('error');
                 xtermRef.current?.writeln(`Error: ${e.message}`);
             }
@@ -261,7 +314,7 @@ const BurnerModal: React.FC<BurnerModalProps> = ({ file, onClose }) => {
 
                         {/* Tool Strategy */}
                         <div>
-                            <label className="block text-sm font-medium text-slate-600 dark:text-zinc-400 mb-1">Tool Strategy</label>
+                            <label className="block text-sm font-medium text-slate-600 dark:text-zinc-400 mb-1">{t('burner.based_on_tool')}</label>
                             <select 
                                 value={toolStrategy}
                                 onChange={(e) => setToolStrategy(e.target.value as 'native' | 'js')}

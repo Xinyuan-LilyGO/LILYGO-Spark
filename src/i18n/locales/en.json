@@ -1,5 +1,6 @@
 {
     "common": {
+        "or": "OR",
         "drop_hint": "Release to upload",
         "drop_image": "Release image to convert",
         "drop_firmware": "Release firmware to analyze",
@@ -240,6 +241,7 @@
         "mode_basic": "Basic Mode",
         "mode_advanced": "Hacker Mode",
         "select_port_msg": "Serial port",
+        "based_on_tool": "Based on Tool",
         "label_port": "Port",
         "label_chip": "Chip Family",
         "label_baud": "Baud Rate (Upload)",
