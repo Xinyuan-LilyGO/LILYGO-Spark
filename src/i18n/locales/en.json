@@ -229,6 +229,8 @@
         "firmware_manifest_select": "Select File",
         "firmware_manifest_clear": "Clear",
         "firmware_manifest_active": "Using custom manifest. Firmware Center will load from this file.",
+        "developer_mode": "Developer Mode",
+        "developer_mode_hint": "Enable advanced features and DevTools in application menu.",
         "easter_eggs": "Easter Eggs & Effects",
         "easter_eggs_konami": "Enter Konami code anywhere → \"ACCESS GRANTED\" overlay",
         "easter_eggs_flash": "Flash Success",

@@ -229,6 +229,8 @@
     "firmware_manifest_select": "選擇文件",
     "firmware_manifest_clear": "清除",
     "firmware_manifest_active": "已使用自定義清單，固件中心將從該文件加載。",
+    "developer_mode": "開發者模式",
+    "developer_mode_hint": "啟用後將在應用選單中顯示開發者工具 (DevTools) 等調試選項。",
     "easter_eggs": "彩蛋與特效",
     "easter_eggs_konami": "任意位置輸入 Konami 碼，顯示「ACCESS GRANTED」",
     "easter_eggs_flash": "燒錄成功",

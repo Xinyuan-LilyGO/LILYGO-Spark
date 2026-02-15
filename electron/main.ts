@@ -160,6 +160,99 @@ process.on('uncaughtException', (error) => {
 // │ └─ preload.js
 //
 
+// ...
+// Function to setup application menu
+function setupApplicationMenu(isDev: boolean, publicPath: string) {
+  if (process.platform !== 'darwin') {
+    Menu.setApplicationMenu(null);
+    return;
+  }
+
+  // Check developer mode from settings
+  let developerMode = false;
+  try {
+    const userDataPath = app.getPath('userData');
+    const storePath = path.join(userDataPath, 'lilygo_spark_settings.json');
+    const fs = require('fs');
+    if (fs.existsSync(storePath)) {
+      const data = JSON.parse(fs.readFileSync(storePath, 'utf-8'));
+      developerMode = !!data?.developer_mode;
+    }
+  } catch (e) {
+    console.warn('Failed to read developer mode for menu:', e);
+  }
+
+  const showDevTools = isDev || developerMode;
+
+  const template: any[] = [
+    {
+      label: app.name,
+      submenu: [
+        ...(isDev
+          ? [{ label: `About ${app.name}`, click: () => { if (win && !win.isDestroyed()) showAboutWindow(win, publicPath) } }]
+          : [{ role: 'about' as const }]),
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' }
+      ]
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'pasteAndMatchStyle' },
+        { role: 'delete' },
+        { role: 'selectAll' },
+        { type: 'separator' },
+        {
+          label: 'Speech',
+          submenu: [
+            { role: 'startSpeaking' },
+            { role: 'stopSpeaking' }
+          ]
+        }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        ...(showDevTools ? [{ role: 'toggleDevTools' as const }] : []),
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' }
+      ]
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'zoom' },
+        { type: 'separator' },
+        { role: 'front' },
+        { type: 'separator' },
+        { role: 'window' }
+      ]
+    }
+  ]
+  const menu = Menu.buildFromTemplate(template)
+  Menu.setApplicationMenu(menu)
+}
+
 function createWindow() {
   // Electron official way to detect dev vs production
   // app.isPackaged is the recommended way (not env vars)
@@ -189,79 +282,8 @@ function createWindow() {
     }
   }
 
-  // Create custom menu to hide DevTools while keeping other functionality
-  if (process.platform === 'darwin') {
-    const template: any[] = [
-      {
-        label: app.name,
-        submenu: [
-          ...(isDev
-            ? [{ label: `About ${app.name}`, click: () => { if (win && !win.isDestroyed()) showAboutWindow(win, publicPath) } }]
-            : [{ role: 'about' as const }]),
-          { type: 'separator' },
-          { role: 'services' },
-          { type: 'separator' },
-          { role: 'hide' },
-          { role: 'hideOthers' },
-          { role: 'unhide' },
-          { type: 'separator' },
-          { role: 'quit' }
-        ]
-      },
-      {
-        label: 'Edit',
-        submenu: [
-          { role: 'undo' },
-          { role: 'redo' },
-          { type: 'separator' },
-          { role: 'cut' },
-          { role: 'copy' },
-          { role: 'paste' },
-          { role: 'pasteAndMatchStyle' },
-          { role: 'delete' },
-          { role: 'selectAll' },
-          { type: 'separator' },
-          {
-            label: 'Speech',
-            submenu: [
-              { role: 'startSpeaking' },
-              { role: 'stopSpeaking' }
-            ]
-          }
-        ]
-      },
-      {
-        label: 'View',
-        submenu: [
-          { role: 'reload' },
-          { role: 'forceReload' },
-          ...(isDev ? [{ role: 'toggleDevTools' as const }] : []),
-          { type: 'separator' },
-          { role: 'resetZoom' },
-          { role: 'zoomIn' },
-          { role: 'zoomOut' },
-          { type: 'separator' },
-          { role: 'togglefullscreen' }
-        ]
-      },
-      {
-        label: 'Window',
-        submenu: [
-          { role: 'minimize' },
-          { role: 'zoom' },
-          { type: 'separator' },
-          { role: 'front' },
-          { type: 'separator' },
-          { role: 'window' }
-        ]
-      }
-    ]
-    const menu = Menu.buildFromTemplate(template)
-    Menu.setApplicationMenu(menu)
-  } else {
-    // For Windows and Linux, remove the menu entirely
-    Menu.setApplicationMenu(null)
-  }
+  // Setup Menu
+  setupApplicationMenu(isDev, publicPath);
 
   win = new BrowserWindow({
     width: 1200,
@@ -359,7 +381,10 @@ function createWindow() {
   checkBluetoothPermission(win);
 
   try {
-    setupConfigHandler(win);
+    setupConfigHandler(win, () => {
+      // Rebuild menu when settings change
+      setupApplicationMenu(isDev, publicPath);
+    });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     dialog.showErrorBox('读取配置文件错误', msg);

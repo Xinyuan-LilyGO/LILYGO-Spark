@@ -229,6 +229,8 @@
     "firmware_manifest_select": "ファイルを選択",
     "firmware_manifest_clear": "クリア",
     "firmware_manifest_active": "カスタムマニフェストを使用中。Firmware Center はこのファイルから読み込みます。",
+    "developer_mode": "開発者モード",
+    "developer_mode_hint": "有効にすると、アプリケーションメニューに開発者ツール (DevTools) などのデバッグオプションが表示されます。",
     "easter_eggs": "イースターエッグ＆エフェクト",
     "easter_eggs_konami": "どこでも Konami コード入力 → 「ACCESS GRANTED」表示",
     "easter_eggs_flash": "書き込み成功",

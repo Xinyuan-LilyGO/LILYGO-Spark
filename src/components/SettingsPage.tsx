@@ -32,10 +32,12 @@ const SettingsPage: React.FC = () => {
   const [advancedExpanded, setAdvancedExpanded] = React.useState(false);
   const [customManifestPath, setCustomManifestPath] = React.useState<string | null>(null);
   const [manifestLoading, setManifestLoading] = React.useState(false);
+  const [developerMode, setDeveloperMode] = React.useState(false);
 
   React.useEffect(() => {
     if (window.ipcRenderer) {
       window.ipcRenderer.invoke('get-custom-manifest-path').then((p: string | null) => setCustomManifestPath(p));
+      window.ipcRenderer.invoke('get-developer-mode').then((enabled: boolean) => setDeveloperMode(enabled));
     }
   }, []);
 
@@ -69,6 +71,13 @@ const SettingsPage: React.FC = () => {
       setCustomManifestPath(null);
     } finally {
       setManifestLoading(false);
+    }
+  };
+
+  const handleDeveloperModeChange = async (enabled: boolean) => {
+    setDeveloperMode(enabled);
+    if (window.ipcRenderer) {
+      await window.ipcRenderer.invoke('set-developer-mode', enabled);
     }
   };
 
@@ -324,6 +333,27 @@ const SettingsPage: React.FC = () => {
                   {customManifestPath && (
                     <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">{t('settings.firmware_manifest_active')}</p>
                   )}
+                </div>
+
+                <div className="pt-4 border-t border-slate-200 dark:border-zinc-700/50">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Zap className="text-primary" size={18} />
+                        <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">{t('settings.developer_mode')}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-zinc-400">{t('settings.developer_mode_hint')}</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={developerMode}
+                            onChange={(e) => handleDeveloperModeChange(e.target.checked)}
+                            className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-200 dark:bg-zinc-600 peer-focus:ring-2 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all after:border after:border-slate-300 dark:after:border-zinc-500 peer-checked:bg-primary"></div>
+                    </label>
+                  </div>
                 </div>
               </div>
             )}

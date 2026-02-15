@@ -135,6 +135,38 @@ async function tryFetchManifest(url: string, label: string): Promise<unknown | n
 }
 
 const CUSTOM_MANIFEST_STORAGE_KEY = 'custom_firmware_manifest_path';
+const DEVELOPER_MODE_STORAGE_KEY = 'developer_mode';
+
+function getDeveloperMode(): boolean {
+  const userDataPath = app.getPath('userData');
+  const storePath = path.join(userDataPath, 'lilygo_spark_settings.json');
+  try {
+    if (fs.existsSync(storePath)) {
+      const raw = fs.readFileSync(storePath, 'utf-8');
+      const data = JSON.parse(raw);
+      return !!data?.[DEVELOPER_MODE_STORAGE_KEY];
+    }
+  } catch (e) {
+    console.warn('[Config] 读取开发者模式失败:', e);
+  }
+  return false;
+}
+
+function setDeveloperMode(enabled: boolean): void {
+  const userDataPath = app.getPath('userData');
+  const storePath = path.join(userDataPath, 'lilygo_spark_settings.json');
+  try {
+    let data: Record<string, unknown> = {};
+    if (fs.existsSync(storePath)) {
+      data = JSON.parse(fs.readFileSync(storePath, 'utf-8')) || {};
+    }
+    data[DEVELOPER_MODE_STORAGE_KEY] = enabled;
+    fs.writeFileSync(storePath, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('[Config] 保存开发者模式失败:', e);
+    throw e;
+  }
+}
 
 function getCustomManifestPath(): string | null {
   const userDataPath = app.getPath('userData');
@@ -191,7 +223,7 @@ function getBundledManifestPath(): string {
   return path.join(app.getAppPath(), 'firmware_manifest.json');
 }
 
-export function setupConfigHandler(mainWindow?: BrowserWindow | null) {
+export function setupConfigHandler(mainWindow?: BrowserWindow | null, onSettingsChanged?: () => void) {
   // 1. 自定义路径（高级模式选择）> 2. 网络 > 3. 内置包内 manifest
   ipcMain.handle('get-firmware-manifest', async () => {
     const customPath = getCustomManifestPath();
@@ -247,6 +279,14 @@ export function setupConfigHandler(mainWindow?: BrowserWindow | null) {
   });
 
   ipcMain.handle('get-custom-manifest-path', async () => getCustomManifestPath());
+
+  ipcMain.handle('get-developer-mode', async () => getDeveloperMode());
+
+  ipcMain.handle('set-developer-mode', async (_event, enabled: boolean) => {
+    setDeveloperMode(enabled);
+    if (onSettingsChanged) onSettingsChanged();
+    return true;
+  });
 
   ipcMain.handle('select-firmware-manifest-file', async () => {
     if (!mainWindow) return null;
