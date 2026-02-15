@@ -152,6 +152,7 @@
     "select_firmware": "クリックしてファームウェア .bin を選択"
   },
   "resistor": {
+    "value_input": "抵抗値",
     "bands": "本",
     "band": "第",
     "band_num": "第{{n}}本",

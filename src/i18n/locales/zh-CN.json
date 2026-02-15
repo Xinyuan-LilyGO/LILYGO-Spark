@@ -154,6 +154,7 @@
   "resistor": {
     "bands": "环",
     "band": "第",
+    "value_input": "电阻值",
     "band_num": "第{{n}}环",
     "multiplier": "倍率",
     "tolerance": "误差",

@@ -152,6 +152,7 @@
     "select_firmware": "點擊選擇韌體 .bin"
   },
   "resistor": {
+    "value_input": "電阻值",
     "bands": "環",
     "band": "第",
     "band_num": "第{{n}}環",

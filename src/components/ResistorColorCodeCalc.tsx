@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CircleDot, Copy, Check } from 'lucide-react';
 
@@ -36,6 +36,81 @@ function formatOhms(v: number): string {
   return `${v.toFixed(2)} Ω`;
 }
 
+function isDarkColor(hex: string): boolean {
+  const m = hex.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+  if (!m) return false;
+  const r = parseInt(m[1], 16), g = parseInt(m[2], 16), b = parseInt(m[3], 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance < 0.5;
+}
+
+const UNIT_OPTIONS: { value: number; key: string }[] = [
+  { value: 1, key: 'Ω' },
+  { value: 1e3, key: 'kΩ' },
+  { value: 1e6, key: 'MΩ' },
+  { value: 1e9, key: 'GΩ' },
+];
+
+function digitToColorId(d: number): ColorId {
+  const found = (Object.entries(COLOR_MAP) as [ColorId, (typeof COLOR_MAP)[ColorId]][])
+    .find(([, v]) => v.digit === d);
+  return found ? found[0] : 'black';
+}
+
+function multToColorId(m: number): ColorId {
+  const found = (Object.entries(COLOR_MAP) as [ColorId, (typeof COLOR_MAP)[ColorId]][])
+    .find(([, v]) => v.mult === m);
+  return found ? found[0] : 'black';
+}
+
+/** Convert resistance (ohms) to color bands. Preserves tol/ppm from current bands. */
+function resistanceToBands(
+  valueOhms: number,
+  bandCount: BandCount,
+  currentBands: ColorId[]
+): ColorId[] | null {
+  if (valueOhms <= 0 || !isFinite(valueOhms)) return null;
+  const sigDigits = bandCount === 4 ? 2 : 3;
+  const exp = Math.floor(Math.log10(valueOhms));
+  let mantissa = valueOhms / Math.pow(10, exp);
+  if (mantissa >= 9.995) mantissa = 9.99;
+  let sig: number;
+  let multExp: number;
+  if (sigDigits === 3) {
+    const d1 = Math.floor(mantissa);
+    const d2 = Math.floor((mantissa - d1) * 10);
+    const d3 = Math.round(mantissa * 100) % 10;
+    sig = d1 * 100 + d2 * 10 + d3;
+    if (sig >= 1000) sig = 999;
+    multExp = exp - 2;
+  } else {
+    const d1 = Math.floor(mantissa);
+    const d2 = Math.round((mantissa - d1) * 10);
+    sig = Math.min(99, d1 * 10 + (d2 >= 10 ? 9 : d2));
+    if (sig < 10) sig = 10;
+    multExp = exp - 1;
+  }
+  const multValue = multExp >= 0 ? Math.pow(10, multExp) : (multExp === -1 ? 0.1 : 0.01);
+  if (multValue < 0.01 || multValue > 1e9) return null;
+  const multColor = multToColorId(multValue);
+  const digits: number[] = [];
+  let s = sig;
+  for (let i = 0; i < sigDigits; i++) {
+    digits.unshift(s % 10);
+    s = Math.floor(s / 10);
+  }
+  const tolIdx = bandCount === 4 ? 3 : 4;
+  const tol = currentBands[tolIdx] && TOLERANCE_COLORS.includes(currentBands[tolIdx])
+    ? currentBands[tolIdx]
+    : (bandCount === 4 ? 'gold' : 'brown');
+  const result: ColorId[] = [...digits.map((d) => digitToColorId(d)), multColor, tol];
+  if (bandCount === 6) {
+    const ppm = currentBands[5] && PPM_COLORS.includes(currentBands[5]) ? currentBands[5] : 'brown';
+    result.push(ppm);
+  }
+  return result;
+}
+
 function formatMult(m: number): string {
   if (m >= 1e9) return 'x1G';
   if (m >= 1e6) return 'x1M';
@@ -69,12 +144,12 @@ const ResistorColorCodeCalc: React.FC = () => {
     else setBands(DEFAULT_6);
   }, [bandCount]);
 
-  const { valueOhms, tolerance, ppm, labels, bandColorLabels, resultText } = useMemo(() => {
+  const { valueOhms, tolerance, ppm, labels, resultText } = useMemo(() => {
     const sigDigits = bandCount === 4 ? 2 : 3;
     let sig = 0;
     for (let i = 0; i < sigDigits; i++) {
       const d = COLOR_MAP[bands[i]]?.digit;
-      if (d === undefined) return { valueOhms: 0, tolerance: 0, ppm: 0, labels: [], bandColorLabels: [], resultText: '' };
+      if (d === undefined) return { valueOhms: 0, tolerance: 0, ppm: 0, labels: [], resultText: '' };
       sig = sig * 10 + d;
     }
     const multIdx = bandCount === 4 ? 2 : 3;
@@ -84,26 +159,19 @@ const ResistorColorCodeCalc: React.FC = () => {
     const val = sig * mult;
     
     const lab: string[] = [];
-    const colorLab: string[] = [];
-    for (let i = 0; i < sigDigits; i++) {
-      lab.push(String(COLOR_MAP[bands[i]]?.digit ?? ''));
-      colorLab.push(COLOR_MAP[bands[i]]?.label ?? '');
-    }
+    for (let i = 0; i < sigDigits; i++) lab.push(String(COLOR_MAP[bands[i]]?.digit ?? ''));
     lab.push(formatMult(mult));
-    colorLab.push(COLOR_MAP[bands[multIdx]]?.label ?? '');
     lab.push(`±${tol}%`);
-    colorLab.push(COLOR_MAP[bands[tolIdx]]?.label ?? '');
     
     let result = `${formatOhms(val)} ±${tol}%`;
     let p = 0;
     if (bandCount === 6) {
       p = COLOR_MAP[bands[5]]?.ppm ?? 0;
       lab.push(`${p}ppm`);
-      colorLab.push(COLOR_MAP[bands[5]]?.label ?? '');
       result += ` ${p}ppm`;
     }
     
-    return { valueOhms: val, tolerance: tol, ppm: p, labels: lab, bandColorLabels: colorLab, resultText: result };
+    return { valueOhms: val, tolerance: tol, ppm: p, labels: lab, resultText: result };
   }, [bandCount, bands]);
 
   const bandColors = bands.map((c) => COLOR_MAP[c]?.hex ?? '#333');
@@ -162,6 +230,74 @@ const ResistorColorCodeCalc: React.FC = () => {
   const multIdx = bandCount === 4 ? 2 : 3;
   const tolIdx = bandCount === 4 ? 3 : 4;
 
+  const [valueUnit, setValueUnit] = useState(1e3);
+  const [valueInputStr, setValueInputStr] = useState('');
+  const isInputFocusedRef = useRef(false);
+
+  const formatValueForDisplay = (ohms: number, unit: number) => {
+    if (ohms <= 0 || !isFinite(ohms)) return '';
+    const v = ohms / unit;
+    if (v >= 1e9) return v.toExponential(2);
+    if (v >= 100) return String(Math.round(v));
+    if (v >= 1) return v.toFixed(2).replace(/\.?0+$/, '') || String(v);
+    return v.toFixed(4).replace(/\.?0+$/, '') || String(v);
+  };
+
+  useEffect(() => {
+    if (!isInputFocusedRef.current && valueOhms > 0) {
+      setValueInputStr(formatValueForDisplay(valueOhms, valueUnit));
+    }
+  }, [bands, valueOhms, valueUnit]);
+
+  const parseValue = (raw: string, fallbackUnit: number): number | null => {
+    let s = raw.trim().replace(/\s/g, '');
+    if (s.includes(',') && !s.includes('.')) s = s.replace(',', '.');
+    else s = s.replace(/,/g, '');
+    if (s === '' || s === '.' || s === '-') return null;
+    const m = s.match(/^([+-]?[\d.]*)([eE]([+-]?\d*)|[kKmMgG])?$/);
+    if (!m) return null;
+    let num = parseFloat(m[1] || '0');
+    if (Number.isNaN(num) && (m[1] || '') !== '') return null;
+    if (Number.isNaN(num)) num = 0;
+    const suffix = (m[2] || '').toLowerCase();
+    let ohms: number;
+    if (suffix.startsWith('e')) {
+      const exp = parseInt(m[3] || '0', 10);
+      ohms = num * Math.pow(10, Number.isNaN(exp) ? 0 : exp);
+    } else if (suffix === 'k') ohms = num * 1e3;
+    else if (suffix === 'm') ohms = num * 1e6;
+    else if (suffix === 'g') ohms = num * 1e9;
+    else ohms = num * fallbackUnit;
+    return isFinite(ohms) ? ohms : null;
+  };
+
+  const handleValueInputChange = (raw: string, unit: number) => {
+    setValueInputStr(raw);
+    const ohms = parseValue(raw, unit);
+    if (ohms != null && ohms > 0) {
+      const newBands = resistanceToBands(ohms, bandCount, bands);
+      if (newBands) setBands(newBands);
+    }
+  };
+
+  const handleValueInputBlur = () => {
+    isInputFocusedRef.current = false;
+    if (valueOhms > 0) {
+      setValueInputStr(formatValueForDisplay(valueOhms, valueUnit));
+    }
+  };
+
+  const handleValueInputFocus = () => {
+    isInputFocusedRef.current = true;
+  };
+
+  const handleUnitChange = (unit: number) => {
+    setValueUnit(unit);
+    if (valueOhms > 0) {
+      setValueInputStr(formatValueForDisplay(valueOhms, unit));
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col gap-6 overflow-hidden">
       <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm max-w-6xl mx-auto w-full flex flex-col h-full max-h-full">
@@ -201,6 +337,36 @@ const ResistorColorCodeCalc: React.FC = () => {
             {renderBandSelect(multIdx, MULTIPLIER_COLORS, t('resistor.multiplier'), 'mult')}
             {renderBandSelect(tolIdx, TOLERANCE_COLORS, t('resistor.tolerance'), 'tol')}
             {bandCount === 6 && renderBandSelect(5, PPM_COLORS, t('resistor.temp_coef'), 'ppm')}
+
+            {/* Resistance value input - updates colors when changed */}
+            <div className="flex flex-col gap-2 py-2 border-b border-slate-100 dark:border-slate-800 last:border-0">
+              <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                {t('resistor.value_input')}
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={valueInputStr}
+                  onChange={(e) => handleValueInputChange(e.target.value, valueUnit)}
+                  onFocus={handleValueInputFocus}
+                  onBlur={handleValueInputBlur}
+                  className="flex-1 font-mono text-sm px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500"
+                  placeholder="0"
+                />
+                <select
+                  value={valueUnit}
+                  onChange={(e) => handleUnitChange(Number(e.target.value))}
+                  className="font-mono text-sm px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 min-w-[72px]"
+                >
+                  {UNIT_OPTIONS.map((u) => (
+                    <option key={u.key} value={u.value}>
+                      {u.key}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
 
           {/* Right Column: Visual & Result (Sticky/Fixed) */}
@@ -210,7 +376,7 @@ const ResistorColorCodeCalc: React.FC = () => {
               <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]" 
                    style={{ backgroundImage: 'radial-gradient(#64748b 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
               </div>
-              <ResistorSvg bands={bandColors} bandCount={bandCount} labels={labels} bandColorLabels={bandColorLabels} />
+              <ResistorSvg bands={bandColors} bandCount={bandCount} labels={labels} />
             </div>
 
             {/* Result Box */}
@@ -238,10 +404,9 @@ interface ResistorSvgProps {
   bands: string[];
   bandCount: number;
   labels: string[];
-  bandColorLabels: string[];
 }
 
-const ResistorSvg: React.FC<ResistorSvgProps> = ({ bands, bandCount, labels, bandColorLabels }) => {
+const ResistorSvg: React.FC<ResistorSvgProps> = ({ bands, bandCount, labels }) => {
   const w = 500;
   const h = 160;
   
@@ -382,22 +547,24 @@ const ResistorSvg: React.FC<ResistorSvgProps> = ({ bands, bandCount, labels, ban
         })}
       </g>
       
-      {/* Labels */}
+      {/* Labels - bg = band color, text = white or black by luminance */}
       {labels.map((lb, i) => {
           const bx = positions[i];
-          const colorName = bandColorLabels[i] ? ` (${bandColorLabels[i]})` : '';
+          const bg = bands[i] ?? '#333';
+          const textColor = isDarkColor(bg) ? '#fff' : '#111';
           return (
             <g key={i} transform={`translate(${bx}, ${bodyY + bodyH + 15})`}>
               <line x1="0" y1="-10" x2="0" y2="0" stroke="#94a3b8" strokeWidth="1" strokeDasharray="2 2" />
-              <rect x="-44" y="0" width="88" height="20" rx="4" fill="#f8fafc" stroke="#e2e8f0" strokeWidth="1" className="dark:fill-slate-800 dark:stroke-slate-700" />
+              <rect x="-15" y="0" width="30" height="19" rx="4" fill={bg} stroke="rgba(0,0,0,0.15)" strokeWidth="1" />
               <text 
                 x="0" 
                 y="13" 
                 textAnchor="middle" 
                 fontSize="10" 
-                className="font-mono font-bold fill-slate-600 dark:fill-slate-300"
+                fill={textColor}
+                className="font-mono font-bold"
               >
-                {lb}{colorName}
+                {lb}
               </text>
             </g>
           );

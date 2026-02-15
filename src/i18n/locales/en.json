@@ -152,6 +152,7 @@
         "select_firmware": "Click to select firmware .bin"
     },
     "resistor": {
+        "value_input": "Resistance value",
         "bands": " bands",
         "band": "Band ",
         "band_num": "Band {{n}}",
