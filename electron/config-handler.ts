@@ -255,7 +255,18 @@ function getBundledManifestPath(): string {
   return path.join(app.getAppPath(), 'firmware_manifest.json');
 }
 
+
+let _mainWindow: BrowserWindow | null = null;
+let _onSettingsChanged: (() => void) | null = null;
+let _isRegistered = false;
+
 export function setupConfigHandler(mainWindow?: BrowserWindow | null, onSettingsChanged?: () => void) {
+  _mainWindow = mainWindow || null;
+  if (onSettingsChanged) _onSettingsChanged = onSettingsChanged;
+
+  if (_isRegistered) return;
+  _isRegistered = true;
+
   // 1. 自定义路径（高级模式选择）> 2. 网络 > 3. 内置包内 manifest
   ipcMain.handle('get-firmware-manifest', async () => {
     const customPath = getCustomManifestPath();
@@ -316,7 +327,7 @@ export function setupConfigHandler(mainWindow?: BrowserWindow | null, onSettings
 
   ipcMain.handle('set-developer-mode', async (_event, enabled: boolean) => {
     setDeveloperMode(enabled);
-    if (onSettingsChanged) onSettingsChanged();
+    if (_onSettingsChanged) _onSettingsChanged();
     return true;
   });
 
@@ -328,8 +339,8 @@ export function setupConfigHandler(mainWindow?: BrowserWindow | null, onSettings
   });
 
   ipcMain.handle('select-firmware-manifest-file', async () => {
-    if (!mainWindow) return null;
-    const result = await dialog.showOpenDialog(mainWindow, {
+    if (!_mainWindow || _mainWindow.isDestroyed()) return null;
+    const result = await dialog.showOpenDialog(_mainWindow, {
       title: 'Select Firmware Manifest (JSON)',
       filters: [{ name: 'JSON', extensions: ['json'] }],
       properties: ['openFile'],
@@ -339,13 +350,17 @@ export function setupConfigHandler(mainWindow?: BrowserWindow | null, onSettings
     const data = loadManifestFromFile(filePath);
     if (data == null) throw new Error('Invalid or empty JSON file');
     setCustomManifestPath(filePath);
-    mainWindow?.webContents?.send('manifest-source-changed');
+    if (_mainWindow && !_mainWindow.isDestroyed()) {
+      _mainWindow.webContents.send('manifest-source-changed');
+    }
     return filePath;
   });
 
   ipcMain.handle('clear-custom-manifest', async () => {
     setCustomManifestPath(null);
-    mainWindow?.webContents?.send('manifest-source-changed');
+    if (_mainWindow && !_mainWindow.isDestroyed()) {
+      _mainWindow.webContents.send('manifest-source-changed');
+    }
     return true;
   });
 
