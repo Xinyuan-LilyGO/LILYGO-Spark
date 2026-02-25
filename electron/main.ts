@@ -21,7 +21,8 @@ import {
     handleSaveFile,
     getEnhancedPortList,
     setSerialPortCallback,
-    checkBluetoothPermission
+    checkBluetoothPermission,
+    cleanupSerialPort
 } from './handlers'
 
 let win: BrowserWindow | null
@@ -144,6 +145,14 @@ function handleDeepLink(url: string) {
 // Handle potential issues with device detection during startup
 process.on('uncaughtException', (error) => {
     console.error('Uncaught Exception:', error);
+    // Prevent crash dialogs in production
+    if (app.isPackaged) {
+        process.exit(0);
+    }
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
 // Function to setup application menu
@@ -274,7 +283,7 @@ function createWindow() {
     minHeight: 600,
     // Temporarily use vite logo as icon
     icon: path.join(publicPath, 'LILYGO.png'),
-    backgroundColor: '#0f172a', // Matches Tailwind slate-900
+    backgroundColor: '#18181b', // Matches Tailwind zinc-900 to avoid flash
     show: false, // Don't show until ready-to-show to avoid white flash
     webPreferences: {
       preload: preloadPath,
@@ -456,6 +465,28 @@ app.on('window-all-closed', () => {
     win = null
   }
 })
+
+let isQuitting = false;
+app.on('before-quit', async (e) => {
+  if (isQuitting) return;
+  isQuitting = true;
+
+  console.log('[Main] App is quitting, cleaning up...');
+  if (deviceDetector) {
+      try {
+        deviceDetector.stop();
+      } catch (err) { console.error(err) }
+      deviceDetector = null;
+  }
+  // Try to close port, but don't block too long
+  cleanupSerialPort().catch(console.error);
+});
+
+// Force exit to avoid native crashes during shutdown
+app.on('will-quit', () => {
+  console.log('[Main] Force exiting...');
+  process.exit(0);
+});
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {

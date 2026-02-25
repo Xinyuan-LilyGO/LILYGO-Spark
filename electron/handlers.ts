@@ -895,3 +895,17 @@ export function handleSerialPortCancelled() {
         serialPortCallback = null;
     }
 }
+
+export async function cleanupSerialPort() {
+    if (activeSerialPort && activeSerialPort.isOpen) {
+        console.log('[Handlers] Closing active serial port before quit...');
+        try {
+            await new Promise<void>((resolve) => {
+                activeSerialPort?.close(() => resolve());
+            });
+        } catch (e) {
+            console.error('[Handlers] Error closing port on quit:', e);
+        }
+        activeSerialPort = null;
+    }
+}

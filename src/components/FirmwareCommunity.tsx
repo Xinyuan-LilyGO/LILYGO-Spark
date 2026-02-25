@@ -366,7 +366,17 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
 
         <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
           {loading ? (
-             <div className="text-center py-10 text-slate-500 dark:text-slate-500">Loading devices...</div>
+             <div className="space-y-2 p-1">
+               {[1, 2, 3, 4, 5, 6].map(i => (
+                 <div key={i} className="p-3 rounded-xl border border-transparent bg-slate-100 dark:bg-zinc-800/50 animate-pulse flex items-center">
+                   <div className="w-16 h-16 bg-slate-200 dark:bg-zinc-700/50 rounded-lg shrink-0 mr-3"></div>
+                   <div className="flex-1 min-w-0 space-y-2">
+                     <div className="h-4 bg-slate-200 dark:bg-zinc-700/50 rounded w-3/4"></div>
+                     <div className="h-3 bg-slate-200 dark:bg-zinc-700/50 rounded w-1/2"></div>
+                   </div>
+                 </div>
+               ))}
+             </div>
           ) : filteredGroups.length === 0 ? (
              <div className="text-center py-10 text-slate-500 dark:text-slate-500">No devices found</div>
           ) : (

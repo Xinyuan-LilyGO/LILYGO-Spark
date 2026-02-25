@@ -7,7 +7,7 @@
     "dev": "vite",
     "dev:win": "cross-env VITE_PLATFORM=win32 vite",
     "postinstall": "electron-builder install-app-deps",
-    "build": "npm run clean && npm run prebuild && npm run build:compile && electron-builder",
+    "build": "npm run clean && npm run prebuild && npm run build:compile && node scripts/build-wrapper.js",
     "clean": "rimraf dist dist-electron release",
     "prebuild": "node scripts/check-lilygo-config.js && shx mkdir -p build && shx cp public/LILYGO.png build/icon.png",
     "fetch-products": "node scripts/fetch-lilygo-products.js && node scripts/filter-flashable-products.js",
@@ -19,26 +19,26 @@
     "build:compile": "tsc && vite build",
     "build:compile:win": "tsc && cross-env VITE_PLATFORM=win32 vite build",
     "build:all": "npm run build:compile && npm run build:mac:all && npm run build:win:all && npm run build:linux:all",
-    "build:mac": "npm run build:compile && node scripts/exclude-fontsource-mac.js pre && electron-builder --config electron-builder.config.cjs --mac; node scripts/exclude-fontsource-mac.js post",
+    "build:mac": "npm run build:compile && node scripts/exclude-fontsource-mac.js pre && node scripts/build-wrapper.js --config electron-builder.config.cjs --mac; node scripts/exclude-fontsource-mac.js post",
     "build:mac:all": "npm run prebuild && npm run build:mac:arm64:only && npm run build:mac:x64:only && npm run build:mac:universal:only",
-    "build:mac:arm64": "npm run build:compile && node scripts/exclude-fontsource-mac.js pre && electron-builder --config electron-builder.config.cjs --mac --arm64; node scripts/exclude-fontsource-mac.js post",
-    "build:mac:arm64:only": "node scripts/exclude-fontsource-mac.js pre && electron-builder --config electron-builder.config.cjs --mac --arm64; node scripts/exclude-fontsource-mac.js post",
-    "build:mac:x64": "npm run build:compile && node scripts/exclude-fontsource-mac.js pre && electron-builder --config electron-builder.config.cjs --mac --x64; node scripts/exclude-fontsource-mac.js post",
-    "build:mac:x64:only": "node scripts/exclude-fontsource-mac.js pre && electron-builder --config electron-builder.config.cjs --mac --x64; node scripts/exclude-fontsource-mac.js post",
-    "build:mac:universal": "npm run build:compile && node scripts/exclude-fontsource-mac.js pre && electron-builder --config electron-builder.config.cjs --mac --universal; node scripts/exclude-fontsource-mac.js post",
-    "build:mac:universal:only": "node scripts/exclude-fontsource-mac.js pre && electron-builder --config electron-builder.config.cjs --mac --universal; node scripts/exclude-fontsource-mac.js post",
-    "build:win": "npm run build:compile:win && electron-builder --win",
+    "build:mac:arm64": "npm run build:compile && node scripts/exclude-fontsource-mac.js pre && node scripts/build-wrapper.js --config electron-builder.config.cjs --mac --arm64; node scripts/exclude-fontsource-mac.js post",
+    "build:mac:arm64:only": "node scripts/exclude-fontsource-mac.js pre && node scripts/build-wrapper.js --config electron-builder.config.cjs --mac --arm64; node scripts/exclude-fontsource-mac.js post",
+    "build:mac:x64": "npm run build:compile && node scripts/exclude-fontsource-mac.js pre && node scripts/build-wrapper.js --config electron-builder.config.cjs --mac --x64; node scripts/exclude-fontsource-mac.js post",
+    "build:mac:x64:only": "node scripts/exclude-fontsource-mac.js pre && node scripts/build-wrapper.js --config electron-builder.config.cjs --mac --x64; node scripts/exclude-fontsource-mac.js post",
+    "build:mac:universal": "npm run build:compile && node scripts/exclude-fontsource-mac.js pre && node scripts/build-wrapper.js --config electron-builder.config.cjs --mac --universal; node scripts/exclude-fontsource-mac.js post",
+    "build:mac:universal:only": "node scripts/exclude-fontsource-mac.js pre && node scripts/build-wrapper.js --config electron-builder.config.cjs --mac --universal; node scripts/exclude-fontsource-mac.js post",
+    "build:win": "npm run build:compile:win && node scripts/build-wrapper.js --win",
     "build:win:all": "npm run prebuild && npm run build:compile:win && npm run build:win:x64:only && npm run build:win:arm64:only",
-    "build:win:x64": "npm run build:compile:win && electron-builder --win --x64",
-    "build:win:x64:only": "electron-builder --win --x64",
-    "build:win:arm64": "npm run build:compile:win && electron-builder --win --arm64",
-    "build:win:arm64:only": "electron-builder --win --arm64",
-    "build:linux": "npm run build:compile && electron-builder --linux",
+    "build:win:x64": "npm run build:compile:win && node scripts/build-wrapper.js --win --x64",
+    "build:win:x64:only": "node scripts/build-wrapper.js --win --x64",
+    "build:win:arm64": "npm run build:compile:win && node scripts/build-wrapper.js --win --arm64",
+    "build:win:arm64:only": "node scripts/build-wrapper.js --win --arm64",
+    "build:linux": "npm run build:compile && node scripts/build-wrapper.js --linux",
     "build:linux:all": "npm run build:linux:arm64:only && npm run build:linux:x64:only",
-    "build:linux:arm64": "npm run build:compile && electron-builder --linux --arm64",
-    "build:linux:arm64:only": "electron-builder --linux --arm64",
-    "build:linux:x64": "npm run build:compile && electron-builder --linux --x64",
-    "build:linux:x64:only": "electron-builder --linux --x64",
+    "build:linux:arm64": "npm run build:compile && node scripts/build-wrapper.js --linux --arm64",
+    "build:linux:arm64:only": "node scripts/build-wrapper.js --linux --arm64",
+    "build:linux:x64": "npm run build:compile && node scripts/build-wrapper.js --linux --x64",
+    "build:linux:x64:only": "node scripts/build-wrapper.js --linux --x64",
     "preview": "vite preview",
     "analyze:asar": "node scripts/analyze-asar-size.js",
     "test:unit": "vitest",
@@ -170,7 +170,7 @@
         "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to find and connect to ESP32 devices.",
         "CFBundleDisplayName": "LILYGO Spark"
       },
-      "artifactName": "LILYGO-Spark-${version}-macOS-${arch}.${ext}",
+      "artifactName": "LILYGO-Spark-${env.BUILD_TIMESTAMP}-macOS-${arch}.${ext}",
       "target": [
         {
           "target": "dmg"
@@ -223,10 +223,10 @@
       ]
     },
     "nsis": {
-      "artifactName": "LILYGO-Spark-${version}-windows-${arch}-setup.${ext}"
+      "artifactName": "LILYGO-Spark-${env.BUILD_TIMESTAMP}-windows-${arch}-setup.${ext}"
     },
     "portable": {
-      "artifactName": "LILYGO-Spark-${version}-windows-${arch}-portable.${ext}"
+      "artifactName": "LILYGO-Spark-${env.BUILD_TIMESTAMP}-windows-${arch}-portable.${ext}"
     },
     "linux": {
       "publish": [
@@ -250,7 +250,7 @@
         }
       ],
       "compression": "maximum",
-      "artifactName": "LILYGO-Spark-${version}-linux-${arch}.${ext}",
+      "artifactName": "LILYGO-Spark-${env.BUILD_TIMESTAMP}-linux-${arch}.${ext}",
       "target": [
         {
           "target": "AppImage",
