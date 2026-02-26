@@ -467,7 +467,7 @@ app.on('window-all-closed', () => {
 })
 
 let isQuitting = false;
-app.on('before-quit', async (e) => {
+app.on('before-quit', async () => {
   if (isQuitting) return;
   isQuitting = true;
 
