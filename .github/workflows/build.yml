@@ -184,7 +184,7 @@ jobs:
       - run: npm run prebuild
       - run: npm run build:compile
       - name: Build Windows
-        run: npx electron-builder --win ${{ matrix.target }} --${{ matrix.arch }}
+        run: node scripts/build-wrapper.js --win ${{ matrix.target }} --${{ matrix.arch }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/upload-artifact@v4
@@ -234,7 +234,7 @@ jobs:
       - run: npm run build:compile
       - run: sudo apt-get update && sudo apt-get install -y rpm
       - name: Build Linux
-        run: npx electron-builder --linux ${{ matrix.target }} --${{ matrix.arch }}
+        run: node scripts/build-wrapper.js --linux ${{ matrix.target }} --${{ matrix.arch }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/upload-artifact@v4
