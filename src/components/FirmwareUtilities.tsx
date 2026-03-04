@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, FileCode, AlertCircle, Cpu, Upload, Download, Plus, Trash2, Terminal, Activity, RefreshCw, Power, PowerOff, Image as ImageIcon, Calculator, Clock, Zap, Lightbulb, CircleDot } from 'lucide-react';
+import { Search, FileCode, AlertCircle, Cpu, Upload, Download, Plus, Trash2, Terminal, Activity, RefreshCw, Power, PowerOff, Image as ImageIcon, Calculator, Clock, Zap, Lightbulb, CircleDot, HardDrive } from 'lucide-react';
 import { getPartitionTypeLabel, getPartitionSubtypeLabel } from '../utils/partitionTypes';
 import { analyzeFirmwareBuffer, type FirmwareAnalysisResult } from '../utils/firmwareAnalyzer';
 import SmdResistorCalc from './SmdResistorCalc';
@@ -29,6 +29,7 @@ interface AnalysisResult {
     error?: string;
     header_error?: string;
     chip_guess?: string;
+    file_type?: string;
     partition_table_offset?: string;
     entry_point?: string;
     segments?: number;
@@ -809,8 +810,12 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
                                 ${isAnalyzing ? 'opacity-75 cursor-wait' : 'hover:bg-slate-200 dark:hover:bg-slate-600/50 hover:border-slate-400 dark:hover:border-slate-400'}`}
                         >
                             {isAnalyzing && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-slate-100/80 dark:bg-slate-800/50 backdrop-blur-sm z-10">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-100/90 dark:bg-slate-800/80 backdrop-blur-sm z-10 gap-3">
+                                    <div className="relative h-10 w-10">
+                                        <div className="absolute inset-0 rounded-full border-2 border-primary/20"></div>
+                                        <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin"></div>
+                                    </div>
+                                    <span className="text-xs text-slate-500 dark:text-slate-400 animate-pulse">{t('utilities.analyzing') || 'Analyzing...'}</span>
                                 </div>
                             )}
                             <div className="flex flex-col items-center text-slate-600 dark:text-slate-400">
@@ -826,6 +831,18 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
             {analysisResult && (
                 <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg flex-1 overflow-auto">
                     {analysisResult.error ? (
+                        analysisResult.file_type ? (
+                            <div className="flex items-start p-4 bg-amber-500/10 dark:bg-amber-900/20 rounded-lg border border-amber-500/30 dark:border-amber-700/50">
+                                <HardDrive size={24} className="mr-3 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" />
+                                <div>
+                                    <h3 className="font-bold text-amber-600 dark:text-amber-400">{analysisResult.file_type}</h3>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{analysisResult.error}</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-500 mt-2">
+                                        {t('utilities.fs_hint') || 'This file is a data partition image used alongside firmware. It cannot be analyzed as a firmware binary.'}
+                                    </p>
+                                </div>
+                            </div>
+                        ) : (
                         <div className="flex items-center text-red-400 p-4 bg-red-900/20 rounded-lg border border-red-900/50">
                             <AlertCircle size={24} className="mr-3" />
                             <div>
@@ -833,6 +850,7 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
                                 <p className="text-sm opacity-80">{analysisResult.error}</p>
                             </div>
                         </div>
+                        )
                     ) : (
                         <div>
                             {/* ── Masonry / Waterfall layout ── */}

@@ -155,6 +155,7 @@ export interface FirmwareAnalysisResult {
   app_desc?: AppDescription;
   framework?: FrameworkInfo;
   components?: ComponentFingerprints;
+  file_type?: string;
 }
 
 // ─── Core analysis function ─────────────────────────────────────────────────
@@ -230,7 +231,13 @@ export function analyzeFirmwareBuffer(data: ArrayBuffer): FirmwareAnalysisResult
       off => buf.length > off && buf[off] === ESP_IMAGE_MAGIC
     );
     if (!hasAnyMagic) {
-      result.error = 'Not a valid ESP firmware image (missing 0xE9 magic)';
+      const fsType = detectFilesystemImage(buf);
+      if (fsType) {
+        result.error = `This is a ${fsType} filesystem partition image, not a firmware binary`;
+        result.file_type = fsType;
+      } else {
+        result.error = 'Not a valid ESP firmware image (missing 0xE9 magic)';
+      }
     }
   }
 
@@ -267,6 +274,53 @@ export function detectChipFromBuffer(data: ArrayBuffer): string | null {
       const r = detectChipAt(buf, view, offset);
       if (r) return r.name;
     }
+  }
+
+  return null;
+}
+
+// ─── Filesystem image detection ─────────────────────────────────────────────
+
+function detectFilesystemImage(buf: Uint8Array): string | null {
+  // LittleFS: superblock contains "littlefs" magic string near the start
+  if (buf.length >= 16) {
+    const hasMagic = (offset: number) => {
+      if (buf.length < offset + 8) return false;
+      return buf[offset] === 0x6C && buf[offset + 1] === 0x69  // "li"
+        && buf[offset + 2] === 0x74 && buf[offset + 3] === 0x74  // "tt"
+        && buf[offset + 4] === 0x6C && buf[offset + 5] === 0x65  // "le"
+        && buf[offset + 6] === 0x66 && buf[offset + 7] === 0x73; // "fs"
+    };
+    for (const off of [0x08, 0x18, 0x00]) {
+      if (hasMagic(off)) return 'LittleFS';
+    }
+    const searchLimit = Math.min(buf.length - 8, 0x1000);
+    for (let i = 0; i < searchLimit; i += 4) {
+      if (hasMagic(i)) return 'LittleFS';
+    }
+  }
+
+  // SPIFFS: look for SPIFFS magic (0x20011985) in the first page
+  if (buf.length >= 256) {
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    for (const off of [0, 4, 8]) {
+      if (view.getUint32(off, true) === 0x20011985) return 'SPIFFS';
+    }
+  }
+
+  // FAT filesystem: check for FAT boot sector signature
+  if (buf.length >= 512 && buf[510] === 0x55 && buf[511] === 0xAA) {
+    const hasLabel = buf[0x36] === 0x46 && buf[0x37] === 0x41 && buf[0x38] === 0x54; // "FAT"
+    if (hasLabel) return 'FAT';
+  }
+
+  // Entirely 0xFF — likely erased/empty flash region
+  if (buf.length >= 256) {
+    let allFF = true;
+    for (let i = 0; i < Math.min(buf.length, 4096); i++) {
+      if (buf[i] !== 0xFF) { allFF = false; break; }
+    }
+    if (allFF) return 'Empty/Erased Flash';
   }
 
   return null;
@@ -494,6 +548,35 @@ function extractStringNear(buf: Uint8Array, needle: string, maxScan = 0x400000):
   return undefined;
 }
 
+/**
+ * Like extractStringNear, but only matches when the needle starts at a
+ * word boundary (preceded by \0, non-printable, or start of buffer).
+ * Prevents false positives like "MAX_NUM_NODES" matching "UM_NODES".
+ */
+function extractStringAtWordBoundary(buf: Uint8Array, needle: string, maxScan = 0x400000): string | undefined {
+  const encoded = new TextEncoder().encode(needle);
+  const len = encoded.length;
+  const limit = Math.min(buf.length - len, maxScan);
+  outer:
+  for (let i = 0; i <= limit; i++) {
+    for (let j = 0; j < len; j++) {
+      if (buf[i + j] !== encoded[j]) continue outer;
+    }
+    if (i > 0) {
+      const prev = buf[i - 1];
+      if (prev >= 0x30 && prev <= 0x39) continue; // 0-9
+      if (prev >= 0x41 && prev <= 0x5A) continue; // A-Z
+      if (prev >= 0x61 && prev <= 0x7A) continue; // a-z
+      if (prev === 0x5F) continue; // _
+    }
+    const end = Math.min(i + 256, buf.length);
+    const slice = buf.slice(i, end);
+    const nullIdx = slice.indexOf(0);
+    return new TextDecoder().decode(slice.slice(0, nullIdx >= 0 ? nullIdx : 256));
+  }
+  return undefined;
+}
+
 function detectFramework(buf: Uint8Array, appDesc?: AppDescription): FrameworkInfo {
   const idfVer = appDesc?.idf_version;
 
@@ -622,10 +705,10 @@ function scanComponentFingerprints(buf: Uint8Array): ComponentFingerprints {
     if (nlMatch) fp.newlib_version = nlMatch[1];
   }
 
-  // Board name: search common prefixes
+  // Board name: search common prefixes (word-boundary aware to avoid mid-word matches like MAX_NUM_NODES -> UM_NODES)
   const boardPrefixes = ['ESP32_GENERIC', 'LILYGO_', 'TTGO_', 'UM_'];
   for (const prefix of boardPrefixes) {
-    const boardStr = extractStringNear(buf, prefix);
+    const boardStr = extractStringAtWordBoundary(buf, prefix);
     if (boardStr) {
       fp.mpy_board = boardStr.split(/[\x00\n\r ]/)[0];
       break;
