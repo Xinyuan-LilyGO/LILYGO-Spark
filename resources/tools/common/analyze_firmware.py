@@ -37,30 +37,45 @@ except ImportError as e:
         print(json.dumps({"error": f"Failed to import esptool: {str(e)}. Path: {sys.path}"}))
         sys.exit(1)
 
+EXTRA_CHIP_IDS = {
+    18: "esp32p4",
+    20: "esp32c61",
+    23: "esp32c5",
+    28: "esp32h4",
+    31: "esp32e22",
+    32: "esp32s31",
+}
+
+def detect_chip_at_offset(f, offset):
+    """Try to detect chip type from image header at a given file offset."""
+    f.seek(offset)
+    common_header = f.read(8)
+    if len(common_header) < 8 or common_header[0] != 0xE9:
+        return None
+
+    extended_header = f.read(16)
+    if len(extended_header) < 16:
+        return None
+
+    chip_id = int.from_bytes(extended_header[4:6], 'little')
+
+    for chip_name, chip_class in CHIP_DEFS.items():
+        if chip_name == "esp8266": continue
+        if getattr(chip_class, "IMAGE_CHIP_ID", None) == chip_id:
+            return chip_name
+
+    if chip_id in EXTRA_CHIP_IDS:
+        return EXTRA_CHIP_IDS[chip_id]
+
+    return None
+
 def detect_chip_type(filepath):
     try:
         with open(filepath, 'rb') as f:
-            # Check magic number
-            common_header = f.read(8)
-            if len(common_header) < 8: return None
-            magic = common_header[0]
-            if magic != 0xE9: # ESP_IMAGE_MAGIC
-                return None
-            
-            # Read extended header
-            extended_header = f.read(16)
-            if len(extended_header) < 16: return None
-            
-            chip_id = extended_header[4] # Byte 4 is chip_id
-            
-            # Iterate over CHIP_DEFS to find match
-            for chip_name, chip_class in CHIP_DEFS.items():
-                if chip_name == "esp8266": continue
-                if getattr(chip_class, "IMAGE_CHIP_ID", None) == chip_id:
-                    return chip_name
-            
-            # Fallback for ESP8266 or others if not found above
-            # ESP8266 doesn't have extended header chip_id in the same way usually
+            for offset in [0x0000, 0x1000, 0x2000]:
+                result = detect_chip_at_offset(f, offset)
+                if result:
+                    return result
             return None
     except Exception:
         return None
@@ -203,27 +218,15 @@ def analyze_firmware(filepath):
         elif result["partition_table_offset"] == "0x9000":
             result["chip_guess"] = "ESP32-S3/C3/S2 (Likely S3/C3)"
             
-    # 5. Bootloader Flash Size (from offset 0x1000 or 0x0 depending on chip)
-    # If 0x1000 has magic 0xE9, it's ESP32. Read byte 3 (flash size)
-    # If 0x0 has magic 0xE9, it's S3/C3/etc. Read byte 3.
-    
+    # 5. Bootloader Flash Size — scan all known bootloader offsets
     bootloader_flash_size = "Unknown"
-    
-    # Check offset 0x1000 (ESP32)
-    if len(data) > 0x1004 and data[0x1000] == 0xE9:
-        fl_info = data[0x1003]
-        size_id = (fl_info & 0xF0) >> 4
-        bootloader_flash_size = flash_sizes.get(size_id, f"Unknown ID {size_id}")
-        if result["chip"] == "Unknown": result["chip"] = "ESP32"
+    for bl_offset in [0x0, 0x1000, 0x2000]:
+        if len(data) > bl_offset + 4 and data[bl_offset] == 0xE9:
+            fl_info = data[bl_offset + 3]
+            size_id = (fl_info & 0xF0) >> 4
+            bootloader_flash_size = flash_sizes.get(size_id, f"Unknown ID {size_id}")
+            break
 
-    # Check offset 0x0 (S3/C3/S2)
-    elif len(data) > 4 and data[0] == 0xE9:
-        fl_info = data[3]
-        size_id = (fl_info & 0xF0) >> 4
-        bootloader_flash_size = flash_sizes.get(size_id, f"Unknown ID {size_id}")
-        # Could be any of S3/C3/S2/H2
-        if result["chip"] == "Unknown": result["chip"] = "ESP32-S3/C3/S2"
-        
     result["bootloader_flash_size"] = bootloader_flash_size
 
     return result

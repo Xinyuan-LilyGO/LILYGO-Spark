@@ -36,7 +36,7 @@
     "subtitle": "LILYGO Spark の目的とクイックスタート",
     "purpose_title": "製品の目的",
     "purpose_text": "LILYGO Spark は LILYGO およびその他の ESP デバイス向けのクロスプラットフォームファームウェアハブと書き込みツールです。開発者、メイカー、愛好家が公式またはコミュニティファームウェアを簡単に閲覧、ダウンロード、書き込みできるようにします。",
-    "purpose_1": "ESP32、ESP32-S3、ESP32-C6 などの Espressif チップをサポート",
+    "purpose_1": "ESP32、ESP32-S2/S3、ESP32-C2/C3/C5/C6/C61、ESP32-H2/H4、ESP32-P4 など Espressif 全チップをサポート",
     "purpose_2": "LILYGO 公式・コミュニティファームウェアを一括で閲覧・ダウンロード",
     "purpose_3": "Windows、macOS、Linux でクロスプラットフォーム対応、自動ボード検出",
     "quick_start_title": "クイックスタート",
@@ -150,7 +150,15 @@
     "app_image": "App / 部分イメージ",
     "no_partitions": "パーティションテーブルが検出されませんでした。",
     "analysis_failed": "分析に失敗しました",
-    "select_firmware": "クリックしてファームウェア .bin を選択"
+    "analysis_engine": "分析エンジン",
+    "engine_builtin": "内蔵",
+    "engine_no_deps": "外部依存不要",
+    "select_firmware": "クリックしてファームウェア .bin を選択",
+    "advanced_info": "詳細情報（ビルド / フレームワーク / 拡張ヘッダー）",
+    "build_info": "ビルド情報",
+    "framework": "ビルドフレームワーク",
+    "ext_header": "拡張ヘッダー（Extended Header）",
+    "components": "コンポーネント & ツールチェーン"
   },
   "resistor": {
     "value_input": "抵抗値",
@@ -246,6 +254,7 @@
     "based_on_tool": "ツール戦略",
     "label_port": "ポート",
     "label_chip": "チップファミリー",
+    "chip_auto": "自動検出",
     "label_baud": "ボーレート (書き込み)",
     "label_firmware": "ファームウェア (.bin)",
     "btn_flash": "書き込み開始",

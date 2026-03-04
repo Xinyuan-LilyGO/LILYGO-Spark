@@ -40,7 +40,7 @@
         "subtitle": "LILYGO Spark purpose and quick start",
         "purpose_title": "Our Purpose",
         "purpose_text": "LILYGO Spark is a cross-platform firmware hub and burner for LILYGO and other ESP devices. It lets developers, makers, and enthusiasts easily browse, download, and flash official or community firmware.",
-        "purpose_1": "Supports ESP32, ESP32-S3, ESP32-C6 and other Espressif chips",
+        "purpose_1": "Supports ESP32, ESP32-S2/S3, ESP32-C2/C3/C5/C6/C61, ESP32-H2/H4, ESP32-P4 and other Espressif chips",
         "purpose_2": "One-stop browse and download of LILYGO official and community firmware",
         "purpose_3": "Cross-platform on Windows, macOS, Linux with automatic board detection",
         "quick_start_title": "Quick Start",
@@ -150,7 +150,15 @@
         "app_image": "App Image",
         "no_partitions": "No partition table detected.",
         "analysis_failed": "Analysis failed",
-        "select_firmware": "Click to select firmware .bin"
+        "analysis_engine": "Analysis Engine",
+        "engine_builtin": "Built-in",
+        "engine_no_deps": "No dependencies required",
+        "select_firmware": "Click to select firmware .bin",
+        "advanced_info": "Advanced Info (Build / Framework / Header)",
+        "build_info": "Build Information",
+        "framework": "Build Framework",
+        "ext_header": "Extended Header",
+        "components": "Components & Toolchain"
     },
     "resistor": {
         "value_input": "Resistance value",
@@ -254,6 +262,7 @@
         "based_on_tool": "Based on Tool",
         "label_port": "Port",
         "label_chip": "Chip Family",
+        "chip_auto": "Auto Detect",
         "label_baud": "Baud Rate (Upload)",
         "label_firmware": "Firmware (.bin)",
         "btn_flash": "Start Flashing",

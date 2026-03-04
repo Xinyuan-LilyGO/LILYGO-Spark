@@ -142,6 +142,26 @@ For hackers and makers who enjoy a bit of fun:
 
 ---
 
+### ESP32 Chip Support Matrix
+
+| Chip | Architecture | Wi-Fi | Bluetooth | 802.15.4 | Espressif Status | esptool (bundled v4.x) | esptool (latest v5.2) | Spark UI | LILYGO Products |
+|------|-------------|-------|-----------|----------|-----------------|----------------------|---------------------|----------|-----------------|
+| **ESP32** | Xtensa LX6 Dual-core 240MHz | Wi-Fi 4 | BT 4.2 + BLE | - | Mass Production | ✅ | ✅ | ✅ | T-Display, T-Beam, T-ETH-Lite, T-SIM7600, T-CAN485, T-PCIE, T3 LoRa32 |
+| **ESP32-S2** | Xtensa LX7 Single-core 240MHz | Wi-Fi 4 | - | - | Mass Production | ✅ | ✅ | ✅ | T-Dongle S2, ESP32-S2 |
+| **ESP32-S3** | Xtensa LX7 Dual-core 240MHz | Wi-Fi 4 | BLE 5 | - | Mass Production | ✅ | ✅ | ✅ | T-Display S3, T-Display S3 AMOLED, T-Deck, T-Deck Plus, T-Dongle S3, T-Watch S3, T3 S3, T4 S3, T-Beam SUPREME, T-Embed, T-Embed CC1101 |
+| **ESP32-C2** | RISC-V Single-core 120MHz | Wi-Fi 4 | BLE 5 | - | Mass Production | ✅ | ✅ | ✅ | - |
+| **ESP32-C3** | RISC-V Single-core 160MHz | Wi-Fi 4 | BLE 5 | - | Mass Production | ✅ | ✅ | ✅ | T8-C3, T-Zigbee (C3+TLSR8258) |
+| **ESP32-C5** | RISC-V Dual-core 240+48MHz | Wi-Fi 6 (2.4+5GHz) | BLE 5 | 802.15.4 | Mass Production | - | ✅ | ✅ | - |
+| **ESP32-C6** | RISC-V 160+20MHz | Wi-Fi 6 | BLE 5 | 802.15.4 | Mass Production | ✅ | ✅ | ✅ | T-Display P4 (as secondary MCU) |
+| **ESP32-C61** | RISC-V Single-core 160MHz | Wi-Fi 6 | BLE 5 | - | Mass Production | - | ✅ | ✅ | - |
+| **ESP32-H2** | RISC-V Single-core 96MHz | - | BLE 5 | 802.15.4 | Mass Production | ✅ | ✅ | ✅ | - |
+| **ESP32-H4** | RISC-V | - | BLE 5 | 802.15.4 | Preview | - | ✅ | ✅ | - |
+| **ESP32-P4** | RISC-V Dual-core 400MHz | - (needs companion) | - | - | Mass Production | - | ✅ | ✅ | T-Display P4 |
+
+> **Note**: ESP32-P4 is a compute-only SoC without built-in wireless; it typically pairs with an ESP32-C6 for connectivity. The bundled esptool (v4.x) in Spark supports auto-detection for most chips. For the newest chips (C5, C61, H4, P4), updating to esptool v5.2+ is recommended.
+
+---
+
 ## 中文
 
 ### 版本发布与更新策略
@@ -282,3 +302,23 @@ npm run build:mac:universal  # macOS 通用包
 | **Konami 彩蛋** | 在应用任意位置按 `↑ ↑ ↓ ↓ ← → ← → B A` → 显示「ACCESS GRANTED」弹窗 |
 | **烧录成功** | 固件烧录完成时 → 显示「FLASH COMPLETE ✓」庆祝 |
 | **设备检测** | 检测到 ESP32 设备时 → 显示「// TARGET ACQUIRED」标识 |
+
+---
+
+### ESP32 芯片支持矩阵
+
+| 芯片 | 架构 | Wi-Fi | 蓝牙 | 802.15.4 | 乐鑫状态 | esptool (内置 v4.x) | esptool (最新 v5.2) | Spark UI | LILYGO 产品 |
+|------|------|-------|------|----------|---------|--------------------|--------------------|----------|------------|
+| **ESP32** | Xtensa LX6 双核 240MHz | Wi-Fi 4 | BT 4.2 + BLE | - | 量产中 | ✅ | ✅ | ✅ | T-Display, T-Beam, T-ETH-Lite, T-SIM7600, T-CAN485, T-PCIE, T3 LoRa32 |
+| **ESP32-S2** | Xtensa LX7 单核 240MHz | Wi-Fi 4 | - | - | 量产中 | ✅ | ✅ | ✅ | T-Dongle S2, ESP32-S2 |
+| **ESP32-S3** | Xtensa LX7 双核 240MHz | Wi-Fi 4 | BLE 5 | - | 量产中 | ✅ | ✅ | ✅ | T-Display S3, T-Display S3 AMOLED, T-Deck, T-Deck Plus, T-Dongle S3, T-Watch S3, T3 S3, T4 S3, T-Beam SUPREME, T-Embed, T-Embed CC1101 |
+| **ESP32-C2** | RISC-V 单核 120MHz | Wi-Fi 4 | BLE 5 | - | 量产中 | ✅ | ✅ | ✅ | - |
+| **ESP32-C3** | RISC-V 单核 160MHz | Wi-Fi 4 | BLE 5 | - | 量产中 | ✅ | ✅ | ✅ | T8-C3, T-Zigbee (C3+TLSR8258) |
+| **ESP32-C5** | RISC-V 双核 240+48MHz | Wi-Fi 6 (2.4+5GHz) | BLE 5 | 802.15.4 | 量产中 | - | ✅ | ✅ | - |
+| **ESP32-C6** | RISC-V 160+20MHz | Wi-Fi 6 | BLE 5 | 802.15.4 | 量产中 | ✅ | ✅ | ✅ | T-Display P4（作为副 MCU） |
+| **ESP32-C61** | RISC-V 单核 160MHz | Wi-Fi 6 | BLE 5 | - | 量产中 | - | ✅ | ✅ | - |
+| **ESP32-H2** | RISC-V 单核 96MHz | - | BLE 5 | 802.15.4 | 量产中 | ✅ | ✅ | ✅ | - |
+| **ESP32-H4** | RISC-V | - | BLE 5 | 802.15.4 | 预览阶段 | - | ✅ | ✅ | - |
+| **ESP32-P4** | RISC-V 双核 400MHz | -（需搭配副芯片） | - | - | 量产中 | - | ✅ | ✅ | T-Display P4 |
+
+> **说明**：ESP32-P4 是纯计算 SoC，不内置无线功能，通常搭配 ESP32-C6 提供连接能力。Spark 内置的 esptool (v4.x) 支持大部分芯片的自动检测。对于最新芯片（C5、C61、H4、P4），建议升级 esptool 至 v5.2+。

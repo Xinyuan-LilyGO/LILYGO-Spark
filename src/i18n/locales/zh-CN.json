@@ -36,7 +36,7 @@
     "subtitle": "LILYGO Spark 产品初衷与快速上手指南",
     "purpose_title": "产品初衷",
     "purpose_text": "LILYGO Spark 是一款面向 LILYGO 及其他 ESP 设备的跨平台固件中心与烧录工具。让开发者、创客和爱好者能够轻松浏览、下载并烧录官方及社区固件。",
-    "purpose_1": "支持 ESP32、ESP32-S3、ESP32-C6 等乐鑫芯片系列",
+    "purpose_1": "支持 ESP32、ESP32-S2/S3、ESP32-C2/C3/C5/C6/C61、ESP32-H2/H4、ESP32-P4 等乐鑫全系列芯片",
     "purpose_2": "一站式浏览与下载 LILYGO 官方及社区固件",
     "purpose_3": "跨平台支持 Windows、macOS、Linux，支持自动检测 LILYGO 板子",
     "quick_start_title": "快速上手",
@@ -150,7 +150,15 @@
     "app_image": "App / 部分镜像",
     "no_partitions": "未检测到分区表。",
     "analysis_failed": "分析失败",
-    "select_firmware": "点击选择固件 .bin"
+    "analysis_engine": "分析引擎",
+    "engine_builtin": "内置",
+    "engine_no_deps": "无需外部依赖",
+    "select_firmware": "点击选择固件 .bin",
+    "advanced_info": "高级信息（构建 / 框架 / 扩展头）",
+    "build_info": "构建信息",
+    "framework": "构建框架",
+    "ext_header": "扩展头（Extended Header）",
+    "components": "组件 & 工具链"
   },
   "resistor": {
     "bands": "环",
@@ -254,6 +262,7 @@
     "based_on_tool": "基于工具",
     "label_port": "端口",
     "label_chip": "芯片系列",
+    "chip_auto": "自动检测",
     "label_baud": "波特率 (上传)",
     "label_firmware": "固件文件 (.bin)",
     "btn_flash": "开始刷写",

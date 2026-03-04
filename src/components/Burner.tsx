@@ -9,6 +9,7 @@ import 'xterm/css/xterm.css';
 import { ChevronDown, Usb, Cpu, Check, Layers, Plus, Trash2, FilePlus, Download, Save, Play } from 'lucide-react';
 import FullWindowDropZone from './FullWindowDropZone';
 import SparkMD5 from 'spark-md5';
+import { detectChipFromBuffer, analyzeFirmwareBuffer } from '../utils/firmwareAnalyzer';
 
 // Type definitions for Web Serial API
 interface SerialPort {
@@ -45,7 +46,7 @@ const Burner: React.FC = () => {
 
   const [port, setPort] = useState<SerialPort | null>(null);
   const [flashBaudRate, setFlashBaudRate] = useState(921600); // Default for flashing
-  const [chipFamily, setChipFamily] = useState('ESP32-S3'); // Default, maybe auto-detect
+  const [chipFamily, setChipFamily] = useState('auto');
   
   // Basic Mode File
   const [file, setFile] = useState<File | null>(null);
@@ -191,9 +192,31 @@ const Burner: React.FC = () => {
     }
   };
 
-  const applyFirmwareFile = (f: File) => {
+  const applyFirmwareFile = async (f: File) => {
     setFile(f);
     xtermRef.current?.writeln(`Selected firmware: ${f.name} (${f.size} bytes)`);
+
+    try {
+      const buf = await f.arrayBuffer();
+      const detected = detectChipFromBuffer(buf);
+      if (detected) {
+        setChipFamily(detected);
+        xtermRef.current?.writeln(`Auto-detected chip: ${detected}`);
+      }
+      const result = analyzeFirmwareBuffer(buf);
+      if (result.bootloader_flash_size) {
+        xtermRef.current?.writeln(`Flash: ${result.bootloader_flash_size} | Mode: ${result.flash_mode || 'N/A'} | Freq: ${result.flash_freq || 'N/A'}`);
+      }
+      if (result.app_desc) {
+        const ad = result.app_desc;
+        xtermRef.current?.writeln(`Project: ${ad.project_name || '(unnamed)'}${ad.version ? ' v' + ad.version : ''} | IDF ${ad.idf_version} | Built ${ad.compile_date} ${ad.compile_time}`);
+      }
+      if (result.framework && result.framework.name !== 'Unknown') {
+        xtermRef.current?.writeln(`Framework: ${result.framework.name}${result.framework.version ? ' ' + result.framework.version : ''}`);
+      }
+    } catch {
+      // ignore detection errors
+    }
   };
 
   const handleBurnerDrop = (files: FileList) => {
@@ -358,7 +381,7 @@ const Burner: React.FC = () => {
             window.ipcRenderer.on('flash-log', logHandler);
 
             try {
-                const success = await window.ipcRenderer.invoke('flash-firmware-native', portPath, flashBaudRate, filePathToFlash);
+                const success = await window.ipcRenderer.invoke('flash-firmware-native', portPath, flashBaudRate, filePathToFlash, '0x0000', chipFamily);
                 if (success) {
                     setStatus('success');
                     xtermRef.current?.writeln('Native Flash Success!');
@@ -730,10 +753,18 @@ const Burner: React.FC = () => {
                 onChange={e => setChipFamily(e.target.value)}
                 className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
             >
+                <option value="auto">{t('burner.chip_auto')}</option>
                 <option value="ESP32">ESP32</option>
+                <option value="ESP32-S2">ESP32-S2</option>
                 <option value="ESP32-S3">ESP32-S3</option>
+                <option value="ESP32-C2">ESP32-C2</option>
                 <option value="ESP32-C3">ESP32-C3</option>
+                <option value="ESP32-C5">ESP32-C5</option>
                 <option value="ESP32-C6">ESP32-C6</option>
+                <option value="ESP32-C61">ESP32-C61</option>
+                <option value="ESP32-H2">ESP32-H2</option>
+                <option value="ESP32-H4">ESP32-H4</option>
+                <option value="ESP32-P4">ESP32-P4</option>
             </select>
         </div>
 

@@ -200,8 +200,14 @@ async function analyzeFirmwareWithEsptool(filePath: string, logToUI: (msg: strin
                 if (matchChipId) result.chip_id = matchChipId[1];
                 
                 if (stdout.includes('esp32s3')) result.chip = 'ESP32-S3';
+                else if (stdout.includes('esp32s2')) result.chip = 'ESP32-S2';
+                else if (stdout.includes('esp32c2')) result.chip = 'ESP32-C2';
                 else if (stdout.includes('esp32c3')) result.chip = 'ESP32-C3';
+                else if (stdout.includes('esp32c5')) result.chip = 'ESP32-C5';
+                else if (stdout.includes('esp32c61')) result.chip = 'ESP32-C61';
                 else if (stdout.includes('esp32c6')) result.chip = 'ESP32-C6';
+                else if (stdout.includes('esp32h4')) result.chip = 'ESP32-H4';
+                else if (stdout.includes('esp32h2')) result.chip = 'ESP32-H2';
                 else if (stdout.includes('esp32p4')) result.chip = 'ESP32-P4';
                 else if (stdout.includes('esp32')) result.chip = 'ESP32';
                 else if (result.chip_id) result.chip = `Unknown (ID: ${result.chip_id})`;
@@ -273,7 +279,8 @@ async function flashFirmwareWithEsptool(
     filePath: string, 
     offset: string, 
     logToUI: (msg: string) => void,
-    onProgress?: (percent: number) => void
+    onProgress?: (percent: number) => void,
+    chipFamily: string = 'auto'
 ): Promise<boolean> {
     let esptoolName = '';
     let platformDir = '';
@@ -319,15 +326,21 @@ async function flashFirmwareWithEsptool(
     }
 
     return new Promise((resolve) => {
-        // esptool.py --port /dev/ttyUSB0 --baud 460800 write_flash -z 0x1000 firmware.bin
-        const cmdArgs = [
+        const cmdArgs: string[] = [];
+
+        if (chipFamily && chipFamily !== 'auto') {
+            const chipName = chipFamily.toLowerCase().replace('-', '');
+            cmdArgs.push('--chip', chipName);
+        }
+
+        cmdArgs.push(
             '--port', portPath,
             '--baud', baudRate.toString(),
             'write_flash',
             '-z', // compress
             offset,
             filePath
-        ];
+        );
         
         logToUI(`Running command: ${esptoolPath} ${cmdArgs.join(' ')}`);
 
@@ -549,7 +562,8 @@ export async function handleFlashFirmwareNative(
     portPath: string, 
     baudRate: number, 
     filePath: string, 
-    offset: string = '0x0000'
+    offset: string = '0x0000',
+    chipFamily: string = 'auto'
 ) {
     const webContents = event.sender;
     const logToUI = (msg: string) => {
@@ -572,7 +586,7 @@ export async function handleFlashFirmwareNative(
     const onProgress = (percent: number) => {
         webContents.send('flash-progress', { percent });
     };
-    const success = await flashFirmwareWithEsptool(portPath, baudRate, filePath, offset, logToUI, onProgress);
+    const success = await flashFirmwareWithEsptool(portPath, baudRate, filePath, offset, logToUI, onProgress, chipFamily);
     return success;
 }
 
