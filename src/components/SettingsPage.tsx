@@ -1,7 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Globe, Moon, Palette, ExternalLink, Sparkles, Zap, Volume2, CheckCircle, ChevronDown, ChevronRight, FileJson, FolderOpen, X, SlidersHorizontal, RefreshCw } from 'lucide-react';
+import { Globe, Moon, Palette, ExternalLink, Sparkles, Zap, Volume2, CheckCircle, ChevronDown, ChevronRight, FileJson, FolderOpen, X, SlidersHorizontal, RefreshCw, HardDrive, Trash2 } from 'lucide-react';
 import { useTheme, type AccentColor, type FlashCelebrationStyle } from '../contexts/ThemeContext';
+import { useDownload } from '../contexts/DownloadContext';
 
 const ACCENT_COLORS: { id: AccentColor; bg: string }[] = [
   { id: 'blue', bg: 'bg-blue-500' },
@@ -16,10 +17,31 @@ const ACCENT_COLORS: { id: AccentColor; bg: string }[] = [
 
 const LINK_OPEN_STORAGE_KEY = 'lilygo_link_open_mode';
 
+function formatCacheSize(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
 const SettingsPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { preference: themePreference, setPreference: setThemePreference, accent, setAccent, glassEnabled, setGlassEnabled, soundEnabled, setSoundEnabled, flashCelebrationStyle, setFlashCelebrationStyle } = useTheme();
-  
+  const { getCacheStats, clearAll, tasks } = useDownload();
+
+  const [cacheClearing, setCacheClearing] = React.useState(false);
+  const cacheStats = React.useMemo(() => getCacheStats(), [tasks]);
+
+  const handleClearCache = async () => {
+    setCacheClearing(true);
+    try {
+      await clearAll();
+    } finally {
+      setCacheClearing(false);
+    }
+  };
+
   // Initialize state based on localStorage
   const [currentSelection, setCurrentSelection] = React.useState(() => {
       return localStorage.getItem('i18nextLng') || 'system';
@@ -347,6 +369,34 @@ const SettingsPage: React.FC = () => {
             </div>
             <div className="text-xs text-slate-500 dark:text-zinc-400 mt-2">
                 v{appVersion}
+            </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                    <HardDrive className="text-primary" />
+                    <div>
+                      <span className="font-medium text-slate-800 dark:text-slate-200">{t('settings.cache_management')}</span>
+                      <div className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                        {cacheStats.fileCount > 0
+                          ? `${cacheStats.fileCount} ${t('settings.cache_files')} · ${formatCacheSize(cacheStats.totalBytes)}`
+                          : t('settings.cache_empty')
+                        }
+                      </div>
+                    </div>
+                </div>
+                <button
+                    onClick={handleClearCache}
+                    disabled={cacheClearing || cacheStats.fileCount === 0}
+                    className="px-4 py-2 bg-red-500/10 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium flex items-center gap-1.5"
+                >
+                    <Trash2 size={14} />
+                    {cacheClearing ? t('settings.cache_clearing') : t('settings.cache_clear_btn')}
+                </button>
+            </div>
+            <div className="text-xs text-slate-500 dark:text-zinc-400 mt-2">
+                {t('settings.cache_hint')}
             </div>
             </div>
 

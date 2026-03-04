@@ -19,6 +19,7 @@ import {
     handleRemoveFile,
     handleFlashFirmwareNative,
     handleSaveFile,
+    handleCheckFilesExist,
     getEnhancedPortList,
     setSerialPortCallback,
     checkBluetoothPermission,
@@ -414,6 +415,9 @@ ipcMain.handle('download-firmware', handleDownloadFirmware);
 
 // Handle file remove
 ipcMain.handle('remove-file', handleRemoveFile);
+
+// Check if downloaded files still exist on disk
+ipcMain.handle('check-files-exist', handleCheckFilesExist);
 
 // Handle native firmware flashing
 ipcMain.handle('flash-firmware-native', handleFlashFirmwareNative);

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTheme } from './contexts/ThemeContext'
+import { DownloadProvider } from './contexts/DownloadContext'
 import { useKonamiCode } from './hooks/useKonamiCode'
 import FirmwareToolsPage from './components/FirmwareToolsPage'
 import Burner from './components/Burner'
@@ -79,6 +80,7 @@ function App() {
     : 'bg-background';
 
   return (
+    <DownloadProvider>
     <div className={`flex h-screen text-[rgb(var(--color-text-base))] overflow-hidden transition-all duration-300 ${bgClass}`}>
       <HackerEasterEgg show={konamiShow} onComplete={() => setKonamiShow(false)} message="ACCESS GRANTED" />
       <DeviceToast />
@@ -151,6 +153,7 @@ function App() {
         </div>
       </div>
     </div>
+    </DownloadProvider>
   )
 }
 

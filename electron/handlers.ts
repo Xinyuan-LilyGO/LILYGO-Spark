@@ -2,9 +2,10 @@ import { app, shell, dialog, BrowserWindow, IpcMainInvokeEvent, IpcMainEvent, ne
 import { SerialPort } from 'serialport';
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import { createWriteStream } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { execFile } from 'node:child_process';
 import crypto from 'node:crypto';
+import AdmZip from 'adm-zip';
 
 // State variables moved from main.ts
 let activeSerialPort: SerialPort | null = null;
@@ -632,14 +633,21 @@ export async function handleDumpFirmwareNative(
     return success ? { success: true, filePath: outputPath } : { success: false };
 }
 
-export async function handleDownloadFirmware(event: IpcMainInvokeEvent, url: string) {
+export async function handleDownloadFirmware(
+    event: IpcMainInvokeEvent,
+    url: string,
+    ossUrl?: string,
+    originalFilename?: string
+) {
     const webContents = event.sender;
     const tempDir = app.getPath('temp');
-    const fileName = path.basename(new URL(url).pathname) || `firmware_${Date.now()}.bin`;
-    const downloadPath = path.join(tempDir, fileName);
+    const downloadId = url; // always use the original URL as ID
+
+    const actualUrl = ossUrl || url;
+    const isZipDownload = !!ossUrl || actualUrl.toLowerCase().endsWith('.zip');
 
     try {
-        const response = await net.fetch(url);
+        const response = await net.fetch(actualUrl);
         if (!response.ok) throw new Error(`Fetch failed: ${response.statusText}`);
         if (!response.body) throw new Error('No response body');
 
@@ -647,39 +655,54 @@ export async function handleDownloadFirmware(event: IpcMainInvokeEvent, url: str
         let receivedBytes = 0;
 
         const reader = response.body.getReader();
-        const fileStream = createWriteStream(downloadPath);
-        const md5Hash = crypto.createHash('md5');
-        const sha256Hash = crypto.createHash('sha256');
+        const chunks: Buffer[] = [];
 
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
-            receivedBytes += value.length;
-            fileStream.write(value);
-            md5Hash.update(value);
-            sha256Hash.update(value);
+            const buf = Buffer.from(value);
+            receivedBytes += buf.length;
+            chunks.push(buf);
 
             if (totalBytes > 0) {
                 const percent = Math.round((receivedBytes / totalBytes) * 100);
-                webContents.send('download-progress', { percent, receivedBytes, totalBytes });
+                webContents.send('download-progress', { downloadId, percent, receivedBytes, totalBytes });
             }
         }
 
-        fileStream.end();
-        
-        // Wait for file stream to finish
-        await new Promise<void>((resolve, reject) => {
-            fileStream.on('finish', () => resolve());
-            fileStream.on('error', reject);
-        });
+        const downloadedBuffer = Buffer.concat(chunks);
+        let finalBuffer: Buffer;
+        let fileName: string;
+
+        if (isZipDownload) {
+            const zip = new AdmZip(downloadedBuffer);
+            const entries = zip.getEntries();
+            const target = originalFilename
+                ? entries.find(e => e.entryName === originalFilename || e.entryName.endsWith('/' + originalFilename))
+                : entries.find(e => !e.isDirectory);
+            if (!target) throw new Error('No matching file found in zip archive');
+            finalBuffer = target.getData();
+            fileName = originalFilename || path.basename(target.entryName);
+        } else {
+            finalBuffer = downloadedBuffer;
+            fileName = path.basename(new URL(url).pathname) || `firmware_${Date.now()}.bin`;
+        }
+
+        const downloadPath = path.join(tempDir, fileName);
+        writeFileSync(downloadPath, finalBuffer);
+
+        const md5 = crypto.createHash('md5').update(finalBuffer).digest('hex');
+        const sha256 = crypto.createHash('sha256').update(finalBuffer).digest('hex');
 
         return {
             success: true,
             path: downloadPath,
-            md5: md5Hash.digest('hex'),
-            sha256: sha256Hash.digest('hex'),
-            fileName
+            md5,
+            sha256,
+            fileName,
+            fileSize: finalBuffer.length,
+            compressedSize: isZipDownload ? downloadedBuffer.length : undefined
         };
 
     } catch (e: any) {
@@ -725,6 +748,19 @@ export async function handleRemoveFile(_event: IpcMainInvokeEvent, filePath: str
         console.error('Failed to remove file:', e);
         return false;
     }
+}
+
+export async function handleCheckFilesExist(_event: IpcMainInvokeEvent, filePaths: string[]): Promise<Record<string, boolean>> {
+    const result: Record<string, boolean> = {};
+    for (const p of filePaths) {
+        try {
+            await fs.access(p);
+            result[p] = true;
+        } catch {
+            result[p] = false;
+        }
+    }
+    return result;
 }
 
 export async function handleShowOpenFirmwareForAnalysis(event: IpcMainInvokeEvent): Promise<{ canceled: boolean; filePath?: string }> {

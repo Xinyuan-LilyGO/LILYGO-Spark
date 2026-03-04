@@ -130,6 +130,77 @@ Users must enable "Canary Channel" in "Settings -> Advanced" to receive these up
 
 ---
 
+### Firmware OSS Mirror Specification
+
+To solve firmware download issues for users in mainland China, all firmware files from `firmware_manifest.json` are mirrored to Alibaba Cloud OSS. A batch script handles downloading, hashing, compressing, and generating metadata.
+
+#### File Naming Convention
+
+Each firmware file is processed into two files:
+
+| Type | Format | Example |
+|------|--------|---------|
+| **Compressed firmware** | `{sha256_prefix}_{original_filename}.zip` | `6e18ad12aff4ce43_ESP32_GENERIC_S3.bin.zip` |
+| **Metadata** | `{sha256_prefix}_{original_filename}.json` | `6e18ad12aff4ce43_ESP32_GENERIC_S3.bin.json` |
+
+- `sha256_prefix`: First 16 hex characters of the original file's SHA256 hash (64-bit space, collision-free for this scale)
+- `original_filename`: The original filename from the source URL
+- Compression: ZIP with maximum deflate (level 9)
+
+#### Metadata JSON Format
+
+```json
+{
+  "filename": "6e18ad12aff4ce43_ESP32_GENERIC_S3.bin.zip",
+  "originalFilename": "ESP32_GENERIC_S3.bin",
+  "originalSize": 1676624,
+  "compressedSize": 1234567,
+  "md5": "6d54a855ebe2bd4684ff77035ed40f80",
+  "sha256": "6e18ad12aff4ce431a6c8b6edf958daec5e3903ef7015a5aa6fb56e2b7a6290d",
+  "sourceUrl": "https://raw.githubusercontent.com/...",
+  "uploadedAt": "2026-03-04T12:00:00.000Z",
+  "downloadUrl": "https://lilygo.oss-accelerate.aliyuncs.com/firmware/6e18ad12aff4ce43_ESP32_GENERIC_S3.bin.zip",
+  "compression": "zip"
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `filename` | Final filename on OSS (with hash prefix) |
+| `originalFilename` | Original filename from source |
+| `originalSize` | Original file size in bytes |
+| `compressedSize` | Compressed ZIP size in bytes |
+| `md5` | MD5 hash of the original (uncompressed) file |
+| `sha256` | SHA256 hash of the original (uncompressed) file |
+| `sourceUrl` | Original download URL (GitHub, etc.) |
+| `uploadedAt` | ISO 8601 timestamp of when the file was processed |
+| `downloadUrl` | Full OSS download URL |
+| `compression` | Compression format (`zip`) |
+
+#### Batch Script Usage
+
+```bash
+# Download all firmware, compress, and generate metadata (10 concurrent downloads)
+node scripts/download_firmware.mjs
+
+# Custom concurrency and output directory
+node scripts/download_firmware.mjs --concurrency 5 --output my_firmware
+
+# Re-running is safe — existing files are skipped (idempotent)
+```
+
+Output directory structure:
+```
+firmware_oss/
+  6e18ad12aff4ce43_ESP32_GENERIC_S3.bin.zip
+  6e18ad12aff4ce43_ESP32_GENERIC_S3.bin.json
+  a1b2c3d4e5f67890_firmware-t-deck-tft.bin.zip
+  a1b2c3d4e5f67890_firmware-t-deck-tft.bin.json
+  ...
+```
+
+---
+
 ### Easter Eggs & Effects
 
 For hackers and makers who enjoy a bit of fun:
@@ -290,6 +361,77 @@ npm run build:mac:universal  # macOS 通用包
 应用内置的更新检测遵循 SemVer 优先原则：
 *   `0.1.0` (正式版) > `0.1.0-canary...` (测试版)
 *   `0.1.0-canary.20260216...` (新测试版) > `0.1.0-canary.20260215...` (旧测试版)
+
+---
+
+### 固件 OSS 镜像规范
+
+为解决中国大陆用户从 GitHub 下载固件困难的问题，所有 `firmware_manifest.json` 中的固件文件会镜像到阿里云 OSS。批处理脚本负责下载、哈希计算、压缩和生成元数据。
+
+#### 文件命名规范
+
+每个固件文件生成两个文件：
+
+| 类型 | 格式 | 示例 |
+|------|------|------|
+| **压缩固件** | `{sha256前缀}_{原始文件名}.zip` | `6e18ad12aff4ce43_ESP32_GENERIC_S3.bin.zip` |
+| **元数据** | `{sha256前缀}_{原始文件名}.json` | `6e18ad12aff4ce43_ESP32_GENERIC_S3.bin.json` |
+
+- `sha256前缀`：原始文件 SHA256 哈希的前 16 位十六进制字符（64-bit 空间，此规模下不会碰撞）
+- `原始文件名`：源 URL 中的原始文件名
+- 压缩方式：ZIP 最大压缩（deflate level 9）
+
+#### 元数据 JSON 格式
+
+```json
+{
+  "filename": "6e18ad12aff4ce43_ESP32_GENERIC_S3.bin.zip",
+  "originalFilename": "ESP32_GENERIC_S3.bin",
+  "originalSize": 1676624,
+  "compressedSize": 1234567,
+  "md5": "6d54a855ebe2bd4684ff77035ed40f80",
+  "sha256": "6e18ad12aff4ce431a6c8b6edf958daec5e3903ef7015a5aa6fb56e2b7a6290d",
+  "sourceUrl": "https://raw.githubusercontent.com/...",
+  "uploadedAt": "2026-03-04T12:00:00.000Z",
+  "downloadUrl": "https://lilygo.oss-accelerate.aliyuncs.com/firmware/6e18ad12aff4ce43_ESP32_GENERIC_S3.bin.zip",
+  "compression": "zip"
+}
+```
+
+| 字段 | 说明 |
+|------|------|
+| `filename` | OSS 上的最终文件名（含哈希前缀） |
+| `originalFilename` | 源文件原始名称 |
+| `originalSize` | 原始文件大小（字节） |
+| `compressedSize` | ZIP 压缩后大小（字节） |
+| `md5` | 原始（未压缩）文件的 MD5 哈希 |
+| `sha256` | 原始（未压缩）文件的 SHA256 哈希 |
+| `sourceUrl` | 原始下载 URL（GitHub 等） |
+| `uploadedAt` | 处理时间（ISO 8601） |
+| `downloadUrl` | 完整的 OSS 下载地址 |
+| `compression` | 压缩格式（`zip`） |
+
+#### 批处理脚本用法
+
+```bash
+# 下载全部固件、压缩并生成元数据（10 路并发）
+node scripts/download_firmware.mjs
+
+# 自定义并发数和输出目录
+node scripts/download_firmware.mjs --concurrency 5 --output my_firmware
+
+# 重复运行是安全的 —— 已存在的文件会跳过（幂等）
+```
+
+输出目录结构：
+```
+firmware_oss/
+  6e18ad12aff4ce43_ESP32_GENERIC_S3.bin.zip
+  6e18ad12aff4ce43_ESP32_GENERIC_S3.bin.json
+  a1b2c3d4e5f67890_firmware-t-deck-tft.bin.zip
+  a1b2c3d4e5f67890_firmware-t-deck-tft.bin.json
+  ...
+```
 
 ---
 

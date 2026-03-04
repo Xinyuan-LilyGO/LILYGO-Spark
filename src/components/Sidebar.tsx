@@ -1,8 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Settings, Zap, LayoutGrid, Github, LogOut, Upload, Compass, Users, BookOpen, Terminal, FileCode, Wrench } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+import { useDownload } from '../contexts/DownloadContext';
 
 interface AuthUser {
   login: string;
@@ -64,6 +65,11 @@ const LoginButtonWithTooltip: React.FC<{ onLogin: () => void; tooltipText: strin
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogout }) => {
   const { t } = useTranslation();
   const { glassEnabled } = useTheme();
+  const { tasks } = useDownload();
+
+  const activeDownloads = useMemo(() => {
+    return Object.values(tasks).filter(t => t.downloading);
+  }, [tasks]);
 
   const handleLogin = async () => {
     try {
@@ -139,12 +145,23 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
                   isActive ? 'scale-105' : 'group-hover:scale-105'
               }`}>
                   <Icon size={24} className={`relative z-10 ${isActive ? 'text-primary' : ''}`} />
+                  {item.id === 'firmware' && activeDownloads.length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-primary rounded-full flex items-center justify-center text-[8px] font-bold text-white z-20 animate-pulse shadow-lg shadow-primary/40">
+                      {activeDownloads.length}
+                    </span>
+                  )}
               </div>
               
               {/* Text Label - Always Visible */}
-              <span className={`ml-3 font-medium whitespace-nowrap text-left overflow-hidden text-ellipsis ${isActive ? 'text-primary' : ''}`}>
+              <span className={`ml-3 font-medium whitespace-nowrap text-left overflow-hidden text-ellipsis flex-1 ${isActive ? 'text-primary' : ''}`}>
                 {item.label}
               </span>
+              {item.id === 'firmware' && activeDownloads.length > 0 && (
+                <div className="w-16 h-1 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden shrink-0">
+                  <div className="h-full bg-primary rounded-full transition-all duration-300 animate-pulse" 
+                    style={{ width: `${Math.round(activeDownloads.reduce((s, d) => s + d.progress, 0) / activeDownloads.length)}%` }} />
+                </div>
+              )}
             </button>
           );
         })}

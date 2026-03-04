@@ -2,12 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, ChevronRight, Layers, Github, Save, Trash2, Zap } from 'lucide-react';
 import BurnerModal from './BurnerModal';
+import { useDownload } from '../contexts/DownloadContext';
+import type { DownloadedFile } from '../contexts/DownloadContext';
 
 interface BinFile {
   name: string;
   url: string;
   path?: string;
   size?: number;
+  compressed_size?: number;
+  oss_url?: string;
+  md5?: string;
+  sha256?: string;
   release_tag?: string | null;
   release_name?: string | null;
   source?: string;
@@ -48,6 +54,11 @@ interface Firmware {
   description: string;
   hash_md5?: string;
   release_note?: string;
+  size?: number;
+  compressed_size?: number;
+  oss_url?: string;
+  md5?: string;
+  sha256?: string;
 }
 
 interface Manifest {
@@ -59,13 +70,7 @@ interface FirmwareCommunityProps {
   onSelectFirmware?: (url: string) => void;
 }
 
-interface DownloadedFile {
-    url: string;
-    path: string;
-    md5: string;
-    sha256: string;
-    fileName: string;
-}
+// DownloadedFile imported from DownloadContext
 
 const STORAGE_KEY_ONLY_WITH_FIRMWARE = 'firmware_center_only_with_firmware';
 
@@ -75,6 +80,13 @@ function resolveImageUrl(url: string): string {
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
   if (url.startsWith('/')) return url.slice(1); // /devices/xxx -> devices/xxx，相对当前文档解析
   return url;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function productHasFirmware(manifest: Manifest, productId: string, item?: Product | ProductGroup | null): boolean {
@@ -95,10 +107,8 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
     return stored !== 'false'; // default true
   });
   
-  // Download state per firmware URL
-  const [downloading, setDownloading] = useState<Record<string, boolean>>({});
-  const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({});
-  const [downloadedFiles, setDownloadedFiles] = useState<Record<string, DownloadedFile>>({});
+  // Global download state from context
+  const { tasks, startDownload, removeDownload, saveAs: saveDownloadAs } = useDownload();
   
   // Burner Modal State
   const [burnerModalOpen, setBurnerModalOpen] = useState(false);
@@ -186,6 +196,11 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
           filename: b.name,
           download_url: b.url,
           description: b.path || (b.source === 'tree' ? 'From repository' : ''),
+          size: b.size,
+          compressed_size: b.compressed_size,
+          oss_url: b.oss_url,
+          md5: b.md5,
+          sha256: b.sha256,
         });
       }
     }
@@ -246,83 +261,27 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
   }, [searchQuery]);
 
   const handleDownload = async (fw: Firmware) => {
-      if (downloading[fw.download_url]) return;
-      
-      setDownloading(prev => ({ ...prev, [fw.download_url]: true }));
-      setDownloadProgress(prev => ({ ...prev, [fw.download_url]: 0 }));
-
-      try {
-          if (window.ipcRenderer) {
-              const progressHandler = (_event: any, { percent }: { percent: number }) => {
-                  setDownloadProgress(prev => ({ ...prev, [fw.download_url]: percent }));
-              };
-              window.ipcRenderer.on('download-progress', progressHandler);
-
-              const result = await window.ipcRenderer.invoke('download-firmware', fw.download_url);
-              
-              window.ipcRenderer.off('download-progress', progressHandler);
-
-              if (result.success) {
-                  // Verify Hash if provided
-                  if (fw.hash_md5 && result.md5.toLowerCase() !== fw.hash_md5.toLowerCase()) {
-                      alert(`Hash mismatch! Expected: ${fw.hash_md5}, Got: ${result.md5}`);
-                      // Optional: remove file?
-                  } else {
-                      setDownloadedFiles(prev => ({
-                          ...prev,
-                          [fw.download_url]: {
-                              url: fw.download_url,
-                              path: result.path,
-                              md5: result.md5,
-                              sha256: result.sha256,
-                              fileName: result.fileName
-                          }
-                      }));
-                  }
-              } else {
-                  alert(`Download failed: ${result.error}`);
-              }
-          }
-      } catch (e: any) {
-          console.error(e);
-          alert(`Download error: ${e.message}`);
-      } finally {
-          setDownloading(prev => ({ ...prev, [fw.download_url]: false }));
-      }
+      const task = tasks[fw.download_url];
+      if (task?.downloading) return;
+      await startDownload(fw.download_url, {
+        expectedMd5: fw.hash_md5 || fw.md5,
+        ossUrl: fw.oss_url,
+        originalFilename: fw.filename,
+      });
   };
 
   const handleRemove = async (url: string) => {
-      const file = downloadedFiles[url];
-      if (!file) return;
-      
-      if (window.ipcRenderer) {
-          await window.ipcRenderer.invoke('remove-file', file.path);
-          setDownloadedFiles(prev => {
-              const next = { ...prev };
-              delete next[url];
-              return next;
-          });
-          setDownloadProgress(prev => {
-              const next = { ...prev };
-              delete next[url];
-              return next;
-          });
-      }
+      await removeDownload(url);
   };
 
   const handleSaveAs = async (url: string) => {
-      const file = downloadedFiles[url];
-      if (!file) return;
-      
-      if (window.ipcRenderer) {
-          await window.ipcRenderer.invoke('save-file', file.fileName, file.path);
-      }
+      await saveDownloadAs(url);
   };
 
   const handleBurnClick = (url: string) => {
-      const file = downloadedFiles[url];
-      if (file) {
-          setFileToBurn(file);
+      const task = tasks[url];
+      if (task?.file) {
+          setFileToBurn(task.file);
           setBurnerModalOpen(true);
       }
   };
@@ -573,9 +532,10 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                 ) : (
                     <div className="grid grid-cols-1 gap-4">
                         {relatedFirmwares.map((fw, idx) => {
-                            const isDownloaded = !!downloadedFiles[fw.download_url];
-                            const isDownloading = downloading[fw.download_url];
-                            const progress = downloadProgress[fw.download_url] || 0;
+                            const task = tasks[fw.download_url];
+                            const isDownloaded = !!task?.file;
+                            const isDownloading = task?.downloading ?? false;
+                            const progress = task?.progress ?? 0;
 
                             return (
                                 <div key={idx} className="bg-slate-100 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 rounded-xl p-4 hover:border-primary/50 transition-colors group min-w-0">
@@ -594,9 +554,47 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                                                 </span>
                                             </div>
                                             <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">{fw.description}</p>
-                                            <div className="flex items-center space-x-4 text-xs text-slate-500 font-mono">
+                                            <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 font-mono">
                                                 <span>Version: {fw.version}</span>
                                                 {fw.filename && <span>File: {fw.filename}</span>}
+                                                {(fw.size || task?.file?.fileSize) && (
+                                                    <span title="Original size">{formatFileSize(fw.size || task?.file?.fileSize || 0)}</span>
+                                                )}
+                                                {fw.compressed_size && fw.size && (
+                                                    <span className="text-green-600 dark:text-green-400" title={`ZIP compressed: ${formatFileSize(fw.compressed_size)} / Original: ${formatFileSize(fw.size)}`}>
+                                                        ZIP ↓ {formatFileSize(fw.compressed_size)} ({Math.round((1 - fw.compressed_size / fw.size) * 100)}% compression)
+                                                    </span>
+                                                )}
+                                                {fw.oss_url && (
+                                                    <a
+                                                        href={fw.oss_url}
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            if (window.ipcRenderer) {
+                                                                const mode = localStorage.getItem('lilygo_link_open_mode') || 'internal';
+                                                                window.ipcRenderer.invoke('open-url', fw.oss_url, mode);
+                                                            }
+                                                        }}
+                                                        className="inline-flex items-center gap-0.5 text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors cursor-pointer"
+                                                        title={fw.oss_url}
+                                                    >
+                                                        <ExternalLink size={12} /> OSS ⚡
+                                                    </a>
+                                                )}
+                                                <a
+                                                    href={fw.download_url}
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        if (window.ipcRenderer) {
+                                                            const mode = localStorage.getItem('lilygo_link_open_mode') || 'internal';
+                                                            window.ipcRenderer.invoke('open-url', fw.download_url, mode);
+                                                        }
+                                                    }}
+                                                    className="inline-flex items-center gap-0.5 text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-primary transition-colors cursor-pointer"
+                                                    title={fw.download_url}
+                                                >
+                                                    <Github size={12} /> Source
+                                                </a>
                                             </div>
                                         </div>
                                         
@@ -630,6 +628,18 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                                                     >
                                                         <Zap size={18} className="mr-2" />
                                                         Burn
+                                                    </button>
+                                                </div>
+                                            ) : task?.error ? (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-red-500 max-w-[160px] truncate" title={task.error}>
+                                                        {task.error}
+                                                    </span>
+                                                    <button 
+                                                        className="px-3 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-lg flex items-center text-sm transition-all active:scale-95"
+                                                        onClick={() => handleDownload(fw)}
+                                                    >
+                                                        Retry
                                                     </button>
                                                 </div>
                                             ) : (
