@@ -269,18 +269,22 @@ const BurnerModal: React.FC<BurnerModalProps> = ({ file, onClose }) => {
                             <button 
                                 onClick={handleSelectDeviceClick}
                                 disabled={status === 'flashing'}
-                                className={`w-full px-3 py-2 rounded-lg font-medium transition-colors flex items-center justify-between border text-sm
+                                className={`w-full h-[42px] px-3 rounded-lg font-medium transition-colors flex items-center gap-2 border
                                     ${selectedPortId 
-                                        ? 'bg-slate-200 dark:bg-zinc-600 text-slate-900 dark:text-white border-slate-400 dark:border-zinc-500' 
+                                        ? 'bg-slate-100 dark:bg-zinc-700 text-slate-900 dark:text-white border-primary/60 dark:border-primary/50' 
                                         : 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border-slate-300 dark:border-zinc-600 hover:bg-slate-200 dark:hover:bg-zinc-700'
                                     } ${status === 'flashing' ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
-                                <span className="truncate">
-                                    {selectedPortId 
-                                        ? (availablePorts.find(p => p.portId === selectedPortId)?.displayName || 'Selected Port')
-                                        : 'Select Device...'}
-                                </span>
-                                <ChevronDown size={16} />
+                                {selectedPortId ? (() => {
+                                    const sp = availablePorts.find(p => p.portId === selectedPortId);
+                                    return sp ? (
+                                        <div className="flex-1 min-w-0 text-left">
+                                            <div className="text-xs truncate leading-tight">{sp.displayName || sp.portName}</div>
+                                            <div className="text-[10px] font-mono text-slate-500 dark:text-zinc-400 truncate leading-tight">{sp.portName}</div>
+                                        </div>
+                                    ) : <span className="text-sm">Selected Port</span>;
+                                })() : <span className="text-sm">Select Device...</span>}
+                                <ChevronDown size={14} className="shrink-0 text-slate-400 dark:text-zinc-500" />
                             </button>
 
                             {/* Dropdown */}
@@ -300,8 +304,9 @@ const BurnerModal: React.FC<BurnerModalProps> = ({ file, onClose }) => {
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="text-sm text-slate-800 dark:text-zinc-200 truncate">{p.displayName || p.portName}</div>
-                                                    <div className="text-[10px] text-slate-500 dark:text-zinc-500 font-mono">
-                                                        {(p.vendorId || p.productId) && `${formatId(p.vendorId)}:${formatId(p.productId)}`}
+                                                    <div className="text-[10px] text-slate-500 dark:text-zinc-500 font-mono truncate">
+                                                        {p.portName}
+                                                        {(p.vendorId || p.productId) ? ` · ${formatId(p.vendorId)}:${formatId(p.productId)}` : ''}
                                                     </div>
                                                 </div>
                                                 {selectedPortId === p.portId && <Check size={14} className="text-primary" />}
@@ -319,7 +324,7 @@ const BurnerModal: React.FC<BurnerModalProps> = ({ file, onClose }) => {
                                 value={toolStrategy}
                                 onChange={(e) => setToolStrategy(e.target.value as 'native' | 'js')}
                                 disabled={status === 'flashing'}
-                                className="w-full bg-slate-100 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
+                                className="w-full h-[42px] bg-slate-100 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded-lg px-3 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
                             >
                                 <option value="native">esptool (Native) - Recommended</option>
                                 <option value="js">esptool-js (Web)</option>
