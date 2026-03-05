@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Settings, Zap, LayoutGrid, Github, LogOut, Upload, Compass, Users, BookOpen, Terminal, FileCode, Wrench, Sparkles, MessageSquare } from 'lucide-react';
+import { Settings, Zap, LayoutGrid, Github, LogOut, Upload, Compass, Users, Terminal, FileCode, Wrench, MessageSquare, FlaskConical } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useDownload } from '../contexts/DownloadContext';
 
@@ -66,10 +66,28 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
   const { t } = useTranslation();
   const { glassEnabled } = useTheme();
   const { tasks } = useDownload();
+  const [hoveredTooltip, setHoveredTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeDownloads = useMemo(() => {
     return Object.values(tasks).filter(t => t.downloading);
   }, [tasks]);
+
+  const handleNavMouseEnter = (e: React.MouseEvent<HTMLButtonElement>, tooltip: string) => {
+    const target = e.currentTarget;
+    hoverTimerRef.current = setTimeout(() => {
+      const rect = target.getBoundingClientRect();
+      setHoveredTooltip({ text: tooltip, x: rect.right + 8, y: rect.top + rect.height / 2 });
+    }, 400);
+  };
+
+  const handleNavMouseLeave = () => {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+    setHoveredTooltip(null);
+  };
 
   const handleLogin = async () => {
     try {
@@ -86,17 +104,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
   };
 
   const navItems = [
-    { id: 'discovery', icon: Compass, label: 'Discovery' }, // TODO: i18n
-    { id: 'firmware', icon: LayoutGrid, label: t('nav.firmware') },
-    { id: 'burner', icon: Zap, label: t('nav.burner') },
-    { id: 'tools', icon: Wrench, label: t('nav.firmware_toolbox') },
-    { id: 'serial_tools', icon: Terminal, label: t('nav.serial_tools') },
-    { id: 'offline_tools', icon: FileCode, label: t('nav.convert_tools') },
-    { id: 'community', icon: Users, label: t('nav.lilygo_related') },
-    { id: 'sparkling', icon: Sparkles, label: t('nav.sparkling_list') },
-    { id: 'feedback', icon: MessageSquare, label: t('nav.feedback') },
-    { id: 'guide', icon: BookOpen, label: t('nav.guide') },
-    { id: 'settings', icon: Settings, label: t('nav.settings') },
+    { id: 'discovery', icon: Compass, label: 'Discovery', tooltip: t('nav_tooltip.discovery') },
+    { id: 'firmware', icon: LayoutGrid, label: t('nav.firmware'), tooltip: t('nav_tooltip.firmware') },
+    { id: 'tools', icon: Wrench, label: t('nav.firmware_lab'), tooltip: t('nav_tooltip.firmware_lab') },
+    { id: 'serial_tools', icon: Terminal, label: t('nav.serial_tools'), tooltip: t('nav_tooltip.serial_tools') },
+    { id: 'offline_tools', icon: FileCode, label: t('nav.convert_tools'), tooltip: t('nav_tooltip.offline_tools') },
+    { id: 'community', icon: Users, label: t('nav.lilygo_related'), tooltip: t('nav_tooltip.community') },
+    { id: 'spark_lab', icon: FlaskConical, label: t('nav.spark_lab'), tooltip: t('nav_tooltip.spark_lab') },
+    { id: 'feedback', icon: MessageSquare, label: t('nav.feedback'), tooltip: t('nav_tooltip.feedback') },
+    { id: 'settings', icon: Settings, label: t('nav.settings'), tooltip: t('nav_tooltip.settings') },
   ];
 
   return (
@@ -107,7 +123,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
     }`}>
       
       {/* Header / Logo */}
-      <div className="flex items-center justify-center h-20 overflow-hidden relative select-none shrink-0">
+      <div className="flex flex-col items-center pt-3 justify-center h-24 overflow-hidden relative select-none shrink-0">
         <div className="flex items-center">
              <div className="w-10 h-10 bg-gradient-to-br from-primary to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary/30 shrink-0">
                 <Zap size={24} className="text-white fill-white" />
@@ -119,6 +135,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
                 </h1>
              </div>
         </div>
+        <p className="inline-flex items-center gap-1 text-[11px] text-slate-400 dark:text-zinc-500 whitespace-nowrap mt-1.5">
+           Made with <span className="text-[11px] leading-none">🤖</span> AI & <span className="text-[13px] leading-none">❤️</span> Love
+        </p>
       </div>
 
       {/* Nav Items - List Style */}
@@ -131,6 +150,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
+              onMouseEnter={(e) => handleNavMouseEnter(e, item.tooltip)}
+              onMouseLeave={handleNavMouseLeave}
               className={`w-full flex items-center rounded-2xl transition-all duration-200 group relative px-3 py-3 ${
                 isActive 
                   ? 'bg-primary/10 text-primary shadow-[0_0_15px_-3px_rgba(var(--color-primary),0.3)]' 
@@ -168,6 +189,24 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
           );
         })}
       </nav>
+
+      {/* Nav Tooltip */}
+      {hoveredTooltip && document.body &&
+        createPortal(
+          <div
+            className="fixed px-3 py-2 bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 text-xs rounded-lg border border-slate-200 dark:border-zinc-600 shadow-xl leading-relaxed z-[9999] pointer-events-none"
+            style={{
+              left: hoveredTooltip.x,
+              top: hoveredTooltip.y,
+              transform: 'translateY(-50%)',
+              width: 'max-content',
+              maxWidth: 260,
+            }}
+          >
+            {hoveredTooltip.text}
+          </div>,
+          document.body
+        )}
 
       {/* Footer: Login / User + Upload Entry */}
       <div className="p-3 border-t border-slate-200 dark:border-zinc-700/30 space-y-2.5 shrink-0">

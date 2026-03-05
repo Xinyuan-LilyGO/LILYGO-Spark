@@ -127,7 +127,7 @@ const Discovery: React.FC = () => {
                         Spark Discovery
                     </h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-1">
-                        Latest news and inspiration from the ESP32 community.
+                        Latest news and inspiration from the open-source embedded community.
                     </p>
                 </div>
                 <button 

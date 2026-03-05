@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, ChevronRight, Layers, Github, Save, Trash2, Zap } from 'lucide-react';
+import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, ChevronRight, Layers, Github, Save, Trash2, Zap, Microscope } from 'lucide-react';
 import BurnerModal from './BurnerModal';
 import { useDownload } from '../contexts/DownloadContext';
 import type { DownloadedFile } from '../contexts/DownloadContext';
@@ -17,6 +17,7 @@ interface BinFile {
   release_tag?: string | null;
   release_name?: string | null;
   source?: string;
+  source_code_url?: string;
 }
 
 interface Product {
@@ -59,6 +60,7 @@ interface Firmware {
   oss_url?: string;
   md5?: string;
   sha256?: string;
+  source_code_url?: string;
 }
 
 interface Manifest {
@@ -68,6 +70,7 @@ interface Manifest {
 
 interface FirmwareCommunityProps {
   onSelectFirmware?: (url: string) => void;
+  onNavigateToAnalyzer?: (filePath: string, fileName: string) => void;
 }
 
 // DownloadedFile imported from DownloadContext
@@ -80,6 +83,14 @@ function resolveImageUrl(url: string): string {
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
   if (url.startsWith('/')) return url.slice(1); // /devices/xxx -> devices/xxx，相对当前文档解析
   return url;
+}
+
+function deriveSourceCodeUrl(rawUrl: string): string | undefined {
+  const raw = rawUrl.match(/^https:\/\/raw\.githubusercontent\.com\/([^/]+\/[^/]+)\//);
+  if (raw) return `https://github.com/${raw[1]}`;
+  const rel = rawUrl.match(/^https:\/\/github\.com\/([^/]+\/[^/]+)\//);
+  if (rel) return `https://github.com/${rel[1]}`;
+  return undefined;
 }
 
 function formatFileSize(bytes: number): string {
@@ -95,7 +106,7 @@ function productHasFirmware(manifest: Manifest, productId: string, item?: Produc
   return inList || !!hasBins;
 }
 
-const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware: _onSelectFirmware }) => {
+const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware: _onSelectFirmware, onNavigateToAnalyzer }) => {
   const { t } = useTranslation();
   const [manifest, setManifest] = useState<Manifest>({ product_list: [], firmware_list: [] });
   const [loading, setLoading] = useState(true);
@@ -201,6 +212,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
           oss_url: b.oss_url,
           md5: b.md5,
           sha256: b.sha256,
+          source_code_url: b.source_code_url || deriveSourceCodeUrl(b.url),
         });
       }
     }
@@ -303,7 +315,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 dark:text-slate-400" size={18} />
             <input 
               type="text" 
-              placeholder="Search devices..." 
+              placeholder={t('firmwareCenter.search_devices')} 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-primary text-slate-800 dark:text-slate-200 placeholder-slate-500"
@@ -337,7 +349,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                ))}
              </div>
           ) : filteredGroups.length === 0 ? (
-             <div className="text-center py-10 text-slate-500 dark:text-slate-500">No devices found</div>
+             <div className="text-center py-10 text-slate-500 dark:text-slate-500">{t('firmwareCenter.no_devices_found')}</div>
           ) : (
             filteredGroups.map(group => {
               const hasProducts = !!group.products?.length && group.products.some((v: any) => 'product_id' in v);
@@ -372,7 +384,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-slate-800 dark:text-slate-200">{group.name}</h3>
                         <div className="flex items-center text-xs text-slate-500 mt-1">
-                           <span className="bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-300 mr-2">{group.products?.length} products</span>
+                           <span className="bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-300 mr-2">{group.products?.length} {t('firmwareCenter.products')}</span>
                         </div>
                         <p className="text-xs text-slate-500 mt-1 truncate">{group.description}</p>
                       </div>
@@ -527,7 +539,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
 
                 {relatedFirmwares.length === 0 ? (
                     <div className="p-6 sm:p-8 border border-dashed border-slate-300 dark:border-zinc-700 rounded-xl text-center text-slate-500 text-sm sm:text-base min-w-0">
-                        No firmware found for this device in the manifest.
+                        {t('firmwareCenter.no_firmware_found')}
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 gap-4">
@@ -541,9 +553,9 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                                 <div key={idx} className="bg-slate-100 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 rounded-xl p-4 hover:border-primary/50 transition-colors group min-w-0">
                                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex items-center space-x-3 mb-1">
-                                                <h4 className="text-lg font-medium text-slate-800 dark:text-slate-200">{fw.name}</h4>
-                                                <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
+                                            <div className="flex items-start flex-wrap gap-x-3 gap-y-1 mb-1">
+                                                <h4 className="text-lg font-medium text-slate-800 dark:text-slate-200 break-all">{fw.name}</h4>
+                                                <span className={`text-xs px-2 py-0.5 rounded-full border font-medium shrink-0 mt-1 ${
                                                     fw.type === 'factory' ? 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/40 dark:text-green-300 dark:border-green-700' :
                                                     fw.type === 'micropython' ? 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-700' :
                                                     fw.type === 'lora' ? 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-700' :
@@ -553,10 +565,9 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                                                     {fw.type === 'bin' ? 'REPO' : fw.type.toUpperCase()}
                                                 </span>
                                             </div>
-                                            <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">{fw.description}</p>
                                             <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 font-mono">
-                                                <span>Version: {fw.version}</span>
-                                                {fw.filename && <span>File: {fw.filename}</span>}
+                                                <span>{t('firmwareCenter.version')}: {fw.version}</span>
+                                                {fw.filename && <span className="break-all">{t('firmwareCenter.file')}: {fw.filename}</span>}
                                                 {(fw.size || task?.file?.fileSize) && (
                                                     <span title="Original size">{formatFileSize(fw.size || task?.file?.fileSize || 0)}</span>
                                                 )}
@@ -593,15 +604,31 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                                                     className="inline-flex items-center gap-0.5 text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-primary transition-colors cursor-pointer"
                                                     title={fw.download_url}
                                                 >
-                                                    <Github size={12} /> Source
+                                                    <ExternalLink size={12} /> {t('firmwareCenter.origin')}
                                                 </a>
+                                                {fw.source_code_url && (
+                                                    <a
+                                                        href={fw.source_code_url}
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            if (window.ipcRenderer) {
+                                                                const mode = localStorage.getItem('lilygo_link_open_mode') || 'internal';
+                                                                window.ipcRenderer.invoke('open-url', fw.source_code_url!, mode);
+                                                            }
+                                                        }}
+                                                        className="inline-flex items-center gap-0.5 text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-primary transition-colors cursor-pointer"
+                                                        title={fw.source_code_url}
+                                                    >
+                                                        <Github size={12} /> {t('firmwareCenter.source_code')}
+                                                    </a>
+                                                )}
                                             </div>
                                         </div>
                                         
                                         <div className="flex items-center gap-2 shrink-0">
                                             {isDownloading ? (
-                                                <div className="flex flex-col items-end min-w-[120px]">
-                                                    <div className="text-xs text-primary mb-1">Downloading {progress}%</div>
+                                                <div className="flex flex-col items-center min-w-[120px]">
+                                                    <div className="text-xs text-primary mb-1">{t('firmwareCenter.downloading')} {progress}%</div>
                                                     <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                                                         <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
                                                     </div>
@@ -611,23 +638,32 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                                                     <button 
                                                         onClick={() => handleRemove(fw.download_url)}
                                                         className="p-2 text-slate-500 dark:text-slate-400 hover:text-red-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
-                                                        title="Remove Download"
+                                                        title={t('firmwareCenter.remove_download')}
                                                     >
                                                         <Trash2 size={18} />
                                                     </button>
                                                     <button 
                                                         onClick={() => handleSaveAs(fw.download_url)}
                                                         className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
-                                                        title="Save As..."
+                                                        title={t('firmwareCenter.save_as')}
                                                     >
                                                         <Save size={18} />
                                                     </button>
+                                                    {onNavigateToAnalyzer && task?.file && (
+                                                        <button 
+                                                            onClick={() => onNavigateToAnalyzer(task.file!.path, task.file!.fileName)}
+                                                            className="p-2 text-slate-500 dark:text-slate-400 hover:text-primary hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                                                            title={t('firmwareCenter.analyze')}
+                                                        >
+                                                            <Microscope size={18} />
+                                                        </button>
+                                                    )}
                                                     <button 
                                                         onClick={() => handleBurnClick(fw.download_url)}
                                                         className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg flex items-center shadow-lg shadow-emerald-900/20 transition-all active:scale-95"
                                                     >
                                                         <Zap size={18} className="mr-2" />
-                                                        Burn
+                                                        {t('firmwareCenter.burn')}
                                                     </button>
                                                 </div>
                                             ) : task?.error ? (
@@ -639,7 +675,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                                                         className="px-3 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-lg flex items-center text-sm transition-all active:scale-95"
                                                         onClick={() => handleDownload(fw)}
                                                     >
-                                                        Retry
+                                                        {t('firmwareCenter.retry')}
                                                     </button>
                                                 </div>
                                             ) : (
@@ -648,14 +684,14 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                                                     onClick={() => handleDownload(fw)}
                                                 >
                                                     <Download size={18} className="mr-2" />
-                                                    Download
+                                                    {t('firmwareCenter.download')}
                                                 </button>
                                             )}
                                         </div>
                                     </div>
                                     {fw.release_note && (
                                         <div className="mt-3 pt-3 border-t border-slate-200 dark:border-zinc-700/50 text-sm text-slate-600 dark:text-slate-400">
-                                            <span className="text-slate-500 font-semibold mr-2">Note:</span>
+                                            <span className="text-slate-500 font-semibold mr-2">{t('firmwareCenter.note')}</span>
                                             {fw.release_note}
                                         </div>
                                     )}
@@ -669,7 +705,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
         ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-slate-500 dark:text-slate-500">
                 <RefreshCw size={48} className="mb-4 opacity-20" />
-                <p>Select a device to view firmware</p>
+                <p>{t('firmwareCenter.select_device_hint')}</p>
             </div>
         )}
       </div>

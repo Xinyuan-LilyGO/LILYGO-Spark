@@ -1,18 +1,37 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Zap, Download, Search, FileCode } from 'lucide-react';
+import { Zap, Download, Microscope, FileCode } from 'lucide-react';
+import Burner from './Burner';
 import FirmwareDumper from './FirmwareDumper';
-import FirmwareUtilities from './FirmwareUtilities';
+import FirmwareAnalyzerTool from './FirmwareAnalyzerTool';
+import PartitionEditorTool from './PartitionEditorTool';
 
-type ToolTab = 'dumper' | 'analyzer' | 'editor';
+type ToolTab = 'burner' | 'dumper' | 'analyzer' | 'editor';
 
-const FirmwareToolsPage: React.FC = () => {
+interface FirmwareToolsPageProps {
+  defaultTab?: ToolTab;
+  pendingAnalysisFile?: { path: string; fileName: string } | null;
+  onAnalysisFileConsumed?: () => void;
+}
+
+const FirmwareToolsPage: React.FC<FirmwareToolsPageProps> = ({ defaultTab, pendingAnalysisFile, onAnalysisFileConsumed }) => {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<ToolTab>('dumper');
+  const [activeTab, setActiveTab] = useState<ToolTab>(defaultTab || 'burner');
+  const [editorPartitions, setEditorPartitions] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    if (defaultTab) setActiveTab(defaultTab);
+  }, [defaultTab]);
+
+  const handleOpenEditor = (partitions: any[]) => {
+    setEditorPartitions(partitions);
+    setActiveTab('editor');
+  };
 
   const tabs: { id: ToolTab; icon: typeof Zap; labelKey: string }[] = [
+    { id: 'burner', icon: Zap, labelKey: 'nav.burner' },
     { id: 'dumper', icon: Download, labelKey: 'nav.dumper' },
-    { id: 'analyzer', icon: Search, labelKey: 'utilities.analyzer' },
+    { id: 'analyzer', icon: Microscope, labelKey: 'utilities.analyzer' },
     { id: 'editor', icon: FileCode, labelKey: 'utilities.partition_editor' },
   ];
 
@@ -37,9 +56,16 @@ const FirmwareToolsPage: React.FC = () => {
         </div>
       </div>
       <div className="flex-1 min-h-0 overflow-auto">
+        {activeTab === 'burner' && <Burner />}
         {activeTab === 'dumper' && <FirmwareDumper />}
-        {activeTab === 'analyzer' && <FirmwareUtilities mode="analyzer" />}
-        {activeTab === 'editor' && <FirmwareUtilities mode="editor" />}
+        {activeTab === 'analyzer' && (
+          <FirmwareAnalyzerTool
+            pendingAnalysisFile={pendingAnalysisFile}
+            onAnalysisFileConsumed={onAnalysisFileConsumed}
+            onOpenEditor={handleOpenEditor}
+          />
+        )}
+        {activeTab === 'editor' && <PartitionEditorTool initialPartitions={editorPartitions} />}
       </div>
     </div>
   );

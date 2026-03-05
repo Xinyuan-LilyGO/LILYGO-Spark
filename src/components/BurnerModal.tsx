@@ -245,7 +245,7 @@ const BurnerModal: React.FC<BurnerModalProps> = ({ file, onClose }) => {
                 <div className="p-4 border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center bg-slate-100 dark:bg-zinc-900/50 rounded-t-xl">
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center">
                         <Zap className="mr-2 text-emerald-400" size={20} />
-                        Flash Firmware
+                        {t('firmwareCenter.flash_firmware')}
                     </h3>
                     <button onClick={onClose} className="text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors">
                         <X size={20} />
@@ -256,7 +256,7 @@ const BurnerModal: React.FC<BurnerModalProps> = ({ file, onClose }) => {
                 <div className="p-6 space-y-6 overflow-y-auto">
                     {/* File Info */}
                     <div className="bg-slate-100 dark:bg-zinc-700/30 p-3 rounded-lg border border-slate-200 dark:border-zinc-600/50">
-                        <div className="text-sm text-slate-700 dark:text-slate-300 font-medium mb-1">Target Firmware:</div>
+                        <div className="text-sm text-slate-700 dark:text-slate-300 font-medium mb-1">{t('firmwareCenter.target_firmware')}</div>
                         <div className="text-xs font-mono text-slate-600 dark:text-slate-400 break-all">{file.fileName}</div>
                         <div className="text-[10px] font-mono text-slate-500 mt-1">SHA256: {file.sha256}</div>
                     </div>
@@ -265,7 +265,7 @@ const BurnerModal: React.FC<BurnerModalProps> = ({ file, onClose }) => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Port Selection */}
                         <div className="relative" ref={portSelectRef}>
-                            <label className="block text-sm font-medium text-slate-600 dark:text-zinc-400 mb-1">Device Port</label>
+                            <label className="block text-sm font-medium text-slate-600 dark:text-zinc-400 mb-1">{t('firmwareCenter.device_port')}</label>
                             <button 
                                 onClick={handleSelectDeviceClick}
                                 disabled={status === 'flashing'}
@@ -282,16 +282,16 @@ const BurnerModal: React.FC<BurnerModalProps> = ({ file, onClose }) => {
                                             <div className="text-xs truncate leading-tight">{sp.displayName || sp.portName}</div>
                                             <div className="text-[10px] font-mono text-slate-500 dark:text-zinc-400 truncate leading-tight">{sp.portName}</div>
                                         </div>
-                                    ) : <span className="text-sm">Selected Port</span>;
-                                })() : <span className="text-sm">Select Device...</span>}
-                                <ChevronDown size={14} className="shrink-0 text-slate-400 dark:text-zinc-500" />
+                                    ) : <span className="text-sm flex-1 text-left">{t('firmwareCenter.selected_port')}</span>;
+                                })() : <span className="text-sm flex-1 text-left">{t('firmwareCenter.select_device')}</span>}
+                                <ChevronDown size={14} className="shrink-0 text-slate-400 dark:text-zinc-500 ml-auto" />
                             </button>
 
                             {/* Dropdown */}
                             {isSelectingPort && (
 <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 rounded-lg shadow-xl z-50 max-h-48 overflow-y-auto">
                                         {availablePorts.length === 0 ? (
-                                        <div className="p-3 text-center text-xs text-slate-500 dark:text-zinc-400">No devices found</div>
+                                        <div className="p-3 text-center text-xs text-slate-500 dark:text-zinc-400">{t('firmwareCenter.no_devices')}</div>
                                     ) : (
                                         availablePorts.map(p => (
                                             <button
@@ -318,17 +318,18 @@ const BurnerModal: React.FC<BurnerModalProps> = ({ file, onClose }) => {
                         </div>
 
                         {/* Tool Strategy */}
-                        <div>
+                        <div className="relative">
                             <label className="block text-sm font-medium text-slate-600 dark:text-zinc-400 mb-1">{t('burner.based_on_tool')}</label>
                             <select 
                                 value={toolStrategy}
                                 onChange={(e) => setToolStrategy(e.target.value as 'native' | 'js')}
                                 disabled={status === 'flashing'}
-                                className="w-full h-[42px] bg-slate-100 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded-lg px-3 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
+                                className="w-full h-[42px] bg-slate-100 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded-lg px-3 pr-8 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary outline-none appearance-none"
                             >
                                 <option value="native">esptool (Native) - Recommended</option>
                                 <option value="js">esptool-js (Web)</option>
                             </select>
+                            <ChevronDown size={14} className="absolute right-3 top-[calc(50%+10px)] -translate-y-1/2 text-slate-400 dark:text-zinc-500 pointer-events-none" />
                         </div>
                     </div>
 
@@ -345,7 +346,7 @@ const BurnerModal: React.FC<BurnerModalProps> = ({ file, onClose }) => {
                         disabled={status === 'flashing'}
                         className="px-4 py-2 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors disabled:opacity-50"
                     >
-                        Cancel
+                        {t('firmwareCenter.cancel')}
                     </button>
                     <button 
                         onClick={handleBurn}
@@ -357,7 +358,7 @@ const BurnerModal: React.FC<BurnerModalProps> = ({ file, onClose }) => {
                             }`}
                     >
                         <Zap size={18} className="mr-2" />
-                        {status === 'flashing' ? 'Flashing...' : 'Start Flash'}
+                        {status === 'flashing' ? t('firmwareCenter.flashing') : t('firmwareCenter.start_flash')}
                     </button>
                 </div>
             </div>

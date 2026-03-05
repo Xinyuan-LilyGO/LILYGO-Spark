@@ -12,26 +12,41 @@ const GITHUB_LATEST_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/
 const GITHUB_RELEASES_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=1`;
 
 let updateWin: BrowserWindow | null = null;
+let _updaterRegistered = false;
 
 export function setupUpdater(win: BrowserWindow) {
   updateWin = win;
 
+  if (_updaterRegistered) {
+    // Window re-created (e.g. macOS reactivate) — just trigger startup check
+    setTimeout(() => {
+      const isCanary = getCanaryUpdate();
+      autoUpdater.allowPrerelease = isCanary;
+      if (process.platform === 'darwin') {
+        checkForUpdatesMacOS(win, isCanary);
+      } else {
+        autoUpdater.checkForUpdatesAndNotify();
+      }
+    }, 3000);
+    return;
+  }
+  _updaterRegistered = true;
+
   const canary = getCanaryUpdate();
   console.log('[Updater] Canary channel:', canary);
 
-  // Configure electron-updater
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.allowPrerelease = canary;
 
-  // Listen for update events
   autoUpdater.on('checking-for-update', () => {
     sendStatusToWindow('Checking for update...');
   });
 
   autoUpdater.on('update-available', (info: UpdateInfo) => {
     sendStatusToWindow('Update available.', info);
-    dialog.showMessageBox(win, {
+    if (!updateWin || updateWin.isDestroyed()) return;
+    dialog.showMessageBox(updateWin, {
       type: 'info',
       title: 'Update Available',
       message: `A new version ${info.version} is available. Do you want to download it now?`,
@@ -39,13 +54,9 @@ export function setupUpdater(win: BrowserWindow) {
     }).then((result) => {
       if (result.response === 0) {
         if (process.platform === 'darwin') {
-           // macOS: Manual download via browser or internal download
            const isCanary = getCanaryUpdate();
-           // We can try to use autoUpdater to download if it works, but usually it fails on unsigned mac apps.
-           // Let's stick to our custom downloader for macOS to be safe and provide "one-click" experience (download -> open dmg).
-           checkForUpdatesMacOS(win, isCanary); 
+           checkForUpdatesMacOS(updateWin!, isCanary); 
         } else {
-           // Windows/Linux: Auto download
            autoUpdater.downloadUpdate();
         }
       }
@@ -58,10 +69,11 @@ export function setupUpdater(win: BrowserWindow) {
 
   autoUpdater.on('error', (err: Error) => {
     sendStatusToWindow('Error in auto-updater. ' + err);
-    // Fallback for macOS if electron-updater fails (likely due to code signing)
     if (process.platform === 'darwin') {
         const isCanary = getCanaryUpdate();
-        checkForUpdatesMacOS(win, isCanary);
+        if (updateWin && !updateWin.isDestroyed()) {
+          checkForUpdatesMacOS(updateWin, isCanary);
+        }
     }
   });
 
@@ -70,12 +82,13 @@ export function setupUpdater(win: BrowserWindow) {
     log_message = log_message + ' - Downloaded ' + progressObj.percent + '%';
     log_message = log_message + ' (' + progressObj.transferred + "/" + progressObj.total + ')';
     sendStatusToWindow(log_message, progressObj);
-    win.webContents.send('update-progress', progressObj);
+    updateWin?.webContents.send('update-progress', progressObj);
   });
 
   autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
     sendStatusToWindow('Update downloaded', info);
-    dialog.showMessageBox(win, {
+    if (!updateWin || updateWin.isDestroyed()) return;
+    dialog.showMessageBox(updateWin, {
       type: 'info',
       title: 'Update Ready',
       message: 'Update downloaded. The application will restart to install the update.',
@@ -87,24 +100,21 @@ export function setupUpdater(win: BrowserWindow) {
     });
   });
 
-// IPC handlers for manual check
   ipcMain.handle('check-for-updates', () => {
       const isCanary = getCanaryUpdate();
-      // Update allowPrerelease in case it changed at runtime
       autoUpdater.allowPrerelease = isCanary;
       
       if (process.platform === 'darwin') {
-          checkForUpdatesMacOS(win, isCanary);
+          if (updateWin && !updateWin.isDestroyed()) {
+            checkForUpdatesMacOS(updateWin, isCanary);
+          }
       } else {
           autoUpdater.checkForUpdatesAndNotify();
       }
   });
 
-  // Check for updates on startup
-  // Delay slightly to ensure window is ready
   setTimeout(() => {
       const isCanary = getCanaryUpdate();
-      // Update allowPrerelease in case it changed at runtime
       autoUpdater.allowPrerelease = isCanary;
 
       if (process.platform === 'darwin') {

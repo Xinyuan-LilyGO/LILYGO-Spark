@@ -3,18 +3,17 @@ import { useTheme } from './contexts/ThemeContext'
 import { DownloadProvider } from './contexts/DownloadContext'
 import { useKonamiCode } from './hooks/useKonamiCode'
 import FirmwareToolsPage from './components/FirmwareToolsPage'
-import Burner from './components/Burner'
 import { HackerEasterEgg } from './components/HackerEasterEgg'
 import Discovery from './components/Discovery'
 import DeviceToast from './components/DeviceToast'
 import SettingsPage from './components/SettingsPage'
 import Sidebar from './components/Sidebar'
 import FirmwareCommunity from './components/FirmwareCommunity'
-import FirmwareUtilities from './components/FirmwareUtilities'
+import SerialMonitorTool from './components/SerialMonitorTool'
+import ToolboxPage from './components/ToolboxPage'
 import FirmwareUpload from './components/FirmwareUpload'
 import LilygoCommunity from './components/LilygoCommunity'
-import GuidePage from './components/GuidePage'
-import SparklingList from './components/SparklingList'
+import SparkLab from './components/SparkLab'
 import FeedbackPage, { type FeedbackData } from './components/FeedbackPage'
 
 const AUTH_STORAGE_KEY = 'lilygo_auth';
@@ -30,6 +29,8 @@ function App() {
   const [konamiShow, setKonamiShow] = useState(false);
   useKonamiCode(() => setKonamiShow(true));
   const [activeTab, setActiveTab] = useState('firmware') // Default to firmware center
+  const [toolsDefaultTab, setToolsDefaultTab] = useState<'burner' | 'dumper' | 'analyzer' | 'editor' | undefined>(undefined);
+  const [pendingAnalysisFile, setPendingAnalysisFile] = useState<{ path: string; fileName: string } | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
@@ -111,9 +112,9 @@ function App() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         <div key={activeTab} className="flex-1 flex flex-col min-h-0 overflow-hidden animate-fade-in">
         {/* Tab Content */}
-        {activeTab === 'guide' && (
+        {activeTab === 'spark_lab' && (
             <div className="h-full overflow-auto">
-                <GuidePage />
+                <SparkLab />
             </div>
         )}
 
@@ -127,25 +128,20 @@ function App() {
 
         {activeTab === 'tools' && (
             <div className="h-full overflow-auto">
-                <FirmwareToolsPage />
+                <FirmwareToolsPage defaultTab={toolsDefaultTab} pendingAnalysisFile={pendingAnalysisFile} onAnalysisFileConsumed={() => setPendingAnalysisFile(null)} />
             </div>
         )}
         
-        {activeTab === 'burner' && (
-            <div className="h-full overflow-auto">
-                <Burner />
-            </div>
-        )}
         
         {activeTab === 'serial_tools' && (
             <div className="h-full overflow-auto">
-                <FirmwareUtilities mode="serial" />
+                <SerialMonitorTool />
             </div>
         )}
         
         {activeTab === 'offline_tools' && (
             <div className="h-full overflow-auto">
-                <FirmwareUtilities mode="offline" />
+                <ToolboxPage />
             </div>
         )}
         
@@ -156,15 +152,13 @@ function App() {
         )}
         
         {activeTab === 'firmware' && (
-             <FirmwareCommunity />
+             <FirmwareCommunity onNavigateToAnalyzer={(filePath, fileName) => {
+                 setPendingAnalysisFile({ path: filePath, fileName });
+                 setToolsDefaultTab('analyzer');
+                 setActiveTab('tools');
+             }} />
         )}
         
-        {activeTab === 'sparkling' && (
-            <div className="h-full overflow-auto">
-                <SparklingList onNavigateToFeedback={() => setActiveTab('feedback')} />
-            </div>
-        )}
-
         {activeTab === 'feedback' && (
             <div className="h-full overflow-auto">
                 <FeedbackPage onSubmit={handleFeedbackSubmit} />

@@ -58,6 +58,7 @@ const SettingsPage: React.FC = () => {
   const [canaryUpdate, setCanaryUpdate] = React.useState(false);
   const [checkingUpdate, setCheckingUpdate] = React.useState(false);
   const [appVersion, setAppVersion] = React.useState('0.0.0');
+  const manualCheckRef = React.useRef(false);
 
   React.useEffect(() => {
     if (window.ipcRenderer) {
@@ -68,18 +69,24 @@ const SettingsPage: React.FC = () => {
           window.electronUtils.getAppVersion().then((v: string) => setAppVersion(v));
       }
       
-      // Listen for update messages
+      // Listen for update messages — only show alert when user manually triggered the check
       const updateHandler = (_event: any, message: { text: string, data?: any }) => {
-          console.log('Update message:', message);
+          console.log('[Updater]', message.text);
           if (message.text.includes('App is up to date')) {
+             if (manualCheckRef.current) {
+               alert(t('settings.update_not_found'));
+             }
              setCheckingUpdate(false);
-             // You might want to show a toast here
-             alert(t('settings.update_not_found'));
+             manualCheckRef.current = false;
           } else if (message.text.includes('Update available')) {
              setCheckingUpdate(false);
+             manualCheckRef.current = false;
           } else if (message.text.includes('Error')) {
+             if (manualCheckRef.current) {
+               alert(t('settings.update_error') + ': ' + message.text);
+             }
              setCheckingUpdate(false);
-             alert(t('settings.update_error') + ': ' + message.text);
+             manualCheckRef.current = false;
           }
       };
       window.ipcRenderer.on('update-message', updateHandler);
@@ -89,6 +96,7 @@ const SettingsPage: React.FC = () => {
 
   const handleCheckUpdate = async () => {
       if (!window.ipcRenderer) return;
+      manualCheckRef.current = true;
       setCheckingUpdate(true);
       try {
           await window.ipcRenderer.invoke('check-for-updates');

@@ -959,3 +959,8 @@ export async function cleanupSerialPort() {
         activeSerialPort = null;
     }
 }
+
+export async function handleReadFileAsBuffer(_event: IpcMainInvokeEvent, filePath: string): Promise<ArrayBuffer> {
+    const buffer = await fs.readFile(filePath);
+    return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+}

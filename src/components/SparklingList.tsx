@@ -6,7 +6,7 @@ import {
   Calculator, Zap, Battery, Timer, CircuitBoard, Lightbulb,
   Ruler, Radio, PcCase,
   Box, Bot, Star, ShieldCheck, FolderCog,
-  Send, ChevronDown, ChevronUp, CheckCircle2, Clock, Flame
+  ChevronDown, ChevronUp, CheckCircle2, Clock, Flame
 } from 'lucide-react';
 
 type Status = 'done' | 'planned' | 'idea';
@@ -103,7 +103,7 @@ const categories: SparkCategory[] = [
   },
 ];
 
-const SparklingList: React.FC<{ onNavigateToFeedback?: () => void }> = ({ onNavigateToFeedback }) => {
+const SparklingList: React.FC = () => {
   const { i18n } = useTranslation();
   const isZh = i18n.language?.startsWith('zh');
   const [expandedCategories, setExpandedCategories] = useState<Record<number, boolean>>(
@@ -258,18 +258,11 @@ const SparklingList: React.FC<{ onNavigateToFeedback?: () => void }> = ({ onNavi
             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2">
               {isZh ? '有新的灵感火花？' : 'Got a Sparkling Idea?'}
             </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 max-w-sm mx-auto">
+            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
               {isZh
-                ? '我们期待听到你的创意！每一个好点子都可能出现在未来的版本中'
-                : "We'd love to hear your ideas! Every great suggestion could make it into a future release"}
+                ? '我们期待听到你的创意！每一个好点子都可能出现在未来的版本中。请前往侧边栏「产品反馈」提交。'
+                : "We'd love to hear your ideas! Every great suggestion could make it into a future release. Head to \"Feedback\" in the sidebar to submit."}
             </p>
-            <button
-              onClick={() => onNavigateToFeedback?.()}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-violet-500 via-pink-500 to-amber-500 text-white font-semibold text-sm shadow-lg shadow-pink-500/25 hover:shadow-pink-500/40 hover:scale-105 transition-all duration-200 active:scale-95"
-            >
-              <Send size={16} />
-              {isZh ? '提交你的创意' : 'Submit Your Idea'}
-            </button>
           </div>
         </div>
       </div>

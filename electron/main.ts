@@ -23,7 +23,8 @@ import {
     getEnhancedPortList,
     setSerialPortCallback,
     checkBluetoothPermission,
-    cleanupSerialPort
+    cleanupSerialPort,
+    handleReadFileAsBuffer
 } from './handlers'
 
 let win: BrowserWindow | null
@@ -409,6 +410,7 @@ ipcMain.on('theme-changed', (_event, _theme: 'light' | 'dark') => {});
 
 // Handle firmware analysis request
 ipcMain.handle('analyze-firmware', handleAnalyzeFirmware);
+ipcMain.handle('read-file-as-buffer', handleReadFileAsBuffer);
 
 // Handle firmware download
 ipcMain.handle('download-firmware', handleDownloadFirmware);
