@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FileCode, AlertCircle, Cpu, Terminal, HardDrive, Microscope } from 'lucide-react';
+import { FileCode, AlertCircle, Cpu, Terminal, HardDrive } from 'lucide-react';
 import { getPartitionTypeLabel, getPartitionSubtypeLabel } from '../utils/partitionTypes';
 import { analyzeFirmwareBuffer, type FirmwareAnalysisResult } from '../utils/firmwareAnalyzer';
 import FullWindowDropZone from './FullWindowDropZone';

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Settings, Zap, LayoutGrid, Github, LogOut, Upload, Compass, Users, Terminal, FileCode, Wrench, MessageSquare, FlaskConical } from 'lucide-react';
+import { Settings, Zap, LayoutGrid, Github, LogOut, Upload, Compass, Users, Terminal, FileCode, Wrench, FlaskConical } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useDownload } from '../contexts/DownloadContext';
 
@@ -111,7 +111,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
     { id: 'offline_tools', icon: FileCode, label: t('nav.convert_tools'), tooltip: t('nav_tooltip.offline_tools') },
     { id: 'community', icon: Users, label: t('nav.lilygo_related'), tooltip: t('nav_tooltip.community') },
     { id: 'spark_lab', icon: FlaskConical, label: t('nav.spark_lab'), tooltip: t('nav_tooltip.spark_lab') },
-    { id: 'feedback', icon: MessageSquare, label: t('nav.feedback'), tooltip: t('nav_tooltip.feedback') },
     { id: 'settings', icon: Settings, label: t('nav.settings'), tooltip: t('nav_tooltip.settings') },
   ];
 

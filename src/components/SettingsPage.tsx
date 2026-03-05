@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Globe, Moon, Palette, ExternalLink, Sparkles, Zap, Volume2, CheckCircle, ChevronDown, ChevronRight, FileJson, FolderOpen, X, SlidersHorizontal, RefreshCw, HardDrive, Trash2 } from 'lucide-react';
-import { useTheme, type AccentColor, type FlashCelebrationStyle } from '../contexts/ThemeContext';
+import { Globe, Moon, Palette, ExternalLink, Sparkles, Zap, Volume2, CheckCircle, ChevronDown, ChevronRight, FileJson, FolderOpen, X, SlidersHorizontal, RefreshCw, HardDrive, Trash2, MessageSquare, Settings } from 'lucide-react';
+import { useTheme, type AccentColor, type AccentMode, type FlashCelebrationStyle } from '../contexts/ThemeContext';
 import { useDownload } from '../contexts/DownloadContext';
+import FeedbackPage, { type FeedbackData } from './FeedbackPage';
 
 const ACCENT_COLORS: { id: AccentColor; bg: string }[] = [
   { id: 'blue', bg: 'bg-blue-500' },
@@ -27,11 +28,24 @@ function formatCacheSize(bytes: number): string {
 
 const SettingsPage: React.FC = () => {
   const { t, i18n } = useTranslation();
-  const { preference: themePreference, setPreference: setThemePreference, accent, setAccent, glassEnabled, setGlassEnabled, soundEnabled, setSoundEnabled, flashCelebrationStyle, setFlashCelebrationStyle } = useTheme();
+  const { preference: themePreference, setPreference: setThemePreference, accent, accentMode, setAccent, setAccentMode, glassEnabled, setGlassEnabled, soundEnabled, setSoundEnabled, flashCelebrationStyle, setFlashCelebrationStyle } = useTheme();
   const { getCacheStats, clearAll, tasks } = useDownload();
 
   const [cacheClearing, setCacheClearing] = React.useState(false);
   const cacheStats = React.useMemo(() => getCacheStats(), [tasks]);
+  const [activeTab, setActiveTab] = React.useState<'settings' | 'feedback'>('settings');
+
+  const handleFeedbackSubmit = async (data: FeedbackData) => {
+    const apiBaseUrl = window.ipcRenderer
+      ? await window.ipcRenderer.invoke('get-api-base-url')
+      : 'https://lilygo-api.bytecode.fun';
+    const resp = await fetch(`${apiBaseUrl}/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!resp.ok) throw new Error(`Submit failed: ${resp.status}`);
+  };
 
   const handleClearCache = async () => {
     setCacheClearing(true);
@@ -176,8 +190,37 @@ const SettingsPage: React.FC = () => {
   };
 
   return (
-      <div className="p-8">
-        <h2 className="text-2xl font-bold mb-6 text-slate-900 dark:text-white">{t('settings.title')}</h2>
+      <div className="h-full flex flex-col">
+        <div className="shrink-0 border-b border-slate-200 dark:border-zinc-700 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm">
+          <div className="flex gap-1 p-2">
+            {([
+              { id: 'settings' as const, icon: Settings, labelKey: 'settings.title' },
+              { id: 'feedback' as const, icon: MessageSquare, labelKey: 'nav.feedback' },
+            ]).map(({ id, icon: Icon, labelKey }) => (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  activeTab === id
+                    ? 'bg-primary/15 text-primary shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800'
+                }`}
+              >
+                <Icon size={18} />
+                {t(labelKey)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {activeTab === 'feedback' && (
+          <div className="flex-1 min-h-0 overflow-auto">
+            <FeedbackPage onSubmit={handleFeedbackSubmit} />
+          </div>
+        )}
+
+        {activeTab === 'settings' && (
+        <div className="flex-1 min-h-0 overflow-auto p-8">
         
         <div className={`rounded-2xl p-6 max-w-2xl border space-y-6 transition-all duration-200 ${
           glassEnabled 
@@ -234,7 +277,28 @@ const SettingsPage: React.FC = () => {
                     <Palette className="text-primary" />
                     <span className="font-medium text-slate-800 dark:text-zinc-200">{t('settings.accent')}</span>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <select
+                    value={accentMode}
+                    onChange={(e) => setAccentMode(e.target.value as AccentMode)}
+                    className="bg-white dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                    <option value="rotating">{t('settings.accent_mode_rotating')}</option>
+                    <option value="fixed">{t('settings.accent_mode_fixed')}</option>
+                </select>
+            </div>
+            {accentMode === 'rotating' ? (
+              <div className="mt-3">
+                <div className="flex items-center gap-2">
+                  <div className={`w-6 h-6 rounded-full ${ACCENT_COLORS.find(c => c.id === accent)?.bg || 'bg-blue-500'} ring-2 ring-primary ring-offset-2 ring-offset-slate-100 dark:ring-offset-zinc-800`} />
+                  <span className="text-sm text-slate-600 dark:text-zinc-300">{t(`settings.accent_options.${accent}`)}</span>
+                </div>
+                <div className="text-xs text-slate-500 dark:text-zinc-400 mt-2">
+                  {t('settings.accent_rotating_hint')}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-wrap gap-2 mt-3">
                     {ACCENT_COLORS.map(({ id, bg }) => (
                         <button
                             key={id}
@@ -246,10 +310,11 @@ const SettingsPage: React.FC = () => {
                         />
                     ))}
                 </div>
-            </div>
-            <div className="text-xs text-slate-500 dark:text-zinc-400 mt-2">
-                {t(`settings.accent_options.${accent}`)}
-            </div>
+                <div className="text-xs text-slate-500 dark:text-zinc-400 mt-2">
+                    {t(`settings.accent_options.${accent}`)}
+                </div>
+              </>
+            )}
             </div>
 
             <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
@@ -501,6 +566,8 @@ const SettingsPage: React.FC = () => {
             )}
             </div>
         </div>
+        </div>
+        )}
       </div>
   );
 };

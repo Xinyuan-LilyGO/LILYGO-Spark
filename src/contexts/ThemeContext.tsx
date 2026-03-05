@@ -1,14 +1,18 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type ResolvedTheme = 'light' | 'dark';
 export type AccentColor = 'blue' | 'orange' | 'amber' | 'emerald' | 'cyan' | 'violet' | 'rose' | 'sky';
+export type AccentMode = 'rotating' | 'fixed';
 
 const THEME_STORAGE_KEY = 'lilygo_theme';
 const ACCENT_STORAGE_KEY = 'lilygo_accent';
+const ACCENT_MODE_STORAGE_KEY = 'lilygo_accent_mode';
 const GLASS_STORAGE_KEY = 'lilygo_glass_effect';
 const SOUND_STORAGE_KEY = 'lilygo_sound_enabled';
 const FLASH_STYLE_STORAGE_KEY = 'lilygo_flash_celebration_style';
+
+const ACCENT_ROTATION_ORDER: AccentColor[] = ['blue', 'orange', 'amber', 'emerald', 'cyan', 'violet', 'rose', 'sky'];
 
 export type FlashCelebrationStyle = 'fireworks' | 'hacker' | 'minimal' | 'neon' | 'terminal' | 'gradient';
 
@@ -32,6 +36,34 @@ function getStoredAccent(): AccentColor {
     if (valid.includes(stored as AccentColor)) return stored as AccentColor;
   } catch {}
   return 'blue';
+}
+
+function getStoredAccentMode(): AccentMode {
+  try {
+    const stored = localStorage.getItem(ACCENT_MODE_STORAGE_KEY);
+    if (stored === 'rotating' || stored === 'fixed') return stored;
+  } catch {}
+  return 'rotating';
+}
+
+function getRotatingAccent(): AccentColor {
+  const now = new Date();
+  const epoch = new Date(2025, 0, 1);
+  const msPerHalfDay = 12 * 60 * 60 * 1000;
+  const halfDaysSinceEpoch = Math.floor((now.getTime() - epoch.getTime()) / msPerHalfDay);
+  return ACCENT_ROTATION_ORDER[halfDaysSinceEpoch % ACCENT_ROTATION_ORDER.length];
+}
+
+function msUntilNextHalfDay(): number {
+  const now = new Date();
+  const next = new Date(now);
+  if (now.getHours() < 12) {
+    next.setHours(12, 0, 0, 0);
+  } else {
+    next.setDate(next.getDate() + 1);
+    next.setHours(0, 0, 0, 0);
+  }
+  return next.getTime() - now.getTime();
 }
 
 function getStoredGlass(): boolean {
@@ -83,11 +115,13 @@ interface ThemeContextValue {
   preference: ThemePreference;
   resolved: ResolvedTheme;
   accent: AccentColor;
+  accentMode: AccentMode;
   glassEnabled: boolean;
   soundEnabled: boolean;
   flashCelebrationStyle: FlashCelebrationStyle;
   setPreference: (p: ThemePreference) => void;
   setAccent: (a: AccentColor) => void;
+  setAccentMode: (m: AccentMode) => void;
   setGlassEnabled: (v: boolean) => void;
   setSoundEnabled: (v: boolean) => void;
   setFlashCelebrationStyle: (s: FlashCelebrationStyle) => void;
@@ -97,14 +131,38 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [preference, setPreferenceState] = useState<ThemePreference>(getStoredPreference);
-  const [accent, setAccentState] = useState<AccentColor>(getStoredAccent);
+  const [accentMode, setAccentModeState] = useState<AccentMode>(getStoredAccentMode);
+  const [fixedAccent, setFixedAccentState] = useState<AccentColor>(getStoredAccent);
+  const [rotatingAccent, setRotatingAccent] = useState<AccentColor>(getRotatingAccent);
   const [glassEnabled, setGlassEnabledState] = useState(getStoredGlass);
   const [soundEnabled, setSoundEnabledState] = useState(getStoredSoundEnabled);
   const [flashCelebrationStyle, setFlashCelebrationStyleState] = useState<FlashCelebrationStyle>(getStoredFlashStyle);
   const [systemDark, setSystemDark] = useState(getSystemTheme);
+  const rotationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const accent = accentMode === 'rotating' ? rotatingAccent : fixedAccent;
 
   const resolved = resolveTheme(preference);
   const effectiveResolved = preference === 'system' ? systemDark : resolved;
+
+  const scheduleNextRotation = useCallback(() => {
+    if (rotationTimerRef.current) clearTimeout(rotationTimerRef.current);
+    const ms = msUntilNextHalfDay();
+    rotationTimerRef.current = setTimeout(() => {
+      setRotatingAccent(getRotatingAccent());
+      scheduleNextRotation();
+    }, ms);
+  }, []);
+
+  useEffect(() => {
+    if (accentMode === 'rotating') {
+      setRotatingAccent(getRotatingAccent());
+      scheduleNextRotation();
+    }
+    return () => {
+      if (rotationTimerRef.current) clearTimeout(rotationTimerRef.current);
+    };
+  }, [accentMode, scheduleNextRotation]);
 
   const setPreference = (p: ThemePreference) => {
     setPreferenceState(p);
@@ -112,8 +170,20 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   };
 
   const setAccent = (a: AccentColor) => {
-    setAccentState(a);
+    setFixedAccentState(a);
     localStorage.setItem(ACCENT_STORAGE_KEY, a);
+    if (accentMode === 'rotating') {
+      setAccentModeState('fixed');
+      localStorage.setItem(ACCENT_MODE_STORAGE_KEY, 'fixed');
+    }
+  };
+
+  const setAccentMode = (m: AccentMode) => {
+    setAccentModeState(m);
+    localStorage.setItem(ACCENT_MODE_STORAGE_KEY, m);
+    if (m === 'rotating') {
+      setRotatingAccent(getRotatingAccent());
+    }
   };
 
   const setGlassEnabled = (v: boolean) => {
@@ -166,7 +236,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [effectiveResolved]);
 
   return (
-    <ThemeContext.Provider value={{ preference, resolved: effectiveResolved, accent, glassEnabled, soundEnabled, flashCelebrationStyle, setPreference, setAccent, setGlassEnabled, setSoundEnabled, setFlashCelebrationStyle }}>
+    <ThemeContext.Provider value={{ preference, resolved: effectiveResolved, accent, accentMode, glassEnabled, soundEnabled, flashCelebrationStyle, setPreference, setAccent, setAccentMode, setGlassEnabled, setSoundEnabled, setFlashCelebrationStyle }}>
       {children}
     </ThemeContext.Provider>
   );

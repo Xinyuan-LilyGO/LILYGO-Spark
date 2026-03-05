@@ -44,7 +44,7 @@
     "community": "LILYGO 官方社群、文件與相關資源",
     "spark_lab": "靈感火花路線圖與產品使用指引",
     "feedback": "提交產品建議、Bug 回報或功能需求",
-    "settings": "語言、主題、更新檢查等應用設定"
+    "settings": "語言、主題、更新檢查、產品反饋等"
   },
   "guide": {
     "title": "使用指引",
@@ -241,6 +241,9 @@
       "dark": "深色"
     },
     "accent": "主題色",
+    "accent_mode_rotating": "自動輪換",
+    "accent_mode_fixed": "固定顏色",
+    "accent_rotating_hint": "主題色每半天自動切換一次（中午 12:00 和午夜 0:00），8 種顏色 4 天一輪",
     "accent_options": {
       "blue": "藍色",
       "orange": "橙色",

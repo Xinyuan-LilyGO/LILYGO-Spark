@@ -44,7 +44,7 @@
     "community": "LILYGO 公式コミュニティ、ドキュメント＆関連リソース",
     "spark_lab": "インスピレーションロードマップ＆製品ガイド",
     "feedback": "提案・バグ報告・機能リクエストを送信",
-    "settings": "言語、テーマ、アップデート確認などのアプリ設定"
+    "settings": "言語、テーマ、アップデート確認、フィードバックなど"
   },
   "guide": {
     "title": "ユーザーガイド",
@@ -241,6 +241,9 @@
       "dark": "ダーク"
     },
     "accent": "テーマカラー",
+    "accent_mode_rotating": "自動ローテーション",
+    "accent_mode_fixed": "固定カラー",
+    "accent_rotating_hint": "テーマカラーは半日ごとに自動切替（正午12:00と深夜0:00）、8色を4日で一巡",
     "accent_options": {
       "blue": "ブルー",
       "orange": "オレンジ",

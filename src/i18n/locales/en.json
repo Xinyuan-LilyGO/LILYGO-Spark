@@ -44,7 +44,7 @@
         "community": "LILYGO official community, docs & related resources",
         "spark_lab": "Sparkling roadmap & product usage guide",
         "feedback": "Submit suggestions, bug reports, or feature requests",
-        "settings": "Language, theme, update checks & app preferences"
+        "settings": "Language, theme, update checks, feedback & preferences"
     },
     "firmwareCenter": {
         "only_with_firmware": "Only show products with firmware",
@@ -358,6 +358,9 @@
             "dark": "Dark"
         },
         "accent": "Theme Color",
+        "accent_mode_rotating": "Auto Rotate",
+        "accent_mode_fixed": "Fixed Color",
+        "accent_rotating_hint": "Theme color changes every half day (at noon 12:00 and midnight 0:00), cycling through 8 colors over 4 days",
         "accent_options": {
             "blue": "Blue",
             "orange": "Orange",
