@@ -22,9 +22,6 @@ const Discovery: React.FC = () => {
 
     const fetchDirectRSS = async () => {
         try {
-            // Note: CORS might block these requests in browser, but Electron should be fine if webSecurity is disabled or via IPC
-            // If in browser dev mode, we might need a proxy. For now assuming Electron environment or CORS-friendly feeds.
-            
             const parser = new Parser();
             const feeds = [
                 { url: 'https://hackaday.com/category/esp32/feed/', source: 'Hackaday' },
@@ -32,7 +29,19 @@ const Discovery: React.FC = () => {
                 { url: 'https://blog.adafruit.com/feed/', source: 'Adafruit' }
             ];
 
-            const results = await Promise.allSettled(feeds.map(f => parser.parseURL(f.url)));
+            const parseFeed = async (feedUrl: string) => {
+                // Use main process proxy to bypass CORS
+                if (window.ipcRenderer) {
+                    const res = await window.ipcRenderer.invoke('fetch-url', feedUrl);
+                    if (res.ok && res.text) {
+                        return parser.parseString(res.text);
+                    }
+                    throw new Error(res.error || `HTTP ${res.status}`);
+                }
+                return parser.parseURL(feedUrl);
+            };
+
+            const results = await Promise.allSettled(feeds.map(f => parseFeed(f.url)));
             
             let aggregated: NewsItem[] = [];
             
@@ -52,12 +61,10 @@ const Discovery: React.FC = () => {
                 }
             });
 
-            // Fallback to mock if RSS also fails (e.g. network down)
             if (aggregated.length === 0) {
                 return mockNews as NewsItem[];
             }
 
-            // Simple Sort: Freshness
             return aggregated.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         } catch (e) {
@@ -81,13 +88,20 @@ const Discovery: React.FC = () => {
 
             // 1. Try to fetch from real API (LILYGO-Spark-Server)
             try {
-                const response = await fetch(`${apiBaseUrl}/news`);
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.success && data.data.length > 0) {
-                        setNews(data.data);
-                        return;
-                    }
+                const newsUrl = `${apiBaseUrl}/news`;
+                let data: any;
+                if (window.ipcRenderer) {
+                    const res = await window.ipcRenderer.invoke('fetch-url', newsUrl);
+                    if (!res.ok) throw new Error(res.error || `HTTP ${res.status}`);
+                    data = JSON.parse(res.text);
+                } else {
+                    const response = await fetch(newsUrl);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    data = await response.json();
+                }
+                if (data.success && data.data.length > 0) {
+                    setNews(data.data);
+                    return;
                 }
                 throw new Error('API returned empty or invalid data');
             } catch (e) {

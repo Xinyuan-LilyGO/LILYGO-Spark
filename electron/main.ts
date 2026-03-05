@@ -449,7 +449,21 @@ ipcMain.handle('write-serial', handleWriteSerial);
 // 5. Open External URL
 ipcMain.handle('open-external', handleOpenExternal);
 
-// 6. Open URL (external browser or internal window)
+// 6. Proxy fetch (bypass CORS for RSS feeds etc.)
+ipcMain.handle('fetch-url', async (_event, url: string) => {
+  try {
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'LILYGO-Spark' }
+    });
+    if (!response.ok) return { ok: false, status: response.status, text: '' };
+    const text = await response.text();
+    return { ok: true, status: response.status, text };
+  } catch (e: any) {
+    return { ok: false, status: 0, text: '', error: e.message };
+  }
+});
+
+// 7. Open URL (external browser or internal window)
 ipcMain.handle('open-url', async (_event, url: string, mode: 'external' | 'internal' = 'external') => {
   if (mode === 'internal') {
     const child = new BrowserWindow({
