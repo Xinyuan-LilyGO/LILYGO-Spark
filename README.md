@@ -1,10 +1,69 @@
 # LILYGO Spark
 
-A cross-platform firmware hub and burner for LILYGO and other ESP devices.
+A cross-platform firmware hub and flash tool for LILYGO and other ESP devices. Built with Electron + React + TypeScript.
+
+一款面向 LILYGO 及其他 ESP 设备的跨平台固件中心与烧录工具。基于 Electron + React + TypeScript 构建。
 
 ---
 
 ## English
+
+### Features
+
+#### Firmware Center
+- Browse, search, and download official & community firmware for LILYGO devices
+- Product filtering with device images, chip type badges, and firmware version info
+- One-click download with progress tracking and multi-task support
+- OSS mirror acceleration for users in mainland China (Alibaba Cloud CDN)
+- Source code links and firmware origin tracing
+
+#### Firmware Lab (固件研究所)
+- **Firmware Burner** — Flash firmware to ESP32 devices via Web Serial API with auto chip detection
+- **Firmware Dumper** — Read and dump firmware from connected devices
+- **Firmware Analyzer** — Analyze `.bin` files: detect chip type, partition table, bootloader, app info, filesystem images (SPIFFS/LittleFS/FAT), and board name heuristics
+- **Partition Table Editor** — Visual editor for ESP32 partition tables with import/export
+
+#### Serial Monitor
+- Real-time serial port monitor with baud rate selection
+- Device log output viewing and filtering
+
+#### Embedded Toolbox (哆啦A梦百宝箱)
+- **Resistor Color Code Calculator** — 4/5/6-band resistor decoder with visual color bands
+- **SMD Resistor Calculator** — 3/4-digit SMD code decoder
+- **LED Resistor Calculator** — Calculate current-limiting resistor for LEDs
+- **Ohm's Law Calculator** — Voltage / Current / Resistance / Power calculator
+- **555 Timer Calculator** — Astable & monostable mode frequency/duty cycle calculator
+- **Battery Life Calculator** — Estimate battery runtime from capacity and load
+- **ESP32 Power Estimator** — Estimate power consumption for ESP32 projects
+- **Series/Parallel Resistor Calculator** — Calculate equivalent resistance
+- **Circuit Schematic Viewer** — Basic circuit diagram reference
+- **Voltage Regulator Calculator** — LDO/switching regulator output calculator
+- **RC Time Constant Calculator** — RC circuit charge/discharge timing
+- **Image Converter** — Convert images to C arrays for embedded displays (drag & drop)
+
+#### Spark Lab
+- **Sparkling List** — Feature roadmap and inspiration board
+- **Usage Guide** — Product introduction and quick-start guide
+
+#### Discovery
+- Curated content and recommendations
+
+#### LILYGO Community
+- Links to official community resources, documentation, and related projects
+
+#### Settings & Feedback
+- **Settings**: Language (EN/中文/繁體/日本語), theme (light/dark/system), auto-rotating accent color (8 colors, changes every half day), glass morphism effect toggle, sound effects, flash celebration style (6 styles), link open mode, cache management, custom firmware manifest, canary update channel, developer mode
+- **Feedback**: Submit bug reports, feature requests, and suggestions with screenshots
+
+#### Other Highlights
+- **i18n**: Full internationalization in English, Simplified Chinese, Traditional Chinese, and Japanese
+- **Auto Updates**: Stable and Canary (nightly) update channels via electron-updater
+- **Sidebar Tooltips**: Hover over any nav item for a description of what's inside
+- **Easter Eggs**: Konami code, flash celebration, device detection badge
+- **Cross-platform**: macOS, Windows, Linux
+- **GitHub Login**: OAuth login for firmware upload
+
+---
 
 ### Release & Update Strategy
 
@@ -234,6 +293,63 @@ For hackers and makers who enjoy a bit of fun:
 ---
 
 ## 中文
+
+### 功能一览
+
+#### 固件中心
+- 浏览、搜索和下载 LILYGO 官方及社区固件
+- 产品筛选，含设备图片、芯片类型标签、固件版本信息
+- 一键下载，支持进度追踪和多任务并行
+- 阿里云 OSS 镜像加速（中国大陆用户）
+- 源码链接和固件来源追溯
+
+#### 固件研究所
+- **固件烧录** — 通过 Web Serial API 烧录固件到 ESP32 设备，自动检测芯片类型
+- **固件提取** — 从已连接设备读取和导出固件
+- **固件分析** — 分析 `.bin` 文件：检测芯片类型、分区表、引导程序、应用信息、文件系统镜像（SPIFFS/LittleFS/FAT）、开发板名称推断
+- **分区表编辑器** — 可视化 ESP32 分区表编辑器，支持导入/导出
+
+#### 串口工具
+- 实时串口监视器，支持波特率选择
+- 设备日志输出查看和过滤
+
+#### 哆啦A梦百宝箱（嵌入式工具箱）
+- **电阻色环计算器** — 4/5/6 环电阻解码，可视化色环显示
+- **贴片电阻计算器** — 3/4 位贴片电阻代码解码
+- **LED 限流电阻计算器** — 计算 LED 所需限流电阻
+- **欧姆定律计算器** — 电压/电流/电阻/功率计算
+- **555 定时器计算器** — 无稳态和单稳态模式频率/占空比计算
+- **电池续航计算器** — 根据电池容量和负载估算续航时间
+- **ESP32 功耗估算器** — 估算 ESP32 项目功耗
+- **串/并联电阻计算器** — 计算等效电阻
+- **电路原理图查看器** — 基础电路图参考
+- **稳压器计算器** — LDO/开关稳压器输出计算
+- **RC 时间常数计算器** — RC 电路充放电时间计算
+- **图片转换器** — 将图片转换为嵌入式显示屏用 C 数组（支持拖放）
+
+#### Spark Lab
+- **灵感火花** — 功能路线图和灵感看板
+- **使用指引** — 产品介绍和快速上手指南
+
+#### Discovery
+- 精选内容与推荐
+
+#### LILYGO 社区
+- 官方社区资源、文档和相关项目链接
+
+#### 设置与反馈
+- **设置**：语言（中/英/繁/日）、主题（浅色/深色/跟随系统）、主题色自动轮换（8 种颜色每半天切换）、毛玻璃效果、音效、烧录庆祝动画（6 种风格）、链接打开方式、缓存管理、自定义固件清单、Canary 更新频道、开发者模式
+- **产品反馈**：提交 Bug 报告、功能需求和建议，支持截图
+
+#### 其他亮点
+- **国际化**：完整支持英文、简体中文、繁体中文、日文
+- **自动更新**：Stable（正式版）和 Canary（测试版）双更新频道
+- **侧边栏悬停提示**：鼠标悬停在导航项上可查看栏目介绍
+- **彩蛋**：Konami 代码、烧录庆祝动画、设备检测标识
+- **跨平台**：macOS、Windows、Linux
+- **GitHub 登录**：OAuth 登录后可上传固件
+
+---
 
 ### 版本发布与更新策略
 
