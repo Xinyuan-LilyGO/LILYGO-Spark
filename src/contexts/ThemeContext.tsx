@@ -155,12 +155,37 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (accentMode === 'rotating') {
-      setRotatingAccent(getRotatingAccent());
-      scheduleNextRotation();
+    if (accentMode !== 'rotating') return;
+
+    setRotatingAccent(getRotatingAccent());
+    scheduleNextRotation();
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        setRotatingAccent(getRotatingAccent());
+        scheduleNextRotation();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    // DEV only: poll every 5s to detect manual system time changes
+    let devPollTimer: ReturnType<typeof setInterval> | null = null;
+    if (import.meta.env.DEV) {
+      let lastAccent = getRotatingAccent();
+      devPollTimer = setInterval(() => {
+        const current = getRotatingAccent();
+        if (current !== lastAccent) {
+          lastAccent = current;
+          setRotatingAccent(current);
+          scheduleNextRotation();
+        }
+      }, 5000);
     }
+
     return () => {
       if (rotationTimerRef.current) clearTimeout(rotationTimerRef.current);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      if (devPollTimer) clearInterval(devPollTimer);
     };
   }, [accentMode, scheduleNextRotation]);
 
