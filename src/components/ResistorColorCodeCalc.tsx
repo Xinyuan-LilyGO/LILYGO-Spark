@@ -9,14 +9,14 @@ const COLOR_MAP: Record<ColorId, { hex: string; digit?: number; mult?: number; t
   black: { hex: '#262626', digit: 0, mult: 1, label: 'Black' },
   brown: { hex: '#783f04', digit: 1, mult: 10, tol: 1, ppm: 100, label: 'Brown' },
   red: { hex: '#ef4444', digit: 2, mult: 100, tol: 2, ppm: 50, label: 'Red' },
-  orange: { hex: '#f97316', digit: 3, mult: 1000, tol: 0, ppm: 15, label: 'Orange' },
+  orange: { hex: '#f97316', digit: 3, mult: 1000, ppm: 15, label: 'Orange' },
   yellow: { hex: '#eab308', digit: 4, mult: 10000, ppm: 25, label: 'Yellow' },
   green: { hex: '#22c55e', digit: 5, mult: 100000, tol: 0.5, ppm: 20, label: 'Green' },
   blue: { hex: '#3b82f6', digit: 6, mult: 1000000, tol: 0.25, ppm: 10, label: 'Blue' },
   violet: { hex: '#a855f7', digit: 7, mult: 10000000, tol: 0.1, ppm: 5, label: 'Violet' },
   grey: { hex: '#6b7280', digit: 8, mult: 100000000, tol: 0.05, ppm: 1, label: 'Grey' },
   white: { hex: '#f3f4f6', digit: 9, mult: 1000000000, label: 'White' },
-  gold: { hex: '#eab308', mult: 0.1, tol: 5, label: 'Gold' },
+  gold: { hex: '#D4AF37', mult: 0.1, tol: 5, label: 'Gold' },
   silver: { hex: '#94a3b8', mult: 0.01, tol: 10, label: 'Silver' },
 };
 

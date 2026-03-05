@@ -138,7 +138,8 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
   // Converter State
   const [convertFile, setConvertFile] = useState<File | null>(null);
   const [convertPreview, setConvertPreview] = useState<string | null>(null);
-  const [convertFormat, setConvertFormat] = useState<'rgb565' | 'gray' | 'mono'>('rgb565');
+  const [convertFormat, setConvertFormat] = useState<'rgb565' | 'gray'>('rgb565');
+  const [convertByteOrder, setConvertByteOrder] = useState<'big' | 'little'>('big');
   const [convertCode, setConvertCode] = useState<string>('');
   const [isConverting, setIsConverting] = useState(false);
 
@@ -232,13 +233,19 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
                   const b = data[i + 2];
                   // RGB565: RRRRRGGG GGGBBBBB
                   const rgb = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
-                  output.push((rgb >> 8) & 0xFF);
-                  output.push(rgb & 0xFF);
+                  if (convertByteOrder === 'big') {
+                      output.push((rgb >> 8) & 0xFF);
+                      output.push(rgb & 0xFF);
+                  } else {
+                      output.push(rgb & 0xFF);
+                      output.push((rgb >> 8) & 0xFF);
+                  }
               }
           } else if (convertFormat === 'gray') {
                for (let i = 0; i < data.length; i += 4) {
-                  const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-                  output.push(Math.floor(avg));
+                  // ITU-R BT.601 standard luminance
+                  const y = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+                  output.push(Math.round(y));
               }
           }
           
@@ -570,6 +577,19 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
                                     <option value="gray">Grayscale (8-bit)</option>
                                 </select>
                             </div>
+                            {convertFormat === 'rgb565' && (
+                            <div>
+                                <label className="text-xs text-slate-400 block mb-1">{t('utilities.byte_order')}</label>
+                                <select
+                                    value={convertByteOrder}
+                                    onChange={(e) => setConvertByteOrder(e.target.value as 'big' | 'little')}
+                                    className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg p-2 text-sm"
+                                >
+                                    <option value="big">{t('utilities.byte_order_big')}</option>
+                                    <option value="little">{t('utilities.byte_order_little')}</option>
+                                </select>
+                            </div>
+                            )}
                             <button 
                                 onClick={processImage}
                                 disabled={!convertFile || isConverting}
@@ -656,8 +676,11 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
                 </div>
               </div>
             </div>
-            <div className="mt-4 p-3 bg-slate-100 dark:bg-slate-900/50 rounded-lg text-xs text-slate-600 dark:text-slate-400 font-mono">
-              Vout = Vref × (1 + R2/R1) → R2 = R1 × (Vout/Vref − 1)
+            <div className="mt-4 p-3 bg-slate-100 dark:bg-slate-900/50 rounded-lg text-xs text-slate-600 dark:text-slate-400">
+              <div className="font-mono">Vout = Vref × (1 + R2/R1) → R2 = R1 × (Vout/Vref − 1)</div>
+              <div className="mt-1.5 text-slate-500 dark:text-slate-500">
+                {t('utilities.regulator_iadj_note')}
+              </div>
             </div>
           </div>
         </div>
@@ -730,7 +753,10 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
                   {(() => {
                     const rMult = rcROhm === 'ohm' ? 1 : rcROhm === 'kohm' ? 1e3 : 1e6;
                     const cMult = rcCF === 'pF' ? 1e-12 : rcCF === 'nF' ? 1e-9 : rcCF === 'uF' ? 1e-6 : rcCF === 'mF' ? 1e-3 : 1;
-                    const tauSec = rcR * rMult * rcC * cMult;
+                    const rVal = rcR * rMult;
+                    const cVal = rcC * cMult;
+                    if (rVal <= 0 || cVal <= 0) return '—';
+                    const tauSec = rVal * cVal;
                     if (tauSec >= 1) return `${tauSec.toFixed(4)} s`;
                     if (tauSec >= 1e-3) return `${(tauSec * 1e3).toFixed(4)} ms`;
                     if (tauSec >= 1e-6) return `${(tauSec * 1e6).toFixed(4)} µs`;
@@ -744,7 +770,10 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
                   {(() => {
                     const rMult = rcROhm === 'ohm' ? 1 : rcROhm === 'kohm' ? 1e3 : 1e6;
                     const cMult = rcCF === 'pF' ? 1e-12 : rcCF === 'nF' ? 1e-9 : rcCF === 'uF' ? 1e-6 : rcCF === 'mF' ? 1e-3 : 1;
-                    const fc = 1 / (2 * Math.PI * rcR * rMult * rcC * cMult);
+                    const rVal = rcR * rMult;
+                    const cVal = rcC * cMult;
+                    if (rVal <= 0 || cVal <= 0) return '—';
+                    const fc = 1 / (2 * Math.PI * rVal * cVal);
                     if (fc >= 1e6) return `${(fc / 1e6).toFixed(4)} MHz`;
                     if (fc >= 1e3) return `${(fc / 1e3).toFixed(4)} kHz`;
                     return `${fc.toFixed(4)} Hz`;
@@ -1268,14 +1297,14 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
                         <tbody className="text-sm font-mono text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50">
                             {partitions.length > 0 ? partitions.map((p, idx) => (
                                 <tr key={idx} className="border-b border-slate-200 dark:border-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700/30">
-                                    <td className="p-2"><input type="text" defaultValue={p.label} className="bg-transparent w-full outline-none focus:text-slate-900 dark:focus:text-white" /></td>
-                                    <td className="p-2"><input type="text" defaultValue={p.type} className="bg-transparent w-full outline-none focus:text-slate-900 dark:focus:text-white" /></td>
-                                    <td className="p-2"><input type="text" defaultValue={p.subtype} className="bg-transparent w-full outline-none focus:text-slate-900 dark:focus:text-white" /></td>
-                                    <td className="p-2 text-primary/80"><input type="text" defaultValue={p.offset} className="bg-transparent w-full outline-none focus:text-slate-900 dark:focus:text-white" /></td>
-                                    <td className="p-2 text-emerald-600 dark:text-green-300"><input type="text" defaultValue={p.size} className="bg-transparent w-full outline-none focus:text-slate-900 dark:focus:text-white" /></td>
-                                    <td className="p-2"><input type="text" defaultValue={p.encrypted ? 'encrypted' : ''} className="bg-transparent w-full outline-none focus:text-slate-900 dark:focus:text-white" /></td>
+                                    <td className="p-2"><input type="text" value={p.label} onChange={(e) => { const np = [...partitions]; np[idx] = { ...np[idx], label: e.target.value }; setPartitions(np); }} className="bg-transparent w-full outline-none focus:text-slate-900 dark:focus:text-white" /></td>
+                                    <td className="p-2"><input type="text" value={p.type} onChange={(e) => { const np = [...partitions]; np[idx] = { ...np[idx], type: e.target.value }; setPartitions(np); }} className="bg-transparent w-full outline-none focus:text-slate-900 dark:focus:text-white" /></td>
+                                    <td className="p-2"><input type="text" value={p.subtype} onChange={(e) => { const np = [...partitions]; np[idx] = { ...np[idx], subtype: e.target.value }; setPartitions(np); }} className="bg-transparent w-full outline-none focus:text-slate-900 dark:focus:text-white" /></td>
+                                    <td className="p-2 text-primary/80"><input type="text" value={p.offset} onChange={(e) => { const np = [...partitions]; np[idx] = { ...np[idx], offset: e.target.value }; setPartitions(np); }} className="bg-transparent w-full outline-none focus:text-slate-900 dark:focus:text-white" /></td>
+                                    <td className="p-2 text-emerald-600 dark:text-green-300"><input type="text" value={p.size} onChange={(e) => { const np = [...partitions]; np[idx] = { ...np[idx], size: e.target.value }; setPartitions(np); }} className="bg-transparent w-full outline-none focus:text-slate-900 dark:focus:text-white" /></td>
+                                    <td className="p-2"><input type="text" value={p.encrypted ? 'encrypted' : ''} onChange={(e) => { const np = [...partitions]; np[idx] = { ...np[idx], encrypted: e.target.value === 'encrypted' }; setPartitions(np); }} className="bg-transparent w-full outline-none focus:text-slate-900 dark:focus:text-white" /></td>
                                     <td className="p-2 text-center">
-                                        <button className="text-slate-500 hover:text-red-400 transition-colors">
+                                        <button onClick={() => setPartitions(partitions.filter((_, i) => i !== idx))} className="text-slate-500 hover:text-red-400 transition-colors">
                                             <Trash2 size={14} />
                                         </button>
                                     </td>

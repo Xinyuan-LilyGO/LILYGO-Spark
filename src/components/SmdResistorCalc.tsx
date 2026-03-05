@@ -13,7 +13,8 @@ const EIA96_VALUES: number[] = [
 ];
 
 const EIA96_MULT: Record<string, number> = {
-  Y: 0.01, X: 0.1, A: 1, B: 10, C: 100, D: 1000, E: 10000, F: 100000,
+  Z: 0.001, Y: 0.01, R: 0.01, X: 0.1, S: 0.1,
+  A: 1, B: 10, C: 100, D: 1000, E: 10000, F: 100000, G: 1000000, H: 10000000,
 };
 
 function formatOhms(v: number): string {
@@ -97,7 +98,7 @@ const SmdResistorCalc: React.FC = () => {
   }
 
   const DIGITS = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
-  const EIA96_LETTERS = ['Y', 'X', 'A', 'B', 'C', 'D', 'E', 'F'];
+  const EIA96_LETTERS = ['Z', 'Y', 'R', 'X', 'S', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
   return (
     <div className="flex-1 flex flex-col gap-6 overflow-auto">

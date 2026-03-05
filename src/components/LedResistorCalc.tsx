@@ -45,6 +45,32 @@ const LedResistorCalc: React.FC = () => {
     }
   }
 
+  const E24_VALUES = [
+    1.0, 1.1, 1.2, 1.3, 1.5, 1.6, 1.8, 2.0, 2.2, 2.4, 2.7, 3.0,
+    3.3, 3.6, 3.9, 4.3, 4.7, 5.1, 5.6, 6.2, 6.8, 7.5, 8.2, 9.1,
+  ];
+
+  const nearestE24 = (r: number): number => {
+    if (r <= 0) return 0;
+    const decade = Math.pow(10, Math.floor(Math.log10(r)));
+    const normalized = r / decade;
+    let best = E24_VALUES[0];
+    for (const v of E24_VALUES) {
+      if (v >= normalized) { best = v; break; }
+      best = v;
+    }
+    let candidate = best * decade;
+    if (candidate < r) {
+      const idx = E24_VALUES.indexOf(best);
+      candidate = idx < E24_VALUES.length - 1
+        ? E24_VALUES[idx + 1] * decade
+        : E24_VALUES[0] * decade * 10;
+    }
+    return candidate;
+  };
+
+  const suggestedResistor = resistorOhms != null ? nearestE24(resistorOhms) : null;
+
   const formatResistance = (r: number): string => {
     if (r >= 1e6) return `${(r / 1e6).toFixed(2)} MΩ`;
     if (r >= 1e3) return `${(r / 1e3).toFixed(2)} kΩ`;
@@ -178,6 +204,12 @@ const LedResistorCalc: React.FC = () => {
             <div className="text-xl font-bold text-cyan-500 dark:text-cyan-400 font-mono">
               = {resistorOhms != null ? formatResistance(resistorOhms) : '—'}
             </div>
+            {suggestedResistor != null && suggestedResistor !== resistorOhms && (
+              <div className="text-xs text-amber-400 mt-1.5 font-mono">
+                → E24: {formatResistance(suggestedResistor)}
+                <span className="text-slate-500 ml-1 font-sans">({t('utilities.led_e24_hint')})</span>
+              </div>
+            )}
           </div>
           <div className="p-4 rounded-xl bg-slate-800/60 dark:bg-slate-900/80 border border-slate-300/50 dark:border-slate-600">
             <span className="text-xs text-slate-400 block mb-1">
