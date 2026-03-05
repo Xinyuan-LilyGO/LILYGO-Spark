@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Settings, Zap, LayoutGrid, Github, LogOut, Upload, Compass, Users, BookOpen, Terminal, FileCode, Wrench } from 'lucide-react';
+import { Settings, Zap, LayoutGrid, Github, LogOut, Upload, Compass, Users, BookOpen, Terminal, FileCode, Wrench, Sparkles, MessageSquare } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useDownload } from '../contexts/DownloadContext';
 
@@ -93,6 +93,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
     { id: 'serial_tools', icon: Terminal, label: t('nav.serial_tools') },
     { id: 'offline_tools', icon: FileCode, label: t('nav.convert_tools') },
     { id: 'community', icon: Users, label: t('nav.lilygo_related') },
+    { id: 'sparkling', icon: Sparkles, label: t('nav.sparkling_list') },
+    { id: 'feedback', icon: MessageSquare, label: t('nav.feedback') },
     { id: 'guide', icon: BookOpen, label: t('nav.guide') },
     { id: 'settings', icon: Settings, label: t('nav.settings') },
   ];

@@ -1,11 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, FileCode, AlertCircle, Cpu, Upload, Download, Plus, Trash2, Terminal, Activity, RefreshCw, Power, PowerOff, Image as ImageIcon, Calculator, Clock, Zap, Lightbulb, CircleDot, HardDrive } from 'lucide-react';
+import { Search, FileCode, AlertCircle, Cpu, Upload, Download, Plus, Trash2, Terminal, Activity, RefreshCw, Power, PowerOff, Image as ImageIcon, Calculator, Clock, Zap, Lightbulb, CircleDot, HardDrive, Battery, Timer, GitBranch, CircuitBoard } from 'lucide-react';
 import { getPartitionTypeLabel, getPartitionSubtypeLabel } from '../utils/partitionTypes';
 import { analyzeFirmwareBuffer, type FirmwareAnalysisResult } from '../utils/firmwareAnalyzer';
 import SmdResistorCalc from './SmdResistorCalc';
 import LedResistorCalc from './LedResistorCalc';
 import ResistorColorCodeCalc from './ResistorColorCodeCalc';
+import OhmsLawCalc from './OhmsLawCalc';
+import Timer555Calc from './Timer555Calc';
+import BatteryLifeCalc from './BatteryLifeCalc';
+import Esp32PowerCalc from './Esp32PowerCalc';
+import SeriesParallelCalc from './SeriesParallelCalc';
+import CircuitSchematic from './CircuitSchematic';
 import FullWindowDropZone from './FullWindowDropZone';
 
 // Type definitions
@@ -89,8 +95,8 @@ interface AnalysisResult {
     };
 }
 
-type UtilityTool = 'analyzer' | 'editor' | 'monitor' | 'converter' | 'regulator' | 'rc_calc' | 'smd_resistor' | 'led_resistor' | 'resistor_color';
-type UtilitiesMode = 'full' | 'serial' | 'offline' | 'analyzer' | 'editor' | 'converter' | 'regulator' | 'rc_calc' | 'smd_resistor' | 'led_resistor' | 'resistor_color';
+type UtilityTool = 'analyzer' | 'editor' | 'monitor' | 'converter' | 'regulator' | 'rc_calc' | 'smd_resistor' | 'led_resistor' | 'resistor_color' | 'ohms_law' | 'timer_555' | 'battery_life' | 'esp32_power' | 'series_parallel' | 'circuit_schematic';
+type UtilitiesMode = 'full' | 'serial' | 'offline' | 'analyzer' | 'editor' | 'converter' | 'regulator' | 'rc_calc' | 'smd_resistor' | 'led_resistor' | 'resistor_color' | 'ohms_law' | 'timer_555' | 'battery_life' | 'esp32_power' | 'series_parallel' | 'circuit_schematic';
 
 interface FirmwareUtilitiesProps {
   mode?: UtilitiesMode;
@@ -106,6 +112,12 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
     : mode === 'smd_resistor' ? 'smd_resistor'
     : mode === 'led_resistor' ? 'led_resistor'
     : mode === 'resistor_color' ? 'resistor_color'
+    : mode === 'ohms_law' ? 'ohms_law'
+    : mode === 'timer_555' ? 'timer_555'
+    : mode === 'battery_life' ? 'battery_life'
+    : mode === 'esp32_power' ? 'esp32_power'
+    : mode === 'series_parallel' ? 'series_parallel'
+    : mode === 'circuit_schematic' ? 'circuit_schematic'
     : mode === 'analyzer' ? 'analyzer'
     : mode === 'editor' ? 'editor'
     : 'analyzer';
@@ -113,16 +125,22 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
 
   const visibleTabs: UtilityTool[] =
     mode === 'serial' ? ['monitor']
-    : mode === 'offline' ? ['converter', 'regulator', 'rc_calc', 'smd_resistor', 'led_resistor', 'resistor_color']
+    : mode === 'offline' ? ['converter', 'regulator', 'rc_calc', 'ohms_law', 'timer_555', 'smd_resistor', 'led_resistor', 'resistor_color', 'battery_life', 'esp32_power', 'series_parallel', 'circuit_schematic']
     : mode === 'converter' ? ['converter']
     : mode === 'regulator' ? ['regulator']
     : mode === 'rc_calc' ? ['rc_calc']
     : mode === 'smd_resistor' ? ['smd_resistor']
     : mode === 'led_resistor' ? ['led_resistor']
     : mode === 'resistor_color' ? ['resistor_color']
+    : mode === 'ohms_law' ? ['ohms_law']
+    : mode === 'timer_555' ? ['timer_555']
+    : mode === 'battery_life' ? ['battery_life']
+    : mode === 'esp32_power' ? ['esp32_power']
+    : mode === 'series_parallel' ? ['series_parallel']
+    : mode === 'circuit_schematic' ? ['circuit_schematic']
     : mode === 'analyzer' ? ['analyzer']
     : mode === 'editor' ? ['editor']
-    : ['analyzer', 'editor', 'monitor', 'converter', 'regulator', 'rc_calc', 'smd_resistor', 'led_resistor', 'resistor_color'];
+    : ['analyzer', 'editor', 'monitor', 'converter', 'regulator', 'rc_calc', 'ohms_law', 'timer_555', 'smd_resistor', 'led_resistor', 'resistor_color', 'battery_life', 'esp32_power', 'series_parallel', 'circuit_schematic'];
   
   // RC Time Constant State (τ = R×C, fc = 1/(2πRC))
   const [rcR, setRcR] = useState(10);
@@ -501,9 +519,15 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
     { id: 'converter', icon: ImageIcon, label: t('utilities.image_converter') },
     { id: 'regulator', icon: Calculator, label: t('utilities.regulator_resistor') },
     { id: 'rc_calc', icon: Clock, label: t('utilities.rc_time_constant') },
-    { id: 'smd_resistor', icon: Zap, label: t('utilities.smd_resistor') },
+    { id: 'ohms_law', icon: Zap, label: t('utilities.ohm_title') },
+    { id: 'timer_555', icon: Timer, label: t('utilities.t555_title') },
+    { id: 'smd_resistor', icon: Cpu, label: t('utilities.smd_resistor') },
     { id: 'led_resistor', icon: Lightbulb, label: t('utilities.led_resistor') },
     { id: 'resistor_color', icon: CircleDot, label: t('utilities.resistor_color_code') },
+    { id: 'battery_life', icon: Battery, label: t('utilities.bat_title') },
+    { id: 'esp32_power', icon: HardDrive, label: t('utilities.esp_pwr_title') },
+    { id: 'series_parallel', icon: GitBranch, label: t('utilities.sp_title') },
+    { id: 'circuit_schematic', icon: CircuitBoard, label: t('utilities.circuit_title') },
   ];
 
   return (
@@ -691,6 +715,18 @@ const FirmwareUtilities: React.FC<FirmwareUtilitiesProps> = ({ mode = 'full' }) 
       {activeTool === 'led_resistor' && <LedResistorCalc />}
 
       {activeTool === 'resistor_color' && <ResistorColorCodeCalc />}
+
+      {activeTool === 'ohms_law' && <OhmsLawCalc />}
+
+      {activeTool === 'timer_555' && <Timer555Calc />}
+
+      {activeTool === 'battery_life' && <BatteryLifeCalc />}
+
+      {activeTool === 'esp32_power' && <Esp32PowerCalc />}
+
+      {activeTool === 'series_parallel' && <SeriesParallelCalc />}
+
+      {activeTool === 'circuit_schematic' && <CircuitSchematic />}
 
       {activeTool === 'rc_calc' && (
         <div className="flex-1 flex flex-col gap-6 overflow-auto">

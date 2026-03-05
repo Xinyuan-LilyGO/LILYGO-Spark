@@ -14,6 +14,8 @@ import FirmwareUtilities from './components/FirmwareUtilities'
 import FirmwareUpload from './components/FirmwareUpload'
 import LilygoCommunity from './components/LilygoCommunity'
 import GuidePage from './components/GuidePage'
+import SparklingList from './components/SparklingList'
+import FeedbackPage, { type FeedbackData } from './components/FeedbackPage'
 
 const AUTH_STORAGE_KEY = 'lilygo_auth';
 
@@ -72,6 +74,18 @@ function App() {
   //     _setSelectedFirmwareUrl(url);
   //     setActiveTab('burner');
   // };
+
+  const handleFeedbackSubmit = async (data: FeedbackData) => {
+    const apiBaseUrl = window.ipcRenderer
+      ? await window.ipcRenderer.invoke('get-api-base-url')
+      : 'https://lilygo-api.bytecode.fun';
+    const resp = await fetch(`${apiBaseUrl}/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!resp.ok) throw new Error(`Submit failed: ${resp.status}`);
+  };
 
   const bgClass = glassEnabled
     ? resolved === 'dark'
@@ -145,6 +159,18 @@ function App() {
              <FirmwareCommunity />
         )}
         
+        {activeTab === 'sparkling' && (
+            <div className="h-full overflow-auto">
+                <SparklingList onNavigateToFeedback={() => setActiveTab('feedback')} />
+            </div>
+        )}
+
+        {activeTab === 'feedback' && (
+            <div className="h-full overflow-auto">
+                <FeedbackPage onSubmit={handleFeedbackSubmit} />
+            </div>
+        )}
+
         {activeTab === 'settings' && (
             <div className="h-full overflow-auto">
                 <SettingsPage />
