@@ -1166,9 +1166,9 @@
           "source": "tree"
         },
         {
-          "name": "(���持拍照识别)[T-CameraPlus-S3_V1.0-V1.1][xiaozhi_V1.7.0]_firmware_202506051629.bin",
-          "url": "https://raw.githubusercontent.com/Xinyuan-LilyGO/T-CameraPlus-S3/arduino-esp32-libs_V2.0.14/firmware/deprecated/(���持拍照识别)[T-CameraPlus-S3_V1.0-V1.1][xiaozhi_V1.7.0]_firmware_202506051629.bin",
-          "path": "firmware/deprecated/(���持拍照识别)[T-CameraPlus-S3_V1.0-V1.1][xiaozhi_V1.7.0]_firmware_202506051629.bin",
+          "name": "(支持拍照识别)[T-CameraPlus-S3_V1.0-V1.1][xiaozhi_V1.7.0]_firmware_202506051629.bin",
+          "url": "https://raw.githubusercontent.com/Xinyuan-LilyGO/T-CameraPlus-S3/arduino-esp32-libs_V2.0.14/firmware/deprecated/(支持拍照识别)[T-CameraPlus-S3_V1.0-V1.1][xiaozhi_V1.7.0]_firmware_202506051629.bin",
+          "path": "firmware/deprecated/(支持拍照识别)[T-CameraPlus-S3_V1.0-V1.1][xiaozhi_V1.7.0]_firmware_202506051629.bin",
           "size": 4654688,
           "release_tag": null,
           "release_name": "Repository (arduino-esp32-libs_V2.0.14)",
@@ -20012,9 +20012,9 @@
           "source": "tree"
         },
         {
-          "name": "(���持拍照识别)[T-CameraPlus-S3_V1.0-V1.1][xiaozhi_V1.7.0]_firmware_202506051629.bin",
-          "url": "https://raw.githubusercontent.com/Xinyuan-LilyGO/T-CameraPlus-S3/arduino-esp32-libs_V2.0.14/firmware/deprecated/(���持拍照识别)[T-CameraPlus-S3_V1.0-V1.1][xiaozhi_V1.7.0]_firmware_202506051629.bin",
-          "path": "firmware/deprecated/(���持拍照识别)[T-CameraPlus-S3_V1.0-V1.1][xiaozhi_V1.7.0]_firmware_202506051629.bin",
+          "name": "(支持拍照识别)[T-CameraPlus-S3_V1.0-V1.1][xiaozhi_V1.7.0]_firmware_202506051629.bin",
+          "url": "https://raw.githubusercontent.com/Xinyuan-LilyGO/T-CameraPlus-S3/arduino-esp32-libs_V2.0.14/firmware/deprecated/(支持拍照识别)[T-CameraPlus-S3_V1.0-V1.1][xiaozhi_V1.7.0]_firmware_202506051629.bin",
+          "path": "firmware/deprecated/(支持拍照识别)[T-CameraPlus-S3_V1.0-V1.1][xiaozhi_V1.7.0]_firmware_202506051629.bin",
           "size": 4654688,
           "release_tag": null,
           "release_name": "Repository (arduino-esp32-libs_V2.0.14)",
