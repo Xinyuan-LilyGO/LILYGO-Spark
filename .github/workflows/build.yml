@@ -262,14 +262,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Update release body with download links
+      - name: Update release body with download links and changelog
         run: |
           TAG="${{ needs.setup.outputs.tag_name }}"
           VERSION="${{ needs.setup.outputs.build_version }}"
           SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
           BASE_URL="https://github.com/Xinyuan-LilyGO/LILYGO-Spark/releases/download/${TAG}"
           MIRROR="https://ghfast.top"
+          REPO="Xinyuan-LilyGO/LILYGO-Spark"
 
           ASSETS=$(gh release view "$TAG" --json assets -q '.assets[].name')
           find_asset() { echo "$ASSETS" | grep "$1" | head -1; }
@@ -278,6 +281,27 @@ jobs:
           MAC_ARM64_DMG=$(find_asset "macOS-arm64.dmg")
           MAC_X64_DMG=$(find_asset "macOS-x64.dmg")
           LINUX_X64_APPIMAGE=$(find_asset "linux-x86_64.AppImage")
+
+          # Find previous tag for changelog range
+          PREV_TAG=$(git tag --sort=-creatordate | grep -v "^${TAG}$" | head -1)
+          if [ -z "$PREV_TAG" ]; then
+            COMMITS=$(git log --oneline -20 --format="- %s (\`%h\`)")
+          else
+            COMMITS=$(git log --oneline "${PREV_TAG}..HEAD" --format="- %s (\`%h\`)")
+          fi
+
+          # Extract Chinese lines from bilingual commits, or auto-translate prefixes as fallback
+          COMMITS_ZH=""
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            # Try to extract Chinese summary from multi-line commit (second paragraph)
+            sha=$(echo "$line" | grep -oP '\(`[a-f0-9]+`\)$' || true)
+            translated=$(echo "$line" \
+              | sed 's/^- Add /- 新增 /; s/^- Fix /- 修复 /; s/^- Improve /- 改进 /; s/^- Update /- 更新 /' \
+              | sed 's/^- Implement /- 实现 /; s/^- Refactor/- 重构/; s/^- Remove /- 移除 /' \
+              | sed 's/^- Clean/- 清理/; s/^- Rename/- 重命名/; s/^- Replace/- 替换/')
+            COMMITS_ZH="${COMMITS_ZH}${translated}"$'\n'
+          done <<< "$COMMITS"
 
           {
             echo "## 📦 Quick Download / 快速下载"
@@ -290,6 +314,25 @@ jobs:
             [ -n "$LINUX_X64_APPIMAGE" ] && echo "| 🐧 Linux x64 (AppImage) | [⬇️ Download](${BASE_URL}/${LINUX_X64_APPIMAGE}) | [⚡ 加速下载](${MIRROR}/${BASE_URL}/${LINUX_X64_APPIMAGE}) |"
             echo ""
             echo "> 💡 如果 GitHub 下载速度慢，请使用「国内加速 ⚡」链接。更多平台/格式请展开下方 **Assets** 列表。"
+            echo ""
+            echo "---"
+            echo ""
+            echo "## 📝 What's Changed / 更新内容"
+            echo ""
+            echo "<details open><summary><b>English</b></summary>"
+            echo ""
+            echo "$COMMITS"
+            echo ""
+            echo "</details>"
+            echo ""
+            echo "<details open><summary><b>中文</b></summary>"
+            echo ""
+            echo "$COMMITS_ZH"
+            echo "</details>"
+            echo ""
+            if [ -n "$PREV_TAG" ]; then
+              echo "**Full Changelog**: [${PREV_TAG}...${TAG}](https://github.com/${REPO}/compare/${PREV_TAG}...${TAG})"
+            fi
             echo ""
             echo "---"
             echo ""

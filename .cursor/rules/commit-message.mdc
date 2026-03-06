@@ -1,0 +1,57 @@
+---
+description: Enforce bilingual (EN/ZH) commit messages for LILYGO Spark project
+alwaysApply: true
+---
+
+# Bilingual Commit Messages
+
+When the user asks to commit (e.g. "做个提交", "commit"), generate a **bilingual commit message** with English first, then Chinese translation.
+
+## Format
+
+```
+English summary line (imperative mood, max 72 chars)
+
+中文摘要行
+
+- English detail 1 / 英文细节1
+- English detail 2 / 英文细节2
+```
+
+## Example
+
+```
+Add unified logging system and fix update checker
+
+新增统一日志系统，修复更新检查器
+
+- Add logger module with file output, console interception, and IPC broadcast
+  新增日志模块，支持文件写入、console 劫持和 IPC 广播
+- Fix macOS updater to prefer arch-specific assets over universal
+  修复 macOS 更新器优先下载架构匹配的安装包
+- Add real-time log viewer in Settings > Developer Options
+  在设置页开发者选项中新增实时日志查看器
+```
+
+## Translation Rules
+
+| English prefix | Chinese prefix |
+|----------------|---------------|
+| Add            | 新增           |
+| Fix            | 修复           |
+| Improve        | 改进           |
+| Update         | 更新           |
+| Implement      | 实现           |
+| Refactor       | 重构           |
+| Remove         | 移除           |
+| Replace        | 替换           |
+| Rename         | 重命名         |
+| Clean up       | 清理           |
+
+## Rules
+
+- First line MUST be English (for `git log --oneline` readability)
+- Second paragraph is the Chinese translation of the first line
+- Detail bullets: English first, Chinese on next indented line or after space
+- Keep both languages concise and accurate
+- Do NOT skip the Chinese translation
