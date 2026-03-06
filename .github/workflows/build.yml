@@ -262,7 +262,44 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
+      - name: Update release body with download links
+        run: |
+          TAG="${{ needs.setup.outputs.tag_name }}"
+          VERSION="${{ needs.setup.outputs.build_version }}"
+          SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
+          BASE_URL="https://github.com/Xinyuan-LilyGO/LILYGO-Spark/releases/download/${TAG}"
+          MIRROR="https://ghfast.top"
+
+          ASSETS=$(gh release view "$TAG" --json assets -q '.assets[].name')
+          find_asset() { echo "$ASSETS" | grep "$1" | head -1; }
+
+          WIN_X64_SETUP=$(find_asset "windows-x64-setup.exe")
+          MAC_ARM64_DMG=$(find_asset "macOS-arm64.dmg")
+          MAC_X64_DMG=$(find_asset "macOS-x64.dmg")
+          LINUX_X64_APPIMAGE=$(find_asset "linux-x86_64.AppImage")
+
+          {
+            echo "## 📦 Quick Download / 快速下载"
+            echo ""
+            echo "| Platform | Download | 国内加速 ⚡ |"
+            echo "|----------|----------|------------|"
+            [ -n "$WIN_X64_SETUP" ] && echo "| 🪟 Windows x64 (Installer) | [⬇️ Download](${BASE_URL}/${WIN_X64_SETUP}) | [⚡ 加速下载](${MIRROR}/${BASE_URL}/${WIN_X64_SETUP}) |"
+            [ -n "$MAC_ARM64_DMG" ] && echo "| 🍎 macOS Apple Silicon | [⬇️ Download](${BASE_URL}/${MAC_ARM64_DMG}) | [⚡ 加速下载](${MIRROR}/${BASE_URL}/${MAC_ARM64_DMG}) |"
+            [ -n "$MAC_X64_DMG" ] && echo "| 🍎 macOS Intel | [⬇️ Download](${BASE_URL}/${MAC_X64_DMG}) | [⚡ 加速下载](${MIRROR}/${BASE_URL}/${MAC_X64_DMG}) |"
+            [ -n "$LINUX_X64_APPIMAGE" ] && echo "| 🐧 Linux x64 (AppImage) | [⬇️ Download](${BASE_URL}/${LINUX_X64_APPIMAGE}) | [⚡ 加速下载](${MIRROR}/${BASE_URL}/${LINUX_X64_APPIMAGE}) |"
+            echo ""
+            echo "> 💡 如果 GitHub 下载速度慢，请使用「国内加速 ⚡」链接。更多平台/格式请展开下方 **Assets** 列表。"
+            echo ""
+            echo "---"
+            echo ""
+            echo "Automated build for commit ${SHA_SHORT} · Triggered by: ${{ github.event_name }} · Version: \`${VERSION}\`"
+          } > /tmp/release-body.md
+
+          gh release edit "$TAG" --notes-file /tmp/release-body.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Cleanup old builds
         if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         run: |
