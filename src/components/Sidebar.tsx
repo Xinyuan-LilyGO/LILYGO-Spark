@@ -1,7 +1,7 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { Settings, Zap, LayoutGrid, Github, LogOut, Upload, Compass, Users, Terminal, FileCode, Wrench, FlaskConical } from 'lucide-react';
+import { Settings, Zap, LayoutGrid, Github, LogOut, Upload, Compass, Users, Terminal, FileCode, Wrench, FlaskConical, RefreshCw } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useDownload } from '../contexts/DownloadContext';
 
@@ -16,6 +16,12 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   user: AuthUser | null;
   onLogout: () => void;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 const LoginButtonWithTooltip: React.FC<{ onLogin: () => void; tooltipText: string; loginLabel: string }> = ({ onLogin, tooltipText, loginLabel }) => {
@@ -68,6 +74,51 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
   const { tasks } = useDownload();
   const [hoveredTooltip, setHoveredTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [appVersion, setAppVersion] = useState('');
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [updateProgress, setUpdateProgress] = useState<{ percent: number; transferred: number; total: number } | null>(null);
+
+  useEffect(() => {
+    if (window.electronUtils?.getAppVersion) {
+      window.electronUtils.getAppVersion().then((v: string) => setAppVersion(v));
+    }
+    if (window.ipcRenderer) {
+      const progressHandler = (_event: any, progress: { percent: number; transferred: number; total: number }) => {
+        setUpdateProgress(progress);
+      };
+      const messageHandler = (_event: any, message: { text: string; data?: any }) => {
+        if (message.data?.devMode) {
+          setCheckingUpdate(false);
+        } else if (message.text.includes('App is up to date') || message.text.includes('Update not available')) {
+          setCheckingUpdate(false);
+        } else if (message.text.includes('Update available')) {
+          setCheckingUpdate(false);
+        } else if (message.text.includes('Error') || message.text.includes('failed')) {
+          setCheckingUpdate(false);
+        } else if (message.text.includes('Download complete') || message.text.includes('Update downloaded')) {
+          setUpdateProgress(null);
+        }
+      };
+      window.ipcRenderer.on('update-progress', progressHandler);
+      window.ipcRenderer.on('update-message', messageHandler);
+      return () => {
+        window.ipcRenderer.off('update-progress', progressHandler);
+        window.ipcRenderer.off('update-message', messageHandler);
+      };
+    }
+  }, []);
+
+  const handleVersionClick = useCallback(() => {
+    if (checkingUpdate) return;
+    if (import.meta.env.DEV) {
+      alert(t('settings.update_dev_mode'));
+      return;
+    }
+    if (!window.ipcRenderer) return;
+    setCheckingUpdate(true);
+    window.ipcRenderer.invoke('check-for-updates');
+    setTimeout(() => setCheckingUpdate(false), 10000);
+  }, [checkingUpdate, t]);
 
   const activeDownloads = useMemo(() => {
     return Object.values(tasks).filter(t => t.downloading);
@@ -239,7 +290,31 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
         ) : (
           <LoginButtonWithTooltip onLogin={handleLogin} tooltipText={t('sidebar.login_to_upload_tooltip')} loginLabel={t('sidebar.login_with_github')} />
         )}
-        <div className="text-[11px] text-slate-400 dark:text-zinc-500 text-center">v0.1.0-alpha</div>
+        {/* Version + update progress */}
+        <div className="space-y-1.5">
+          <button
+            onClick={handleVersionClick}
+            disabled={checkingUpdate}
+            className="w-full flex items-center justify-center gap-1.5 text-[11px] text-slate-400 dark:text-zinc-500 hover:text-primary dark:hover:text-primary transition-colors cursor-pointer disabled:opacity-50"
+            title={t('settings.check_update')}
+          >
+            {checkingUpdate && <RefreshCw size={10} className="animate-spin" />}
+            <span>{appVersion ? `v${appVersion}` : '...'}</span>
+          </button>
+          {updateProgress && updateProgress.total > 0 && (
+            <div className="px-1">
+              <div className="h-1 bg-slate-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-300"
+                  style={{ width: `${Math.min(100, updateProgress.percent)}%` }}
+                />
+              </div>
+              <div className="text-[9px] text-slate-400 dark:text-zinc-500 text-center mt-0.5">
+                {Math.round(updateProgress.percent)}% · {formatBytes(updateProgress.transferred)} / {formatBytes(updateProgress.total)}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

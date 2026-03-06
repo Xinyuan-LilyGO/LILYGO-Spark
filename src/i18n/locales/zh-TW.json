@@ -284,12 +284,16 @@
     "firmware_manifest_active": "已使用自定義清單，固件中心將從該文件加載。",
     "developer_mode": "開發者模式",
     "developer_mode_hint": "啟用後將在應用選單中顯示開發者工具 (DevTools) 等調試選項。",
+    "fake_old_version": "模擬低版本號",
+    "fake_old_version_hint": "將當前版本偽裝為 0.0.1，使更新檢測始終發現新版本，無需重新構建。",
+    "fake_old_version_active": "更新檢查將使用版本號 {{fakeVersion}}（實際: {{realVersion}}）",
     "easter_eggs": "彩蛋與特效",
     "easter_eggs_konami": "任意位置輸入 Konami 碼，顯示「ACCESS GRANTED」",
     "easter_eggs_flash": "燒錄成功",
     "easter_eggs_flash_hint": "固件燒錄完成時顯示慶祝動畫",
     "easter_eggs_device": "設備檢測",
-    "easter_eggs_device_hint": "檢測到 ESP32 時顯示「TARGET ACQUIRED」"
+    "easter_eggs_device_hint": "檢測到 ESP32 時顯示「TARGET ACQUIRED」",
+    "update_dev_mode": "開發模式下不支援檢查更新，請使用 npm run build 構建後測試。"
   },
   "burner": {
     "welcome": "歡迎使用 LILYGO Spark！",

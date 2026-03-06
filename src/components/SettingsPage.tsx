@@ -81,6 +81,7 @@ const SettingsPage: React.FC = () => {
   const [manifestLoading, setManifestLoading] = React.useState(false);
   const [developerMode, setDeveloperMode] = React.useState(false);
   const [canaryUpdate, setCanaryUpdate] = React.useState(false);
+  const [fakeOldVersion, setFakeOldVersion] = React.useState(false);
   const [checkingUpdate, setCheckingUpdate] = React.useState(false);
   const [appVersion, setAppVersion] = React.useState('0.0.0');
   const manualCheckRef = React.useRef(false);
@@ -90,6 +91,7 @@ const SettingsPage: React.FC = () => {
       window.ipcRenderer.invoke('get-custom-manifest-path').then((p: string | null) => setCustomManifestPath(p));
       window.ipcRenderer.invoke('get-developer-mode').then((enabled: boolean) => setDeveloperMode(enabled));
       window.ipcRenderer.invoke('get-canary-update').then((enabled: boolean) => setCanaryUpdate(enabled));
+      window.ipcRenderer.invoke('get-fake-old-version').then((enabled: boolean) => setFakeOldVersion(enabled));
       window.ipcRenderer.invoke('get-proxy-config').then((cfg: any) => {
         if (cfg) {
           setProxyMode(cfg.mode || 'system');
@@ -105,7 +107,13 @@ const SettingsPage: React.FC = () => {
       // Listen for update messages — only show alert when user manually triggered the check
       const updateHandler = (_event: any, message: { text: string, data?: any }) => {
           console.log('[Updater]', message.text);
-          if (message.text.includes('App is up to date')) {
+          if (message.data?.devMode) {
+             if (manualCheckRef.current) {
+               alert(t('settings.update_dev_mode'));
+             }
+             setCheckingUpdate(false);
+             manualCheckRef.current = false;
+          } else if (message.text.includes('App is up to date')) {
              if (manualCheckRef.current) {
                alert(t('settings.update_not_found'));
              }
@@ -223,6 +231,13 @@ const SettingsPage: React.FC = () => {
     }
   };
 
+  const handleFakeOldVersionChange = async (enabled: boolean) => {
+    setFakeOldVersion(enabled);
+    if (window.ipcRenderer) {
+      await window.ipcRenderer.invoke('set-fake-old-version', enabled);
+    }
+  };
+
   const handleLinkOpenModeChange = (mode: 'external' | 'internal') => {
     setLinkOpenMode(mode);
     localStorage.setItem(LINK_OPEN_STORAGE_KEY, mode);
@@ -331,24 +346,26 @@ const SettingsPage: React.FC = () => {
                     <Palette className="text-primary" />
                     <span className="font-medium text-slate-800 dark:text-zinc-200">{t('settings.accent')}</span>
                 </div>
-                <select
-                    value={accentMode}
-                    onChange={(e) => setAccentMode(e.target.value as AccentMode)}
-                    className="bg-white dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                    <option value="rotating">{t('settings.accent_mode_rotating')}</option>
-                    <option value="fixed">{t('settings.accent_mode_fixed')}</option>
-                </select>
+                <div className="flex items-center gap-2">
+                    {accentMode === 'rotating' && (
+                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-100 dark:bg-zinc-700/50">
+                        <div className={`w-4 h-4 rounded-full ${ACCENT_COLORS.find(c => c.id === accent)?.bg || 'bg-blue-500'}`} />
+                        <span className="text-xs text-slate-500 dark:text-zinc-400">{t(`settings.accent_options.${accent}`)}</span>
+                      </div>
+                    )}
+                    <select
+                        value={accentMode}
+                        onChange={(e) => setAccentMode(e.target.value as AccentMode)}
+                        className="bg-white dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                        <option value="rotating">{t('settings.accent_mode_rotating')}</option>
+                        <option value="fixed">{t('settings.accent_mode_fixed')}</option>
+                    </select>
+                </div>
             </div>
             {accentMode === 'rotating' ? (
-              <div className="mt-3">
-                <div className="flex items-center gap-2">
-                  <div className={`w-6 h-6 rounded-full ${ACCENT_COLORS.find(c => c.id === accent)?.bg || 'bg-blue-500'} ring-2 ring-primary ring-offset-2 ring-offset-slate-100 dark:ring-offset-zinc-800`} />
-                  <span className="text-sm text-slate-600 dark:text-zinc-300">{t(`settings.accent_options.${accent}`)}</span>
-                </div>
-                <div className="text-xs text-slate-500 dark:text-zinc-400 mt-2">
-                  {t('settings.accent_rotating_hint')}
-                </div>
+              <div className="text-xs text-slate-500 dark:text-zinc-400 mt-2">
+                {t('settings.accent_rotating_hint')}
               </div>
             ) : (
               <>
@@ -704,6 +721,36 @@ const SettingsPage: React.FC = () => {
                     </label>
                   </div>
                 </div>
+
+                {developerMode && (
+                <div className="pt-4 border-t border-slate-200 dark:border-zinc-700/50">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <RefreshCw className="text-amber-500" size={18} />
+                        <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">{t('settings.fake_old_version')}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-zinc-400">{t('settings.fake_old_version_hint')}</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={fakeOldVersion}
+                            onChange={(e) => handleFakeOldVersionChange(e.target.checked)}
+                            className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-200 dark:bg-zinc-600 peer-focus:ring-2 peer-focus:ring-amber-500/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all after:border after:border-slate-300 dark:after:border-zinc-500 peer-checked:bg-amber-500"></div>
+                    </label>
+                  </div>
+                  {fakeOldVersion && (
+                    <div className="mt-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-lg">
+                      <p className="text-xs text-amber-700 dark:text-amber-300">
+                        {t('settings.fake_old_version_active', { realVersion: appVersion, fakeVersion: '0.0.1' })}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                )}
               </div>
             )}
             </div>

@@ -138,6 +138,7 @@ const CUSTOM_MANIFEST_STORAGE_KEY = 'custom_firmware_manifest_path';
 const DEVELOPER_MODE_STORAGE_KEY = 'developer_mode';
 const CANARY_UPDATE_STORAGE_KEY = 'canary_update';
 const PROXY_CONFIG_STORAGE_KEY = 'proxy_config';
+const FAKE_OLD_VERSION_STORAGE_KEY = 'fake_old_version';
 
 export interface ProxyConfig {
   mode: 'system' | 'direct' | 'custom';
@@ -201,6 +202,19 @@ export async function applyProxyConfig(config?: ProxyConfig): Promise<void> {
       console.log('[Proxy] Mode: system');
       break;
   }
+}
+
+export function getFakeOldVersion(): boolean {
+  try {
+    const data = readSettingsFile();
+    return !!data[FAKE_OLD_VERSION_STORAGE_KEY];
+  } catch { return false; }
+}
+
+function setFakeOldVersion(enabled: boolean): void {
+  const data = readSettingsFile();
+  data[FAKE_OLD_VERSION_STORAGE_KEY] = enabled;
+  writeSettingsFile(data);
 }
 
 export function getCanaryUpdate(): boolean {
@@ -400,6 +414,12 @@ export function setupConfigHandler(mainWindow?: BrowserWindow | null, onSettings
 
   ipcMain.handle('set-canary-update', async (_event, enabled: boolean) => {
     setCanaryUpdate(enabled);
+    return true;
+  });
+
+  ipcMain.handle('get-fake-old-version', async () => getFakeOldVersion());
+  ipcMain.handle('set-fake-old-version', async (_event, enabled: boolean) => {
+    setFakeOldVersion(enabled);
     return true;
   });
 

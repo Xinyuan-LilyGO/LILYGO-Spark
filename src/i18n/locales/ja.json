@@ -284,12 +284,16 @@
     "firmware_manifest_active": "カスタムマニフェストを使用中。Firmware Center はこのファイルから読み込みます。",
     "developer_mode": "開発者モード",
     "developer_mode_hint": "有効にすると、アプリケーションメニューに開発者ツール (DevTools) などのデバッグオプションが表示されます。",
+    "fake_old_version": "古いバージョンをシミュレート",
+    "fake_old_version_hint": "現在のバージョンを 0.0.1 に偽装し、更新検出が常に新しいリリースを見つけるようにします。再ビルド不要。",
+    "fake_old_version_active": "更新チェックはバージョンを {{fakeVersion}} として報告します（実際: {{realVersion}}）",
     "easter_eggs": "イースターエッグ＆エフェクト",
     "easter_eggs_konami": "どこでも Konami コード入力 → 「ACCESS GRANTED」表示",
     "easter_eggs_flash": "書き込み成功",
     "easter_eggs_flash_hint": "ファームウェア書き込み完了時に祝賀アニメーション",
     "easter_eggs_device": "デバイス検出",
-    "easter_eggs_device_hint": "ESP32 検出時に「TARGET ACQUIRED」表示"
+    "easter_eggs_device_hint": "ESP32 検出時に「TARGET ACQUIRED」表示",
+    "update_dev_mode": "開発モードではアップデートチェックは利用できません。npm run build でビルドしてからテストしてください。"
   },
   "burner": {
     "welcome": "LILYGO Spark へようこそ！",

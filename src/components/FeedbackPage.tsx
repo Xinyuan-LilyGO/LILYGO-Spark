@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   X,
@@ -73,12 +73,19 @@ const FeedbackPage: React.FC<FeedbackPageProps> = ({ onSubmit }) => {
   const [submitted, setSubmitted] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [errors, setErrors] = useState<{ title?: string; description?: string }>({});
+  const [appVersion, setAppVersion] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (window.electronUtils?.getAppVersion) {
+      window.electronUtils.getAppVersion().then((v: string) => setAppVersion(v));
+    }
+  }, []);
+
   const deviceInfo = {
     os: getOS(),
-    appVersion: 'v0.1.0-alpha',
+    appVersion: appVersion ? `v${appVersion}` : 'unknown',
     screenResolution: `${window.screen.width}x${window.screen.height}`,
   };
 

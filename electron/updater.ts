@@ -3,7 +3,122 @@ import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import fs from 'fs';
 import path from 'path';
 
-import { getCanaryUpdate } from './config-handler';
+import { getCanaryUpdate, getFakeOldVersion } from './config-handler';
+
+// Lightweight main-process i18n for native dialog strings
+type UpdaterI18nKey =
+  | 'update_title' | 'update_msg' | 'update_detail'
+  | 'btn_download' | 'btn_later' | 'btn_restart' | 'btn_cancel' | 'btn_open' | 'btn_close'
+  | 'ready_title' | 'ready_msg' | 'ready_detail'
+  | 'dl_complete_title' | 'dl_complete_msg'
+  | 'all_mirrors_failed';
+
+const updaterI18n: Record<string, Record<UpdaterI18nKey, string>> = {
+  en: {
+    update_title: 'Update Available',
+    update_msg: 'A new version {{version}} is available. Download now?',
+    update_detail: 'Current: {{current}}\nLatest: {{latest}}',
+    btn_download: 'Download',
+    btn_later: 'Later',
+    btn_restart: 'Restart and Update',
+    btn_cancel: 'Cancel',
+    btn_open: 'Open',
+    btn_close: 'Close',
+    ready_title: 'Update Ready',
+    ready_msg: 'Update downloaded and extracted.',
+    ready_detail: 'The application will restart to complete the update.',
+    dl_complete_title: 'Download Complete',
+    dl_complete_msg: 'Update downloaded to your Downloads folder.',
+    all_mirrors_failed: 'All download mirrors failed. Please check your network or use a VPN.',
+  },
+  'zh-CN': {
+    update_title: '发现新版本',
+    update_msg: '新版本 {{version}} 已发布，是否立即下载？',
+    update_detail: '当前版本：{{current}}\n最新版本：{{latest}}',
+    btn_download: '下载',
+    btn_later: '稍后',
+    btn_restart: '重启并更新',
+    btn_cancel: '取消',
+    btn_open: '打开',
+    btn_close: '关闭',
+    ready_title: '更新就绪',
+    ready_msg: '更新已下载并解压完成。',
+    ready_detail: '应用将重启以完成更新。',
+    dl_complete_title: '下载完成',
+    dl_complete_msg: '更新已下载到"下载"文件夹。',
+    all_mirrors_failed: '所有下载镜像均失败，请检查网络或使用 VPN。',
+  },
+  'zh-TW': {
+    update_title: '發現新版本',
+    update_msg: '新版本 {{version}} 已發佈，是否立即下載？',
+    update_detail: '當前版本：{{current}}\n最新版本：{{latest}}',
+    btn_download: '下載',
+    btn_later: '稍後',
+    btn_restart: '重啟並更新',
+    btn_cancel: '取消',
+    btn_open: '開啟',
+    btn_close: '關閉',
+    ready_title: '更新就緒',
+    ready_msg: '更新已下載並解壓完成。',
+    ready_detail: '應用將重啟以完成更新。',
+    dl_complete_title: '下載完成',
+    dl_complete_msg: '更新已下載到「下載」資料夾。',
+    all_mirrors_failed: '所有下載鏡像均失敗，請檢查網路或使用 VPN。',
+  },
+  ja: {
+    update_title: 'アップデートがあります',
+    update_msg: '新しいバージョン {{version}} が利用可能です。ダウンロードしますか？',
+    update_detail: '現在のバージョン：{{current}}\n最新バージョン：{{latest}}',
+    btn_download: 'ダウンロード',
+    btn_later: '後で',
+    btn_restart: '再起動して更新',
+    btn_cancel: 'キャンセル',
+    btn_open: '開く',
+    btn_close: '閉じる',
+    ready_title: 'アップデート準備完了',
+    ready_msg: 'アップデートのダウンロードと展開が完了しました。',
+    ready_detail: 'アプリケーションは更新を完了するために再起動します。',
+    dl_complete_title: 'ダウンロード完了',
+    dl_complete_msg: 'アップデートがダウンロードフォルダに保存されました。',
+    all_mirrors_failed: 'すべてのダウンロードミラーが失敗しました。ネットワークを確認するか、VPN を使用してください。',
+  },
+};
+
+let _currentLocale = 'en';
+let _localeFromRenderer = '';
+
+function detectLocale(win?: BrowserWindow | null) {
+  if (_localeFromRenderer) {
+    _currentLocale = _localeFromRenderer;
+    return;
+  }
+  if (win && !win.isDestroyed()) {
+    win.webContents.executeJavaScript('localStorage.getItem("i18nextLng")')
+      .then((lng: string | null) => {
+        if (lng) {
+          _localeFromRenderer = lng;
+          _currentLocale = lng;
+        }
+      })
+      .catch(() => {});
+  }
+  // Synchronous fallback from system locale (used until async read completes)
+  const sysLocale = app.getLocale();
+  if (sysLocale.startsWith('zh-TW') || sysLocale.startsWith('zh-Hant')) _currentLocale = 'zh-TW';
+  else if (sysLocale.startsWith('zh')) _currentLocale = 'zh-CN';
+  else if (sysLocale.startsWith('ja')) _currentLocale = 'ja';
+}
+
+function ut(key: UpdaterI18nKey, vars?: Record<string, string>): string {
+  const table = updaterI18n[_currentLocale] || updaterI18n['en'];
+  let text = table[key] || updaterI18n['en'][key] || key;
+  if (vars) {
+    for (const [k, v] of Object.entries(vars)) {
+      text = text.replace(`{{${k}}}`, v);
+    }
+  }
+  return text;
+}
 
 // GitHub Release API URL
 const GITHUB_REPO = 'Xinyuan-LilyGO/LILYGO-Spark';
@@ -22,21 +137,33 @@ let _updaterRegistered = false;
 
 export function setupUpdater(win: BrowserWindow) {
   updateWin = win;
+  detectLocale(win);
+
+  const isDev = !app.isPackaged;
 
   if (_updaterRegistered) {
-    // Window re-created (e.g. macOS reactivate) — just trigger startup check
-    setTimeout(() => {
-      const isCanary = getCanaryUpdate();
-      autoUpdater.allowPrerelease = isCanary;
-      if (process.platform === 'darwin') {
-        checkForUpdatesViaAPI(win, isCanary);
-      } else {
-        autoUpdater.checkForUpdatesAndNotify();
-      }
-    }, 3000);
+    if (!isDev) {
+      setTimeout(() => {
+        const isCanary = getCanaryUpdate();
+        autoUpdater.allowPrerelease = isCanary;
+        if (process.platform === 'darwin') {
+          checkForUpdatesViaAPI(win, isCanary);
+        } else {
+          autoUpdater.checkForUpdatesAndNotify();
+        }
+      }, 3000);
+    }
     return;
   }
   _updaterRegistered = true;
+
+  if (isDev) {
+    console.log('[Updater] Development mode — auto-update disabled.');
+    ipcMain.handle('check-for-updates', () => {
+      sendStatusToWindow('Dev mode: update check disabled.', { devMode: true });
+    });
+    return;
+  }
 
   const canary = getCanaryUpdate();
   console.log('[Updater] Canary channel:', canary);
@@ -52,11 +179,12 @@ export function setupUpdater(win: BrowserWindow) {
   autoUpdater.on('update-available', (info: UpdateInfo) => {
     sendStatusToWindow('Update available.', info);
     if (!updateWin || updateWin.isDestroyed()) return;
+    detectLocale(updateWin);
     dialog.showMessageBox(updateWin, {
       type: 'info',
-      title: 'Update Available',
-      message: `A new version ${info.version} is available. Do you want to download it now?`,
-      buttons: ['Update', 'Later']
+      title: ut('update_title'),
+      message: ut('update_msg', { version: info.version }),
+      buttons: [ut('btn_download'), ut('btn_later')]
     }).then((result) => {
       if (result.response === 0) {
         if (process.platform === 'darwin') {
@@ -94,11 +222,13 @@ export function setupUpdater(win: BrowserWindow) {
   autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
     sendStatusToWindow('Update downloaded', info);
     if (!updateWin || updateWin.isDestroyed()) return;
+    detectLocale(updateWin);
     dialog.showMessageBox(updateWin, {
       type: 'info',
-      title: 'Update Ready',
-      message: 'Update downloaded. The application will restart to install the update.',
-      buttons: ['Restart', 'Later']
+      title: ut('ready_title'),
+      message: ut('ready_msg'),
+      detail: ut('ready_detail'),
+      buttons: [ut('btn_restart'), ut('btn_later')]
     }).then((result) => {
       if (result.response === 0) {
         autoUpdater.quitAndInstall();
@@ -204,20 +334,23 @@ function processRelease(win: BrowserWindow, release: any) {
     }
 
     const latestVersion = release.tag_name.replace(/^v/, '');
-    const currentVersion = app.getVersion();
+    const realVersion = app.getVersion();
+    const fakeOld = getFakeOldVersion();
+    const currentVersion = fakeOld ? '0.0.1' : realVersion;
 
-    console.log(`[Updater] Latest: ${latestVersion}, Current: ${currentVersion}`);
+    console.log(`[Updater] Latest: ${latestVersion}, Current: ${currentVersion}${fakeOld ? ' (faked from ' + realVersion + ')' : ''}`);
     console.log(`[Updater] Release URL: ${release.html_url}`);
 
     if (semverCompare(latestVersion, currentVersion) > 0) {
         sendStatusToWindow('Update available.', { version: latestVersion });
+        detectLocale(win);
         
         dialog.showMessageBox(win, {
             type: 'info',
-            title: 'Update Available',
-            message: `A new version ${latestVersion} is available. Do you want to download it?`,
-            detail: `Current version: ${currentVersion}\nLatest version: ${latestVersion}`,
-            buttons: ['Download', 'Later'],
+            title: ut('update_title'),
+            message: ut('update_msg', { version: latestVersion }),
+            detail: ut('update_detail', { current: currentVersion, latest: latestVersion }),
+            buttons: [ut('btn_download'), ut('btn_later')],
             defaultId: 0,
             cancelId: 1
         }).then((result) => {
@@ -323,12 +456,13 @@ async function installMacUpdate(win: BrowserWindow, url: string, filename: strin
 
                 sendStatusToWindow(`Ready to replace ${currentAppPath} with ${newAppPath}`);
 
+                detectLocale(win);
                 dialog.showMessageBox(win, {
                     type: 'info',
-                    title: 'Update Ready',
-                    message: 'Update downloaded and extracted.',
-                    detail: 'The application will now restart to complete the update.',
-                    buttons: ['Restart and Update', 'Cancel']
+                    title: ut('ready_title'),
+                    message: ut('ready_msg'),
+                    detail: ut('ready_detail'),
+                    buttons: [ut('btn_restart'), ut('btn_cancel')]
                 }).then((result) => {
                     if (result.response === 0) {
                         const scriptPath = path.join(tempDir, 'swap.sh');
@@ -358,7 +492,7 @@ open "${currentAppPath}"
         }
     }
 
-    sendStatusToWindow('All download mirrors failed. Please check your network or use a VPN.');
+    sendStatusToWindow(ut('all_mirrors_failed'));
 }
 
 async function downloadToFolder(win: BrowserWindow, url: string, filename: string, autoOpen = false) {
@@ -401,12 +535,13 @@ async function downloadToFolder(win: BrowserWindow, url: string, filename: strin
             fs.writeFileSync(downloadPath, Buffer.concat(chunks));
             sendStatusToWindow('Download complete.');
 
+            detectLocale(win);
             dialog.showMessageBox(win, {
                 type: 'info',
-                title: 'Download Complete',
-                message: 'Update downloaded to your Downloads folder.',
+                title: ut('dl_complete_title'),
+                message: ut('dl_complete_msg'),
                 detail: `File: ${filename}`,
-                buttons: ['Open', 'Close']
+                buttons: [ut('btn_open'), ut('btn_close')]
             }).then((result) => {
                 if (result.response === 0) {
                     if (autoOpen) {
@@ -423,7 +558,7 @@ async function downloadToFolder(win: BrowserWindow, url: string, filename: strin
         }
     }
 
-    sendStatusToWindow('All download mirrors failed. Please check your network or use a VPN.');
+    sendStatusToWindow(ut('all_mirrors_failed'));
 }
 
 
