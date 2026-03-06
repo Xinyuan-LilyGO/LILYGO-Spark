@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, Menu, dialog, nativeImage, nativeTheme, shell } from 'electron'
 import path from 'node:path'
-import { setupUpdater } from './updater'
+import { initLogger, logRenderer } from './logger'
+import { setupUpdater, registerNetworkProbeIPC } from './updater'
 
 // Set app name for "Open with" dialog when handling lilygo-spark:// deep links
 if (process.defaultApp) app.name = 'LILYGO Spark'
@@ -306,12 +307,12 @@ function createWindow() {
     win?.webContents.send('main-process-message', (new Date).toLocaleString())
   })
 
-  // Forward console logs from Renderer to Main process terminal
+  // Forward console logs from Renderer to unified logger
   win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
-      const levels = ['VERBOSE', 'INFO', 'WARNING', 'ERROR'];
-      const levelName = levels[level] || 'INFO';
+      const levelMap: Record<number, 'verbose' | 'info' | 'warn' | 'error'> = { 0: 'verbose', 1: 'info', 2: 'warn', 3: 'error' };
+      const logLevel = levelMap[level] || 'info';
       const location = sourceId ? `${sourceId}:${line}` : (line ? `line ${line}` : '');
-      console.log(`[Renderer-${levelName}] ${message}${location ? ` (${location})` : ''}`);
+      logRenderer(logLevel, `${message}${location ? ` (${location})` : ''}`);
   });
 
   // Load the app
@@ -430,6 +431,27 @@ ipcMain.handle('save-file', handleSaveFile);
 // Handle get app version
 ipcMain.handle('get-app-version', () => app.getVersion());
 
+// Check for missing USB serial drivers (Windows only)
+ipcMain.handle('check-missing-drivers', async () => {
+  if (process.platform !== 'win32') return [];
+  try {
+    const { exec } = await import('child_process');
+    return new Promise<any[]>((resolve) => {
+      exec(
+        'powershell -NoProfile -Command "Get-PnpDevice -Class Ports -Status ERROR,DEGRADED,UNKNOWN 2>$null | Select-Object FriendlyName,InstanceId,Status | ConvertTo-Json -Compress"',
+        { timeout: 5000 },
+        (err, stdout) => {
+          if (err || !stdout.trim()) return resolve([]);
+          try {
+            const parsed = JSON.parse(stdout.trim());
+            resolve(Array.isArray(parsed) ? parsed : [parsed]);
+          } catch { resolve([]); }
+        }
+      );
+    });
+  } catch { return []; }
+});
+
 // ------------------------------
 // Custom Serial Console Handlers
 // ------------------------------
@@ -514,4 +536,8 @@ app.on('activate', () => {
   }
 })
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  initLogger();
+  registerNetworkProbeIPC();
+  createWindow();
+})

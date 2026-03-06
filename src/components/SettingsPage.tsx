@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Globe, Moon, Palette, ExternalLink, Sparkles, Zap, Volume2, CheckCircle, ChevronDown, ChevronRight, FileJson, FolderOpen, X, SlidersHorizontal, RefreshCw, HardDrive, Trash2, MessageSquare, Settings, Wifi, WifiOff, Shield } from 'lucide-react';
+import { Globe, Moon, Palette, ExternalLink, Sparkles, Zap, Volume2, CheckCircle, ChevronDown, ChevronRight, FileJson, FolderOpen, X, SlidersHorizontal, RefreshCw, HardDrive, Trash2, MessageSquare, Settings, Wifi, WifiOff, Shield, Activity, Download, Terminal } from 'lucide-react';
 import { useTheme, type AccentColor, type AccentMode, type FlashCelebrationStyle } from '../contexts/ThemeContext';
 import { useDownload } from '../contexts/DownloadContext';
 import FeedbackPage, { type FeedbackData } from './FeedbackPage';
@@ -245,6 +245,88 @@ const SettingsPage: React.FC = () => {
     if (window.ipcRenderer) {
       await window.ipcRenderer.invoke('set-simulate-github-down', enabled);
     }
+  };
+
+  // Network probe
+  interface ProbeNodeResult {
+    id: string;
+    label: string;
+    type: 'api' | 'download';
+    url: string;
+    status: 'pending' | 'testing' | 'success' | 'error' | 'timeout';
+    httpCode?: number;
+    error?: string;
+    bytesDownloaded?: number;
+    durationMs?: number;
+    speedBps?: number;
+  }
+  const [probeResults, setProbeResults] = React.useState<ProbeNodeResult[]>([]);
+  const [probing, setProbing] = React.useState(false);
+
+  // Log viewer
+  interface LogEntry { timestamp: string; level: string; source: string; message: string; }
+  const [logExpanded, setLogExpanded] = React.useState(false);
+  const [logEntries, setLogEntries] = React.useState<LogEntry[]>([]);
+  const [logFilter, setLogFilter] = React.useState<'all' | 'main' | 'renderer'>('all');
+  const [logLevelFilter, setLogLevelFilter] = React.useState<'all' | 'info' | 'warn' | 'error'>('all');
+  const [logAutoScroll, setLogAutoScroll] = React.useState(true);
+  const logContainerRef = React.useRef<HTMLDivElement>(null);
+  const [logExporting, setLogExporting] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!window.ipcRenderer || !logExpanded) return;
+    window.ipcRenderer.invoke('logger-get-entries').then((entries: LogEntry[]) => {
+      setLogEntries(entries);
+    });
+    const handler = (_event: any, entry: LogEntry) => {
+      setLogEntries(prev => {
+        const next = [...prev, entry];
+        return next.length > 2000 ? next.slice(-2000) : next;
+      });
+    };
+    window.ipcRenderer.on('log-entry', handler);
+    return () => { window.ipcRenderer.off('log-entry', handler); };
+  }, [logExpanded]);
+
+  React.useEffect(() => {
+    if (logAutoScroll && logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [logEntries, logAutoScroll, logExpanded]);
+
+  const handleExportLog = async () => {
+    if (!window.ipcRenderer) return;
+    setLogExporting(true);
+    try {
+      await window.ipcRenderer.invoke('logger-export');
+    } finally {
+      setLogExporting(false);
+    }
+  };
+
+  const handleNetworkProbe = async () => {
+    if (!window.ipcRenderer || probing) return;
+    setProbing(true);
+    setProbeResults([]);
+    try {
+      const results: ProbeNodeResult[] = await window.ipcRenderer.invoke('network-probe');
+      const dlResults = results.filter(r => r.type === 'download' && r.status === 'success');
+      dlResults.sort((a, b) => (b.speedBps || 0) - (a.speedBps || 0));
+      const apiResults = results.filter(r => r.type === 'api');
+      const dlOther = results.filter(r => r.type === 'download' && r.status !== 'success');
+      setProbeResults([...apiResults, ...dlResults, ...dlOther]);
+    } catch (e: any) {
+      console.error('Network probe failed:', e);
+    } finally {
+      setProbing(false);
+    }
+  };
+
+  const formatSpeed = (bps?: number) => {
+    if (!bps || bps <= 0) return '-';
+    if (bps < 1024) return `${bps} B/s`;
+    if (bps < 1024 * 1024) return `${(bps / 1024).toFixed(1)} KB/s`;
+    return `${(bps / (1024 * 1024)).toFixed(1)} MB/s`;
   };
 
   const handleLinkOpenModeChange = (mode: 'external' | 'internal') => {
@@ -760,7 +842,9 @@ const SettingsPage: React.FC = () => {
                   )}
                 </div>
 
-                <div className="mt-4">
+                <hr className="my-4 border-slate-200 dark:border-zinc-700/50" />
+
+                <div>
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
@@ -784,6 +868,181 @@ const SettingsPage: React.FC = () => {
                       <p className="text-xs text-red-700 dark:text-red-300">
                         {t('settings.simulate_github_down_active')}
                       </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Network Probe */}
+                <div className="pt-4 border-t border-slate-200 dark:border-zinc-700/50">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Activity className="text-cyan-500" size={18} />
+                        <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">{t('settings.network_probe')}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-zinc-400">{t('settings.network_probe_hint')}</p>
+                    </div>
+                    <button
+                      onClick={handleNetworkProbe}
+                      disabled={probing}
+                      className="px-3 py-1.5 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 rounded-lg hover:bg-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium flex items-center gap-1.5"
+                    >
+                      <Activity size={14} className={probing ? 'animate-pulse' : ''} />
+                      {probing ? t('settings.network_probing') : t('settings.network_probe_btn')}
+                    </button>
+                  </div>
+
+                  {(probing || probeResults.length > 0) && (
+                    <div className="mt-3 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-slate-50 dark:bg-zinc-800/70 text-slate-500 dark:text-zinc-400">
+                            <th className="px-3 py-2 text-left font-medium">{t('settings.probe_node')}</th>
+                            <th className="px-3 py-2 text-left font-medium">{t('settings.probe_status')}</th>
+                            <th className="px-3 py-2 text-right font-medium">{t('settings.probe_latency')}</th>
+                            <th className="px-3 py-2 text-right font-medium">{t('settings.probe_speed')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {probing && probeResults.length === 0 && (
+                            <tr>
+                              <td colSpan={4} className="px-3 py-4 text-center text-slate-400 dark:text-zinc-500">
+                                <div className="flex items-center justify-center gap-2">
+                                  <Activity size={14} className="animate-pulse" />
+                                  <span>{t('settings.network_probing')}</span>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                          {probeResults.map((node) => (
+                            <tr key={node.id} className="border-t border-slate-100 dark:border-zinc-700/50 hover:bg-slate-50 dark:hover:bg-zinc-800/30">
+                              <td className="px-3 py-2">
+                                <div className="font-medium text-slate-700 dark:text-zinc-300">{node.label}</div>
+                                <div className="text-[10px] text-slate-400 dark:text-zinc-500 truncate max-w-[200px]" title={node.url}>{node.url}</div>
+                              </td>
+                              <td className="px-3 py-2">
+                                {node.status === 'success' && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+                                    <CheckCircle size={10} /> OK{node.httpCode ? ` (${node.httpCode})` : ''}
+                                  </span>
+                                )}
+                                {node.status === 'error' && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400" title={node.error}>
+                                    <X size={10} /> {node.error || 'Error'}
+                                  </span>
+                                )}
+                                {node.status === 'timeout' && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                                    <WifiOff size={10} /> {node.error || 'Timeout'}
+                                  </span>
+                                )}
+                                {(node.status === 'pending' || node.status === 'testing') && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400">
+                                    <Activity size={10} className="animate-pulse" /> Testing...
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 text-right text-slate-600 dark:text-zinc-400 font-mono">
+                                {node.durationMs != null ? `${node.durationMs}ms` : '-'}
+                              </td>
+                              <td className="px-3 py-2 text-right font-mono">
+                                {node.type === 'download' ? (
+                                  <span className={node.speedBps && node.speedBps > 0 ? 'text-green-600 dark:text-green-400 font-medium' : 'text-slate-400'}>
+                                    {formatSpeed(node.speedBps)}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400">-</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* Log Viewer */}
+                <div className="pt-4 border-t border-slate-200 dark:border-zinc-700/50">
+                  <div className="flex items-center justify-between">
+                    <div
+                      className="flex items-center gap-2 cursor-pointer select-none"
+                      onClick={() => setLogExpanded(!logExpanded)}
+                    >
+                      <Terminal className="text-emerald-500" size={18} />
+                      <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">{t('settings.log_viewer')}</span>
+                      {logExpanded ? <ChevronDown size={14} className="text-slate-400" /> : <ChevronRight size={14} className="text-slate-400" />}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleExportLog}
+                        disabled={logExporting}
+                        className="px-3 py-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium flex items-center gap-1.5"
+                      >
+                        <Download size={14} />
+                        {t('settings.log_export')}
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">{t('settings.log_viewer_hint')}</p>
+
+                  {logExpanded && (
+                    <div className="mt-3">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-zinc-700 text-xs">
+                          {(['all', 'main', 'renderer'] as const).map(src => (
+                            <button
+                              key={src}
+                              onClick={() => setLogFilter(src)}
+                              className={`px-2.5 py-1 transition-colors ${logFilter === src ? 'bg-emerald-500 text-white' : 'bg-slate-50 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-700'}`}
+                            >
+                              {src === 'all' ? t('settings.log_all') : src}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-zinc-700 text-xs">
+                          {(['all', 'info', 'warn', 'error'] as const).map(lvl => (
+                            <button
+                              key={lvl}
+                              onClick={() => setLogLevelFilter(lvl)}
+                              className={`px-2.5 py-1 transition-colors ${logLevelFilter === lvl ? 'bg-emerald-500 text-white' : 'bg-slate-50 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-700'}`}
+                            >
+                              {lvl === 'all' ? t('settings.log_all') : lvl.toUpperCase()}
+                            </button>
+                          ))}
+                        </div>
+                        <label className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-zinc-400 ml-auto cursor-pointer select-none">
+                          <input type="checkbox" checked={logAutoScroll} onChange={e => setLogAutoScroll(e.target.checked)} className="rounded" />
+                          {t('settings.log_auto_scroll')}
+                        </label>
+                      </div>
+                      <div
+                        ref={logContainerRef}
+                        className="h-64 overflow-y-auto rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-950 font-mono text-[11px] leading-relaxed p-2"
+                      >
+                        {logEntries
+                          .filter(e => logFilter === 'all' || e.source === logFilter)
+                          .filter(e => logLevelFilter === 'all' || e.level === logLevelFilter)
+                          .map((entry, i) => {
+                            const lvlColor = entry.level === 'error' ? 'text-red-400'
+                              : entry.level === 'warn' ? 'text-amber-400'
+                              : entry.level === 'verbose' ? 'text-slate-500'
+                              : 'text-slate-300';
+                            const srcColor = entry.source === 'renderer' ? 'text-cyan-400' : 'text-emerald-400';
+                            const ts = entry.timestamp.slice(11, 23);
+                            return (
+                              <div key={i} className="flex gap-1 hover:bg-slate-900 px-1 rounded">
+                                <span className="text-slate-600 shrink-0">{ts}</span>
+                                <span className={`${srcColor} shrink-0 w-[4.5rem]`}>[{entry.source}]</span>
+                                <span className={`${lvlColor} shrink-0 w-14`}>{entry.level.toUpperCase().padEnd(7)}</span>
+                                <span className={lvlColor}>{entry.message}</span>
+                              </div>
+                            );
+                          })}
+                        {logEntries.length === 0 && (
+                          <div className="text-slate-600 text-center py-8">{t('settings.log_empty')}</div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>

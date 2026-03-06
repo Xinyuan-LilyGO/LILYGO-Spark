@@ -77,6 +77,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
   const [appVersion, setAppVersion] = useState('');
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [updateProgress, setUpdateProgress] = useState<{ percent: number; transferred: number; total: number; bytesPerSecond: number } | null>(null);
+  const [updateStatus, setUpdateStatus] = useState<'downloading' | 'verifying' | 'ready' | null>(null);
 
   useEffect(() => {
     if (window.electronUtils?.getAppVersion) {
@@ -85,6 +86,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
     if (window.ipcRenderer) {
       const progressHandler = (_event: any, progress: { percent: number; transferred: number; total: number; bytesPerSecond: number }) => {
         setUpdateProgress(progress);
+        setUpdateStatus('downloading');
       };
       const messageHandler = (_event: any, message: { text: string; data?: any }) => {
         if (message.data?.devMode) {
@@ -95,8 +97,14 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
           setCheckingUpdate(false);
         } else if (message.text.includes('Error') || message.text.includes('failed')) {
           setCheckingUpdate(false);
-        } else if (message.text.includes('Download complete') || message.text.includes('Update downloaded')) {
           setUpdateProgress(null);
+          setUpdateStatus(null);
+        } else if (message.text.includes('Verifying')) {
+          setUpdateStatus('verifying');
+        } else if (message.text.includes('Download complete') || message.text.includes('Update downloaded')) {
+          setUpdateStatus('ready');
+        } else if (message.text.includes('Racing') || message.text.includes('Installing')) {
+          setUpdateStatus('downloading');
         }
       };
       window.ipcRenderer.on('update-progress', progressHandler);
@@ -301,20 +309,35 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
             {checkingUpdate && <RefreshCw size={10} className="animate-spin" />}
             <span>{appVersion ? `v${appVersion}` : '...'}</span>
           </button>
-          {updateProgress && updateProgress.total > 0 && (
+          {(updateProgress && updateProgress.total > 0) || updateStatus ? (
             <div className="px-1">
-              <div className="h-1 bg-slate-200 dark:bg-zinc-700 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all duration-300"
-                  style={{ width: `${Math.min(100, updateProgress.percent)}%` }}
-                />
-              </div>
-              <div className="text-[9px] text-slate-400 dark:text-zinc-500 text-center mt-0.5">
-                {Math.round(updateProgress.percent)}% · {formatBytes(updateProgress.transferred)} / {formatBytes(updateProgress.total)}
-                {updateProgress.bytesPerSecond > 0 && ` · ${formatBytes(updateProgress.bytesPerSecond)}/s`}
-              </div>
+              {updateProgress && updateProgress.total > 0 && (
+                <>
+                  <div className="h-1 bg-slate-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full transition-all duration-300"
+                      style={{ width: `${Math.min(100, updateProgress.percent)}%` }}
+                    />
+                  </div>
+                  <div className="text-[9px] text-slate-400 dark:text-zinc-500 text-center mt-0.5">
+                    {Math.round(updateProgress.percent)}% · {formatBytes(updateProgress.transferred)} / {formatBytes(updateProgress.total)}
+                    {updateProgress.bytesPerSecond > 0 && ` · ${formatBytes(updateProgress.bytesPerSecond)}/s`}
+                  </div>
+                </>
+              )}
+              {updateStatus === 'verifying' && (
+                <div className="text-[9px] text-amber-500 text-center mt-0.5 flex items-center justify-center gap-1">
+                  <RefreshCw size={8} className="animate-spin" />
+                  {t('sidebar.verifying_update')}
+                </div>
+              )}
+              {updateStatus === 'ready' && (
+                <div className="text-[9px] text-emerald-500 text-center mt-0.5">
+                  {t('sidebar.update_ready')}
+                </div>
+              )}
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
