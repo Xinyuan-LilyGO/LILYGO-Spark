@@ -139,6 +139,7 @@ const DEVELOPER_MODE_STORAGE_KEY = 'developer_mode';
 const CANARY_UPDATE_STORAGE_KEY = 'canary_update';
 const PROXY_CONFIG_STORAGE_KEY = 'proxy_config';
 const FAKE_OLD_VERSION_STORAGE_KEY = 'fake_old_version';
+const SIMULATE_GITHUB_DOWN_KEY = 'simulate_github_down';
 
 export interface ProxyConfig {
   mode: 'system' | 'direct' | 'custom';
@@ -214,6 +215,19 @@ export function getFakeOldVersion(): boolean {
 function setFakeOldVersion(enabled: boolean): void {
   const data = readSettingsFile();
   data[FAKE_OLD_VERSION_STORAGE_KEY] = enabled;
+  writeSettingsFile(data);
+}
+
+export function getSimulateGithubDown(): boolean {
+  try {
+    const data = readSettingsFile();
+    return !!data[SIMULATE_GITHUB_DOWN_KEY];
+  } catch { return false; }
+}
+
+function setSimulateGithubDown(enabled: boolean): void {
+  const data = readSettingsFile();
+  data[SIMULATE_GITHUB_DOWN_KEY] = enabled;
   writeSettingsFile(data);
 }
 
@@ -420,6 +434,12 @@ export function setupConfigHandler(mainWindow?: BrowserWindow | null, onSettings
   ipcMain.handle('get-fake-old-version', async () => getFakeOldVersion());
   ipcMain.handle('set-fake-old-version', async (_event, enabled: boolean) => {
     setFakeOldVersion(enabled);
+    return true;
+  });
+
+  ipcMain.handle('get-simulate-github-down', async () => getSimulateGithubDown());
+  ipcMain.handle('set-simulate-github-down', async (_event, enabled: boolean) => {
+    setSimulateGithubDown(enabled);
     return true;
   });
 

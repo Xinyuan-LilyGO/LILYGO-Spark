@@ -82,6 +82,7 @@ const SettingsPage: React.FC = () => {
   const [developerMode, setDeveloperMode] = React.useState(false);
   const [canaryUpdate, setCanaryUpdate] = React.useState(false);
   const [fakeOldVersion, setFakeOldVersion] = React.useState(false);
+  const [simulateGithubDown, setSimulateGithubDown] = React.useState(false);
   const [checkingUpdate, setCheckingUpdate] = React.useState(false);
   const [appVersion, setAppVersion] = React.useState('0.0.0');
   const manualCheckRef = React.useRef(false);
@@ -92,6 +93,7 @@ const SettingsPage: React.FC = () => {
       window.ipcRenderer.invoke('get-developer-mode').then((enabled: boolean) => setDeveloperMode(enabled));
       window.ipcRenderer.invoke('get-canary-update').then((enabled: boolean) => setCanaryUpdate(enabled));
       window.ipcRenderer.invoke('get-fake-old-version').then((enabled: boolean) => setFakeOldVersion(enabled));
+      window.ipcRenderer.invoke('get-simulate-github-down').then((enabled: boolean) => setSimulateGithubDown(enabled));
       window.ipcRenderer.invoke('get-proxy-config').then((cfg: any) => {
         if (cfg) {
           setProxyMode(cfg.mode || 'system');
@@ -235,6 +237,13 @@ const SettingsPage: React.FC = () => {
     setFakeOldVersion(enabled);
     if (window.ipcRenderer) {
       await window.ipcRenderer.invoke('set-fake-old-version', enabled);
+    }
+  };
+
+  const handleSimulateGithubDownChange = async (enabled: boolean) => {
+    setSimulateGithubDown(enabled);
+    if (window.ipcRenderer) {
+      await window.ipcRenderer.invoke('set-simulate-github-down', enabled);
     }
   };
 
@@ -722,7 +731,7 @@ const SettingsPage: React.FC = () => {
                   </div>
                 </div>
 
-                {developerMode && (
+                {developerMode && (<>
                 <div className="pt-4 border-t border-slate-200 dark:border-zinc-700/50">
                   <div className="flex items-center justify-between">
                     <div>
@@ -750,7 +759,35 @@ const SettingsPage: React.FC = () => {
                     </div>
                   )}
                 </div>
-                )}
+
+                <div className="mt-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <WifiOff className="text-red-500" size={18} />
+                        <span className="font-medium text-slate-700 dark:text-slate-300 text-sm">{t('settings.simulate_github_down')}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-zinc-400">{t('settings.simulate_github_down_hint')}</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={simulateGithubDown}
+                            onChange={(e) => handleSimulateGithubDownChange(e.target.checked)}
+                            className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-200 dark:bg-zinc-600 peer-focus:ring-2 peer-focus:ring-red-500/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all after:border after:border-slate-300 dark:after:border-zinc-500 peer-checked:bg-red-500"></div>
+                    </label>
+                  </div>
+                  {simulateGithubDown && (
+                    <div className="mt-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-lg">
+                      <p className="text-xs text-red-700 dark:text-red-300">
+                        {t('settings.simulate_github_down_active')}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                </>)}
               </div>
             )}
             </div>

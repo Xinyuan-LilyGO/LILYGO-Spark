@@ -3,7 +3,7 @@ import { autoUpdater, UpdateInfo, ProgressInfo } from 'electron-updater';
 import fs from 'fs';
 import path from 'path';
 
-import { getCanaryUpdate, getFakeOldVersion } from './config-handler';
+import { getCanaryUpdate, getFakeOldVersion, getSimulateGithubDown } from './config-handler';
 
 // Lightweight main-process i18n for native dialog strings
 type UpdaterI18nKey =
@@ -125,12 +125,92 @@ const GITHUB_REPO = 'Xinyuan-LilyGO/LILYGO-Spark';
 const GITHUB_LATEST_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
 const GITHUB_RELEASES_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=1`;
 
-// GitHub download accelerator mirrors (for users in China)
-const GITHUB_DOWNLOAD_MIRRORS = [
-  (url: string) => url, // original
-  (url: string) => url.replace('github.com', 'ghfast.top'),
-  (url: string) => url.replace('github.com', 'gh-proxy.com'),
+// ── Smart Mirror System ──
+// Two types of mirrors:
+// 1. "replace" — swap github.com domain with mirror domain
+// 2. "prefix"  — prepend mirror URL before the full github URL
+interface MirrorDef {
+  id: string;
+  type: 'replace' | 'prefix';
+  host: string;
+}
+
+const MIRRORS: MirrorDef[] = [
+  { id: 'origin',   type: 'replace', host: 'github.com' },
+  { id: 'ghfast',   type: 'replace', host: 'ghfast.top' },
+  { id: 'ghproxy',  type: 'replace', host: 'gh-proxy.com' },
+  { id: 'kkgithub', type: 'replace', host: 'kkgithub.com' },
+  { id: 'moeyy',    type: 'prefix',  host: 'https://github.moeyy.cn' },
+  { id: 'ghproxynet', type: 'prefix', host: 'https://ghproxy.net' },
 ];
+
+function applyMirror(mirror: MirrorDef, originalUrl: string): string {
+  if (mirror.type === 'replace') {
+    return originalUrl.replace('github.com', mirror.host);
+  }
+  // prefix: https://ghproxy.net/https://github.com/...
+  return `${mirror.host}/${originalUrl}`;
+}
+
+// ── Race Probe: find the fastest mirror at startup ──
+let _bestMirrorId: string | null = null;
+let _probePromise: Promise<void> | null = null;
+
+async function probeBestMirror(): Promise<void> {
+  if (_bestMirrorId) return;
+
+  const simulateDown = getSimulateGithubDown();
+  const probeUrl = `https://github.com/${GITHUB_REPO}/releases`;
+  const TIMEOUT = 6000;
+
+  console.log('[Mirror] Starting race probe across', MIRRORS.length, 'mirrors...');
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT);
+
+  try {
+    // Promise.any polyfill for ES2020: race all, resolve on first success
+    const winner = await new Promise<MirrorDef>((resolve, reject) => {
+      let rejected = 0;
+      const total = MIRRORS.length;
+      MIRRORS.forEach((mirror) => {
+        (async () => {
+          if (simulateDown && mirror.id === 'origin') {
+            throw new Error('simulated github down');
+          }
+          const url = applyMirror(mirror, probeUrl);
+          const start = Date.now();
+          const resp = await net.fetch(url, {
+            method: 'HEAD',
+            signal: controller.signal,
+            headers: { 'User-Agent': 'LILYGO-Spark-Updater' },
+          });
+          if (!resp.ok) throw new Error(`${resp.status}`);
+          const elapsed = Date.now() - start;
+          console.log(`[Mirror] ${mirror.id} (${mirror.host}) responded in ${elapsed}ms`);
+          return mirror;
+        })().then(resolve).catch(() => {
+          rejected++;
+          if (rejected >= total) reject(new Error('all failed'));
+        });
+      });
+    });
+    _bestMirrorId = winner.id;
+    console.log(`[Mirror] Winner: ${winner.id} (${winner.host})`);
+  } catch {
+    console.log('[Mirror] All probes failed, will use sequential fallback');
+    _bestMirrorId = null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function getOrderedMirrors(): MirrorDef[] {
+  if (!_bestMirrorId) return MIRRORS;
+  const best = MIRRORS.find(m => m.id === _bestMirrorId);
+  if (!best) return MIRRORS;
+  return [best, ...MIRRORS.filter(m => m.id !== _bestMirrorId)];
+}
 
 let updateWin: BrowserWindow | null = null;
 let _updaterRegistered = false;
@@ -140,6 +220,11 @@ export function setupUpdater(win: BrowserWindow) {
   detectLocale(win);
 
   const isDev = !app.isPackaged;
+
+  // Start mirror probe early (non-blocking)
+  if (!_probePromise && !isDev) {
+    _probePromise = probeBestMirror();
+  }
 
   if (_updaterRegistered) {
     if (!isDev) {
@@ -305,25 +390,57 @@ function checkForUpdatesViaAPI(win: BrowserWindow, canary: boolean) {
 }
 
 async function fetchRelease(url: string, callback: (err: any, data?: any) => void) {
-    try {
-        // net.fetch uses Chromium's network stack which respects system proxy settings
-        const response = await net.fetch(url, {
-            headers: {
-                'User-Agent': 'LILYGO-Spark-Updater',
-                'Accept': 'application/vnd.github+json',
-            },
-        });
+    // Wait for probe to finish (if still running) so we know the best mirror
+    if (_probePromise) await _probePromise.catch(() => {});
 
-        if (!response.ok) {
-            callback({ message: `GitHub API returned ${response.status}`, statusCode: response.status });
-            return;
+    const simulateDown = getSimulateGithubDown();
+    const mirrors = getOrderedMirrors();
+    const API_TIMEOUT = 8000;
+
+    for (const mirror of mirrors) {
+        if (simulateDown && mirror.id === 'origin') continue;
+
+        const mirrorUrl = (mirror.id === 'origin')
+            ? url
+            : (mirror.type === 'prefix')
+                ? `${mirror.host}/${url}`
+                : url.replace('api.github.com', `api.${mirror.host}`);
+
+        // Most replace-type mirrors don't proxy api.github.com, skip them
+        if (mirror.type === 'replace' && mirror.id !== 'origin' && mirrorUrl.includes(`api.${mirror.host}`)) {
+            continue;
         }
 
-        const json = await response.json();
-        callback(null, json);
-    } catch (e: any) {
-        callback(e);
+        try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), API_TIMEOUT);
+
+            console.log(`[Updater] Fetching release from ${mirror.id}: ${mirrorUrl}`);
+            const response = await net.fetch(mirrorUrl, {
+                headers: {
+                    'User-Agent': 'LILYGO-Spark-Updater',
+                    'Accept': 'application/vnd.github+json',
+                },
+                signal: controller.signal,
+            });
+            clearTimeout(timer);
+
+            if (!response.ok) {
+                console.log(`[Updater] ${mirror.id} returned ${response.status}, trying next...`);
+                continue;
+            }
+
+            const json = await response.json();
+            console.log(`[Updater] Successfully fetched release via ${mirror.id}`);
+            callback(null, json);
+            return;
+        } catch (e: any) {
+            console.log(`[Updater] ${mirror.id} failed: ${e.message}`);
+            continue;
+        }
     }
+
+    callback({ message: 'All API mirrors failed' });
 }
 
 function processRelease(win: BrowserWindow, release: any) {
@@ -395,12 +512,22 @@ function processRelease(win: BrowserWindow, release: any) {
 
 import { exec } from 'child_process';
 
-async function installMacUpdate(win: BrowserWindow, url: string, filename: string) {
-    const downloadPath = path.join(app.getPath('downloads'), filename);
+// Shared download helper: tries mirrors in order, reports real-time speed
+async function downloadWithMirrors(
+    win: BrowserWindow,
+    originalUrl: string,
+): Promise<{ buffer: Buffer; mirrorId: string } | null> {
+    if (_probePromise) await _probePromise.catch(() => {});
 
-    for (const mirrorFn of GITHUB_DOWNLOAD_MIRRORS) {
-        const mirrorUrl = mirrorFn(url);
-        sendStatusToWindow(`Downloading from ${new URL(mirrorUrl).host}...`);
+    const simulateDown = getSimulateGithubDown();
+    const mirrors = getOrderedMirrors();
+
+    for (const mirror of mirrors) {
+        if (simulateDown && mirror.id === 'origin') continue;
+
+        const mirrorUrl = applyMirror(mirror, originalUrl);
+        const host = new URL(mirrorUrl).host;
+        sendStatusToWindow(`Downloading from ${host} (${mirror.id})...`);
 
         try {
             const response = await net.fetch(mirrorUrl, {
@@ -408,7 +535,7 @@ async function installMacUpdate(win: BrowserWindow, url: string, filename: strin
             });
 
             if (!response.ok || !response.body) {
-                sendStatusToWindow(`Mirror ${new URL(mirrorUrl).host} returned ${response.status}, trying next...`);
+                sendStatusToWindow(`Mirror ${host} returned ${response.status}, trying next...`);
                 continue;
             }
 
@@ -416,57 +543,89 @@ async function installMacUpdate(win: BrowserWindow, url: string, filename: strin
             let cur = 0;
             const chunks: Buffer[] = [];
             const reader = response.body.getReader();
+            let lastTime = Date.now();
+            let lastBytes = 0;
+            let speed = 0;
 
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
                 chunks.push(Buffer.from(value));
                 cur += value.byteLength;
+
+                const now = Date.now();
+                const elapsed = now - lastTime;
+                if (elapsed >= 500) {
+                    speed = Math.round(((cur - lastBytes) / elapsed) * 1000);
+                    lastTime = now;
+                    lastBytes = cur;
+                }
+
                 if (total > 0) {
                     win.webContents.send('update-progress', {
                         percent: (cur / total) * 100,
                         transferred: cur,
                         total,
-                        bytesPerSecond: 0,
+                        bytesPerSecond: speed,
                     });
                 }
             }
 
-            fs.writeFileSync(downloadPath, Buffer.concat(chunks));
-            sendStatusToWindow('Download complete. Preparing to install...');
+            console.log(`[Updater] Download complete via ${mirror.id} (${host})`);
+            return { buffer: Buffer.concat(chunks), mirrorId: mirror.id };
+        } catch (e: any) {
+            sendStatusToWindow(`Mirror ${host} failed: ${e.message}`);
+            continue;
+        }
+    }
 
-            const tempDir = path.join(app.getPath('temp'), 'spark-update-' + Date.now());
-            fs.mkdirSync(tempDir, { recursive: true });
+    return null;
+}
 
-            exec(`unzip -o "${downloadPath}" -d "${tempDir}"`, (err) => {
-                if (err) {
-                    sendStatusToWindow(`Unzip error: ${err.message}`);
-                    return;
-                }
+async function installMacUpdate(win: BrowserWindow, url: string, filename: string) {
+    const downloadPath = path.join(app.getPath('downloads'), filename);
+    const result = await downloadWithMirrors(win, url);
 
-                const files = fs.readdirSync(tempDir);
-                const appName = files.find(f => f.endsWith('.app'));
-                if (!appName) {
-                    sendStatusToWindow('Error: No .app found in update');
-                    return;
-                }
+    if (!result) {
+        sendStatusToWindow(ut('all_mirrors_failed'));
+        return;
+    }
 
-                const newAppPath = path.join(tempDir, appName);
-                const currentAppPath = app.getPath('exe').split('.app')[0] + '.app';
+    fs.writeFileSync(downloadPath, result.buffer);
+    sendStatusToWindow('Download complete. Preparing to install...');
 
-                sendStatusToWindow(`Ready to replace ${currentAppPath} with ${newAppPath}`);
+    const tempDir = path.join(app.getPath('temp'), 'spark-update-' + Date.now());
+    fs.mkdirSync(tempDir, { recursive: true });
 
-                detectLocale(win);
-                dialog.showMessageBox(win, {
-                    type: 'info',
-                    title: ut('ready_title'),
-                    message: ut('ready_msg'),
-                    detail: ut('ready_detail'),
-                    buttons: [ut('btn_restart'), ut('btn_cancel')]
-                }).then((result) => {
-                    if (result.response === 0) {
-                        const scriptPath = path.join(tempDir, 'swap.sh');
-                        const script = `#!/bin/bash
+    exec(`unzip -o "${downloadPath}" -d "${tempDir}"`, (err) => {
+        if (err) {
+            sendStatusToWindow(`Unzip error: ${err.message}`);
+            return;
+        }
+
+        const files = fs.readdirSync(tempDir);
+        const appName = files.find(f => f.endsWith('.app'));
+        if (!appName) {
+            sendStatusToWindow('Error: No .app found in update');
+            return;
+        }
+
+        const newAppPath = path.join(tempDir, appName);
+        const currentAppPath = app.getPath('exe').split('.app')[0] + '.app';
+
+        sendStatusToWindow(`Ready to replace ${currentAppPath} with ${newAppPath}`);
+
+        detectLocale(win);
+        dialog.showMessageBox(win, {
+            type: 'info',
+            title: ut('ready_title'),
+            message: ut('ready_msg'),
+            detail: ut('ready_detail'),
+            buttons: [ut('btn_restart'), ut('btn_cancel')]
+        }).then((res) => {
+            if (res.response === 0) {
+                const scriptPath = path.join(tempDir, 'swap.sh');
+                const script = `#!/bin/bash
 sleep 1
 echo "Replacing app..."
 rm -rf "${currentAppPath}"
@@ -474,91 +633,47 @@ mv "${newAppPath}" "${currentAppPath}"
 xattr -cr "${currentAppPath}"
 open "${currentAppPath}"
 `;
-                        fs.writeFileSync(scriptPath, script, { mode: 0o755 });
+                fs.writeFileSync(scriptPath, script, { mode: 0o755 });
 
-                        const child = require('child_process').spawn('/bin/bash', [scriptPath], {
-                            detached: true,
-                            stdio: 'ignore'
-                        });
-                        child.unref();
-                        app.quit();
-                    }
+                const child = require('child_process').spawn('/bin/bash', [scriptPath], {
+                    detached: true,
+                    stdio: 'ignore'
                 });
-            });
-            return; // success
-        } catch (e: any) {
-            sendStatusToWindow(`Mirror ${new URL(mirrorUrl).host} failed: ${e.message}`);
-            continue;
-        }
-    }
-
-    sendStatusToWindow(ut('all_mirrors_failed'));
+                child.unref();
+                app.quit();
+            }
+        });
+    });
 }
 
 async function downloadToFolder(win: BrowserWindow, url: string, filename: string, autoOpen = false) {
     const downloadPath = path.join(app.getPath('downloads'), filename);
+    const result = await downloadWithMirrors(win, url);
 
-    for (const mirrorFn of GITHUB_DOWNLOAD_MIRRORS) {
-        const mirrorUrl = mirrorFn(url);
-        sendStatusToWindow(`Downloading from ${new URL(mirrorUrl).host}...`);
-
-        try {
-            const response = await net.fetch(mirrorUrl, {
-                headers: { 'User-Agent': 'LILYGO-Spark-Updater' },
-            });
-
-            if (!response.ok || !response.body) {
-                sendStatusToWindow(`Mirror ${new URL(mirrorUrl).host} returned ${response.status}, trying next...`);
-                continue;
-            }
-
-            const total = parseInt(response.headers.get('content-length') || '0', 10);
-            let cur = 0;
-            const chunks: Buffer[] = [];
-            const reader = response.body.getReader();
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                chunks.push(Buffer.from(value));
-                cur += value.byteLength;
-                if (total > 0) {
-                    win.webContents.send('update-progress', {
-                        percent: (cur / total) * 100,
-                        transferred: cur,
-                        total,
-                        bytesPerSecond: 0,
-                    });
-                }
-            }
-
-            fs.writeFileSync(downloadPath, Buffer.concat(chunks));
-            sendStatusToWindow('Download complete.');
-
-            detectLocale(win);
-            dialog.showMessageBox(win, {
-                type: 'info',
-                title: ut('dl_complete_title'),
-                message: ut('dl_complete_msg'),
-                detail: `File: ${filename}`,
-                buttons: [ut('btn_open'), ut('btn_close')]
-            }).then((result) => {
-                if (result.response === 0) {
-                    if (autoOpen) {
-                        shell.openPath(downloadPath);
-                    } else {
-                        shell.showItemInFolder(downloadPath);
-                    }
-                }
-            });
-            return;
-        } catch (e: any) {
-            sendStatusToWindow(`Mirror ${new URL(mirrorUrl).host} failed: ${e.message}`);
-            continue;
-        }
+    if (!result) {
+        sendStatusToWindow(ut('all_mirrors_failed'));
+        return;
     }
 
-    sendStatusToWindow(ut('all_mirrors_failed'));
+    fs.writeFileSync(downloadPath, result.buffer);
+    sendStatusToWindow('Download complete.');
+
+    detectLocale(win);
+    dialog.showMessageBox(win, {
+        type: 'info',
+        title: ut('dl_complete_title'),
+        message: ut('dl_complete_msg'),
+        detail: `File: ${filename}`,
+        buttons: [ut('btn_open'), ut('btn_close')]
+    }).then((res) => {
+        if (res.response === 0) {
+            if (autoOpen) {
+                shell.openPath(downloadPath);
+            } else {
+                shell.showItemInFolder(downloadPath);
+            }
+        }
+    });
 }
 
 

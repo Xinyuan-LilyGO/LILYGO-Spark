@@ -76,14 +76,14 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [appVersion, setAppVersion] = useState('');
   const [checkingUpdate, setCheckingUpdate] = useState(false);
-  const [updateProgress, setUpdateProgress] = useState<{ percent: number; transferred: number; total: number } | null>(null);
+  const [updateProgress, setUpdateProgress] = useState<{ percent: number; transferred: number; total: number; bytesPerSecond: number } | null>(null);
 
   useEffect(() => {
     if (window.electronUtils?.getAppVersion) {
       window.electronUtils.getAppVersion().then((v: string) => setAppVersion(v));
     }
     if (window.ipcRenderer) {
-      const progressHandler = (_event: any, progress: { percent: number; transferred: number; total: number }) => {
+      const progressHandler = (_event: any, progress: { percent: number; transferred: number; total: number; bytesPerSecond: number }) => {
         setUpdateProgress(progress);
       };
       const messageHandler = (_event: any, message: { text: string; data?: any }) => {
@@ -311,6 +311,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
               </div>
               <div className="text-[9px] text-slate-400 dark:text-zinc-500 text-center mt-0.5">
                 {Math.round(updateProgress.percent)}% · {formatBytes(updateProgress.transferred)} / {formatBytes(updateProgress.total)}
+                {updateProgress.bytesPerSecond > 0 && ` · ${formatBytes(updateProgress.bytesPerSecond)}/s`}
               </div>
             </div>
           )}
