@@ -303,12 +303,11 @@ jobs:
       - name: Cleanup old builds
         if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         run: |
-          # Keep last 20 releases
-          RELEASES_TO_DELETE=$(gh release list --limit 100 | grep "canary" | awk '{print $1}' | tail -n +21)
-          if [ -n "$RELEASES_TO_DELETE" ]; then
-            for TAG in $RELEASES_TO_DELETE; do
-              gh release delete "$TAG" --yes --cleanup-tag
-            done
-          fi
+          # Keep last 20 canary releases, delete older ones
+          TAGS=$(gh release list --limit 100 --json tagName,isPrerelease -q '[.[] | select(.isPrerelease) | .tagName] | .[20:][]')
+          for TAG in $TAGS; do
+            echo "Deleting old release: $TAG"
+            gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+          done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
