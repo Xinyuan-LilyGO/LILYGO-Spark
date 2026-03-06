@@ -121,7 +121,7 @@ function App() {
         
         
         {activeTab === 'serial_tools' && (
-            <div className="h-full overflow-auto">
+            <div className="h-full flex flex-col overflow-hidden">
                 <SerialMonitorTool />
             </div>
         )}

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Newspaper, ExternalLink, Hash, Calendar, RefreshCw } from 'lucide-react';
-// Browser-compatible RSS parser import
+// Browser-compatible RSS parser import (min bundle lacks full TS types)
 import Parser from 'rss-parser/dist/rss-parser.min.js';
+type RSSParser = { parseString(xml: string): Promise<any>; parseURL(url: string): Promise<any> };
 import mockNews from '../assets/mock_news.json';
 
 interface NewsItem {
@@ -22,7 +23,7 @@ const Discovery: React.FC = () => {
 
     const fetchDirectRSS = async () => {
         try {
-            const parser = new Parser();
+            const parser = new Parser() as RSSParser;
             const feeds = [
                 { url: 'https://hackaday.com/category/esp32/feed/', source: 'Hackaday' },
                 { url: 'https://www.cnx-software.com/feed/', source: 'CNX' },

@@ -1,4 +1,4 @@
-import { app, ipcMain, dialog, type BrowserWindow } from 'electron';
+import { app, ipcMain, dialog, session, net, type BrowserWindow } from 'electron';
 import path from 'path';
 import fs from 'fs';
 
@@ -137,6 +137,71 @@ async function tryFetchManifest(url: string, label: string): Promise<unknown | n
 const CUSTOM_MANIFEST_STORAGE_KEY = 'custom_firmware_manifest_path';
 const DEVELOPER_MODE_STORAGE_KEY = 'developer_mode';
 const CANARY_UPDATE_STORAGE_KEY = 'canary_update';
+const PROXY_CONFIG_STORAGE_KEY = 'proxy_config';
+
+export interface ProxyConfig {
+  mode: 'system' | 'direct' | 'custom';
+  protocol?: 'http' | 'socks5';
+  host?: string;
+  port?: number;
+}
+
+function readSettingsFile(): Record<string, unknown> {
+  const storePath = path.join(app.getPath('userData'), 'lilygo_spark_settings.json');
+  try {
+    if (fs.existsSync(storePath)) {
+      return JSON.parse(fs.readFileSync(storePath, 'utf-8')) || {};
+    }
+  } catch { /* ignore */ }
+  return {};
+}
+
+function writeSettingsFile(data: Record<string, unknown>): void {
+  const storePath = path.join(app.getPath('userData'), 'lilygo_spark_settings.json');
+  fs.writeFileSync(storePath, JSON.stringify(data, null, 2), 'utf-8');
+}
+
+export function getProxyConfig(): ProxyConfig {
+  try {
+    const data = readSettingsFile();
+    const cfg = data[PROXY_CONFIG_STORAGE_KEY] as ProxyConfig | undefined;
+    if (cfg && typeof cfg === 'object' && ['system', 'direct', 'custom'].includes(cfg.mode)) {
+      return cfg;
+    }
+  } catch { /* ignore */ }
+  return { mode: 'system' };
+}
+
+function setProxyConfig(config: ProxyConfig): void {
+  const data = readSettingsFile();
+  data[PROXY_CONFIG_STORAGE_KEY] = config;
+  writeSettingsFile(data);
+}
+
+export async function applyProxyConfig(config?: ProxyConfig): Promise<void> {
+  const cfg = config || getProxyConfig();
+  const ses = session.defaultSession;
+
+  switch (cfg.mode) {
+    case 'direct':
+      await ses.setProxy({ mode: 'direct' });
+      console.log('[Proxy] Mode: direct (no proxy)');
+      break;
+    case 'custom': {
+      const proto = cfg.protocol || 'http';
+      const host = cfg.host || '127.0.0.1';
+      const port = cfg.port || (proto === 'socks5' ? 1080 : 7890);
+      const proxyRules = `${proto}://${host}:${port}`;
+      await ses.setProxy({ proxyRules });
+      console.log(`[Proxy] Mode: custom (${proxyRules})`);
+      break;
+    }
+    default:
+      await ses.setProxy({ mode: 'system' });
+      console.log('[Proxy] Mode: system');
+      break;
+  }
+}
 
 export function getCanaryUpdate(): boolean {
   const userDataPath = app.getPath('userData');
@@ -373,6 +438,35 @@ export function setupConfigHandler(mainWindow?: BrowserWindow | null, onSettings
     const config = getConfig();
     return config.oss_domain_prefix.replace(/\/$/, '');
   });
+
+  // ── Proxy settings ──
+  ipcMain.handle('get-proxy-config', async () => getProxyConfig());
+
+  ipcMain.handle('set-proxy-config', async (_event, config: ProxyConfig) => {
+    setProxyConfig(config);
+    await applyProxyConfig(config);
+    return true;
+  });
+
+  ipcMain.handle('test-proxy', async () => {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      const resp = await net.fetch('https://api.github.com/zen', {
+        signal: controller.signal,
+        headers: { 'User-Agent': 'LILYGO-Spark-Proxy-Test' },
+      });
+      clearTimeout(timeout);
+      if (!resp.ok) return { success: false, error: `HTTP ${resp.status}` };
+      const text = await resp.text();
+      return { success: true, message: text.trim() };
+    } catch (e: any) {
+      return { success: false, error: e.message || String(e) };
+    }
+  });
+
+  // Apply saved proxy config on startup
+  applyProxyConfig().catch(e => console.warn('[Proxy] Failed to apply saved config:', e));
 
   try {
     getConfig();

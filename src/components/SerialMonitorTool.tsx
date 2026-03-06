@@ -1,264 +1,254 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Activity, RefreshCw, Power, PowerOff, Trash2, AlertCircle } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Activity, RefreshCw, Power, PowerOff, Trash2, AlertCircle, Send, ChevronDown, ChevronUp } from 'lucide-react';
+
+const BAUD_RATES = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600, 2000000];
 
 const SerialMonitorTool: React.FC = () => {
-  const [monitorPorts, setMonitorPorts] = useState<any[]>([]);
-  const [selectedMonitorPort, setSelectedMonitorPort] = useState<string>('');
-  const [monitorBaudRate, setMonitorBaudRate] = useState<number>(115200);
-  const [isMonitorConnected, setIsMonitorConnected] = useState(false);
-  const [monitorLogs, setMonitorLogs] = useState<string[]>([]);
-  const [monitorWarnings, setMonitorWarnings] = useState<Set<string>>(new Set());
-  const monitorLogsEndRef = useRef<HTMLDivElement>(null);
-  const [autoScrollMonitor, setAutoScrollMonitor] = useState(true);
+  const [ports, setPorts] = useState<any[]>([]);
+  const [selectedPort, setSelectedPort] = useState('');
+  const [baudRate, setBaudRate] = useState(115200);
+  const [connected, setConnected] = useState(false);
+  const [logs, setLogs] = useState<string[]>([]);
+  const [warnings, setWarnings] = useState<Set<string>>(new Set());
+  const [autoScroll, setAutoScroll] = useState(true);
+  const [command, setCommand] = useState('');
+  const [warningsCollapsed, setWarningsCollapsed] = useState(false);
+
+  const logsEndRef = useRef<HTMLDivElement>(null);
+  const logsContainerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // @ts-ignore
-    const handleSerialData = (_event, data) => {
-      setMonitorLogs(prev => {
-        const newLogs = [...prev, data];
-        return newLogs.length > 2000 ? newLogs.slice(-2000) : newLogs;
+    const handleData = (_event: any, data: string) => {
+      setLogs(prev => {
+        const next = [...prev, data];
+        return next.length > 5000 ? next.slice(-5000) : next;
       });
 
-      setMonitorWarnings(prev => {
-        const newWarnings = new Set(prev);
+      setWarnings(prev => {
+        const next = new Set(prev);
         if (data.includes('PSRAM: not found') || data.includes('spiram: SPI RAM enabled but initialization failed')) {
-          newWarnings.add('PSRAM Initialization Failed (Check if board has PSRAM or firmware config)');
+          next.add('PSRAM Initialization Failed');
         }
         if (data.includes('Brownout detector was triggered')) {
-          newWarnings.add('Brownout Detected (Check USB cable & power supply)');
+          next.add('Brownout Detected (Check USB cable & power)');
         }
         if (data.includes('Guru Meditation Error')) {
-          newWarnings.add('Guru Meditation Error (Crash/Panic)');
+          next.add('Guru Meditation Error (Crash/Panic)');
         }
-        if (data.includes('rst:0x') && (data.includes('Reason:SW_CPU_RESET') || data.includes('Reason:WDT'))) {
-          if (data.includes('WDT')) newWarnings.add('Watchdog Timer Reset (Loop/Hang)');
-        }
-        if (data.includes('Flash Status: 0x0000') || data.includes('Invalid chip id')) {
-          newWarnings.add('Flash/Chip Connection Failed (Check strapping pins or soldering)');
+        if (data.includes('rst:0x') && data.includes('WDT')) {
+          next.add('Watchdog Timer Reset');
         }
         if (data.includes('invalid header: 0xffffffff')) {
-          newWarnings.add('Blank/Corrupted Flash (Invalid Header)');
+          next.add('Blank/Corrupted Flash');
         }
-        return newWarnings;
+        return next;
       });
     };
 
-    // @ts-ignore
-    const handleSerialError = (_event, err) => {
-      setMonitorLogs(prev => [...prev, `\n[Error] ${err}\n`]);
+    const handleError = (_event: any, err: string) => {
+      setLogs(prev => [...prev, `\x1b[31m[Error] ${err}\x1b[0m\n`]);
     };
 
-    // @ts-ignore
-    const handleSerialClosed = () => {
-      setMonitorLogs(prev => [...prev, `\n[Connection Closed]\n`]);
-      setIsMonitorConnected(false);
+    const handleClosed = () => {
+      setLogs(prev => [...prev, '\n[Connection Closed]\n']);
+      setConnected(false);
     };
 
-    // @ts-ignore
     if (window.ipcRenderer) {
-      // @ts-ignore
-      window.ipcRenderer.on('serial-data', handleSerialData);
-      // @ts-ignore
-      window.ipcRenderer.on('serial-error', handleSerialError);
-      // @ts-ignore
-      window.ipcRenderer.on('serial-closed', handleSerialClosed);
+      window.ipcRenderer.on('serial-data', handleData);
+      window.ipcRenderer.on('serial-error', handleError);
+      window.ipcRenderer.on('serial-closed', handleClosed);
     }
 
     return () => {
-      // @ts-ignore
       if (window.ipcRenderer) {
-        // @ts-ignore
-        window.ipcRenderer.off('serial-data', handleSerialData);
-        // @ts-ignore
-        window.ipcRenderer.off('serial-error', handleSerialError);
-        // @ts-ignore
-        window.ipcRenderer.off('serial-closed', handleSerialClosed);
+        window.ipcRenderer.off('serial-data', handleData);
+        window.ipcRenderer.off('serial-error', handleError);
+        window.ipcRenderer.off('serial-closed', handleClosed);
       }
     };
   }, []);
 
   useEffect(() => {
-    if (autoScrollMonitor && monitorLogsEndRef.current) {
-      monitorLogsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (autoScroll && logsEndRef.current) {
+      logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [monitorLogs, autoScrollMonitor]);
+  }, [logs, autoScroll]);
 
-  const refreshPorts = async () => {
+  const refreshPorts = useCallback(async () => {
     try {
-      // @ts-ignore
-      const ports = await window.ipcRenderer.invoke('list-ports');
-      setMonitorPorts(ports);
-      if (ports.length > 0 && !selectedMonitorPort) {
-        setSelectedMonitorPort(ports[0].path);
+      const result = await window.ipcRenderer.invoke('list-ports');
+      setPorts(result);
+      if (result.length > 0 && !selectedPort) {
+        setSelectedPort(result[0].path);
       }
     } catch (e) {
       console.error('Failed to list ports', e);
     }
-  };
+  }, [selectedPort]);
 
-  useEffect(() => {
-    refreshPorts();
-  }, []);
+  useEffect(() => { refreshPorts(); }, []);
 
-  const toggleMonitorConnection = async () => {
-    if (isMonitorConnected) {
+  const toggleConnection = useCallback(async () => {
+    if (connected) {
       try {
-        // @ts-ignore
         await window.ipcRenderer.invoke('disconnect-serial');
-        setIsMonitorConnected(false);
+        setConnected(false);
       } catch (e) {
         console.error(e);
       }
     } else {
-      if (!selectedMonitorPort) return;
+      if (!selectedPort) return;
       try {
-        setMonitorLogs([]);
-        setMonitorWarnings(new Set());
-        // @ts-ignore
-        await window.ipcRenderer.invoke('connect-serial', selectedMonitorPort, Number(monitorBaudRate));
-        setIsMonitorConnected(true);
+        setLogs([]);
+        setWarnings(new Set());
+        await window.ipcRenderer.invoke('connect-serial', selectedPort, baudRate);
+        setConnected(true);
+        inputRef.current?.focus();
       } catch (e: any) {
-        alert(`Failed to connect: ${e.message || e}`);
+        setLogs([`[Error] Failed to connect: ${e.message || e}\n`]);
       }
     }
-  };
+  }, [connected, selectedPort, baudRate]);
+
+  const sendCommand = useCallback(() => {
+    if (!connected || !command.trim()) return;
+    window.ipcRenderer.invoke('write-serial', command + '\r\n');
+    setCommand('');
+    inputRef.current?.focus();
+  }, [connected, command]);
+
+  const clearOutput = useCallback(() => {
+    setLogs([]);
+    setWarnings(new Set());
+  }, []);
 
   return (
-    <div className="flex-1 flex flex-col gap-6 overflow-hidden">
-      <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg flex-1 flex flex-col min-h-0">
-        <div className="flex flex-wrap items-center gap-4 mb-4">
-          <div className="flex items-center gap-2">
-            <select
-              value={selectedMonitorPort}
-              onChange={(e) => setSelectedMonitorPort(e.target.value)}
-              disabled={isMonitorConnected}
-              className="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm rounded-lg p-2.5 min-w-[200px]"
-            >
-              <option value="">Select Port...</option>
-              {monitorPorts.map((port: any) => (
-                <option key={port.path} value={port.path}>
-                  {port.path} {port.manufacturer ? `(${port.manufacturer})` : ''}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={refreshPorts}
-              disabled={isMonitorConnected}
-              className="p-2.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-lg text-slate-700 dark:text-slate-300 disabled:opacity-50 transition-colors"
-              title="Refresh Ports"
-            >
-              <RefreshCw size={18} />
-            </button>
-          </div>
+    <div className="flex-1 flex flex-col min-h-0 p-3 gap-2">
+      {/* ── Toolbar ── */}
+      <div className="flex flex-wrap items-center gap-2 shrink-0">
+        <select
+          value={selectedPort}
+          onChange={(e) => setSelectedPort(e.target.value)}
+          disabled={connected}
+          className="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg px-2.5 py-2 min-w-[180px] disabled:opacity-60"
+        >
+          <option value="">Select Port...</option>
+          {ports.map((p: any) => (
+            <option key={p.path} value={p.path}>
+              {p.path}{p.manufacturer ? ` (${p.manufacturer})` : ''}
+            </option>
+          ))}
+        </select>
 
-          <select
-            value={monitorBaudRate}
-            onChange={(e) => setMonitorBaudRate(Number(e.target.value))}
-            disabled={isMonitorConnected}
-            className="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white text-sm rounded-lg p-2.5 w-[120px]"
-          >
-            <option value={9600}>9600</option>
-            <option value={115200}>115200</option>
-            <option value={460800}>460800</option>
-            <option value={921600}>921600</option>
-            <option value={2000000}>2000000</option>
-          </select>
+        <button
+          onClick={refreshPorts}
+          disabled={connected}
+          className="p-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-lg text-slate-600 dark:text-slate-300 disabled:opacity-40 transition-colors"
+          title="Refresh Ports"
+        >
+          <RefreshCw size={16} />
+        </button>
 
+        <select
+          value={baudRate}
+          onChange={(e) => setBaudRate(Number(e.target.value))}
+          disabled={connected}
+          className="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg px-2.5 py-2 w-[110px] disabled:opacity-60"
+        >
+          {BAUD_RATES.map(b => <option key={b} value={b}>{b}</option>)}
+        </select>
+
+        <button
+          onClick={toggleConnection}
+          disabled={!selectedPort}
+          className={`px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+            connected
+              ? 'bg-red-600 hover:bg-red-700 text-white'
+              : 'bg-green-600 hover:bg-green-700 text-white'
+          }`}
+        >
+          {connected ? <><PowerOff size={15} /> Disconnect</> : <><Power size={15} /> Connect</>}
+        </button>
+
+        <button
+          onClick={clearOutput}
+          className="p-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-lg text-slate-600 dark:text-slate-300 transition-colors"
+          title="Clear Output"
+        >
+          <Trash2 size={16} />
+        </button>
+
+        <div className="flex-1" />
+
+        <label className="text-xs text-slate-500 dark:text-slate-400 flex items-center cursor-pointer select-none hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
+          <input
+            type="checkbox"
+            checked={autoScroll}
+            onChange={(e) => setAutoScroll(e.target.checked)}
+            className="mr-1.5 accent-primary w-3.5 h-3.5 cursor-pointer"
+          />
+          Auto-scroll
+        </label>
+      </div>
+
+      {/* ── Warnings (collapsible) ── */}
+      {warnings.size > 0 && (
+        <div className="shrink-0 bg-orange-500/10 dark:bg-orange-900/20 border border-orange-500/30 rounded-lg overflow-hidden">
           <button
-            onClick={toggleMonitorConnection}
-            disabled={!selectedMonitorPort}
-            className={`px-4 py-2.5 rounded-lg text-sm font-bold flex items-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-              isMonitorConnected
-                ? 'bg-red-600 hover:bg-red-700 text-white'
-                : 'bg-green-600 hover:bg-green-700 text-white'
-            }`}
+            onClick={() => setWarningsCollapsed(v => !v)}
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-orange-500 dark:text-orange-400 text-xs font-semibold uppercase hover:bg-orange-500/10 transition-colors"
           >
-            {isMonitorConnected ? (
-              <><PowerOff size={18} className="mr-2" /> Disconnect</>
-            ) : (
-              <><Power size={18} className="mr-2" /> Connect</>
-            )}
+            <AlertCircle size={13} />
+            Detected Issues ({warnings.size})
+            {warningsCollapsed ? <ChevronDown size={13} className="ml-auto" /> : <ChevronUp size={13} className="ml-auto" />}
           </button>
-
-          <button
-            onClick={() => { setMonitorLogs([]); setMonitorWarnings(new Set()); }}
-            className="p-2.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-lg text-slate-700 dark:text-slate-300 transition-colors"
-            title="Clear Output"
-          >
-            <Trash2 size={18} />
-          </button>
-
-          <div className="flex-1 text-right">
-            <label className="text-sm text-slate-500 dark:text-slate-400 flex items-center justify-end cursor-pointer hover:text-slate-900 dark:hover:text-white select-none">
-              <input
-                type="checkbox"
-                checked={autoScrollMonitor}
-                onChange={(e) => setAutoScrollMonitor(e.target.checked)}
-                className="mr-2 accent-blue-500 w-4 h-4 cursor-pointer"
-              />
-              Auto-scroll
-            </label>
-          </div>
-        </div>
-
-        {monitorWarnings.size > 0 && (
-          <div className="mb-4 bg-orange-900/20 border border-orange-500/30 rounded-lg p-3 animate-pulse">
-            <h4 className="text-orange-400 text-xs font-bold uppercase mb-2 flex items-center">
-              <AlertCircle size={14} className="mr-2" /> Detected Issues
-            </h4>
-            <ul className="text-sm text-orange-200 list-disc list-inside space-y-1">
-              {Array.from(monitorWarnings).map((warning, i) => (
-                <li key={i}>{warning}</li>
-              ))}
+          {!warningsCollapsed && (
+            <ul className="px-3 pb-2 text-xs text-orange-300 dark:text-orange-300/80 list-disc list-inside space-y-0.5">
+              {Array.from(warnings).map((w, i) => <li key={i}>{w}</li>)}
             </ul>
+          )}
+        </div>
+      )}
+
+      {/* ── Terminal Output ── */}
+      <div
+        ref={logsContainerRef}
+        className="flex-1 min-h-0 bg-[#0d1117] rounded-lg border border-slate-700/50 font-mono text-[13px] leading-[1.4] overflow-auto select-text relative shadow-inner"
+      >
+        {!connected && logs.length === 0 ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-600 pointer-events-none gap-3">
+            <Activity size={40} className="opacity-20" />
+            <p className="text-sm">Select a serial port and click Connect to start monitoring.</p>
+          </div>
+        ) : (
+          <div className="p-3 whitespace-pre-wrap break-all text-green-400/90">
+            {logs.map((line, i) => <span key={i}>{line}</span>)}
+            <div ref={logsEndRef} />
           </div>
         )}
+      </div>
 
-        <div className="flex-1 bg-black/90 rounded-lg border border-slate-700/50 p-4 font-mono text-xs overflow-auto select-text relative shadow-inner">
-          {!isMonitorConnected && monitorLogs.length === 0 && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-600 pointer-events-none">
-              <Activity size={48} className="mb-4 opacity-20" />
-              <p>Select a serial port and click Connect to start monitoring.</p>
-            </div>
-          )}
-          <div className="whitespace-pre-wrap break-all">
-            {monitorLogs.map((line, i) => (
-              <span key={i}>{line}</span>
-            ))}
-          </div>
-          <div ref={monitorLogsEndRef} />
-        </div>
-
-        <div className="mt-4 flex gap-2">
-          <input
-            type="text"
-            placeholder="Send command..."
-            className="flex-1 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg px-4 py-2 text-sm font-mono focus:border-blue-500 outline-none"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && isMonitorConnected) {
-                const target = e.target as HTMLInputElement;
-                // @ts-ignore
-                window.ipcRenderer.invoke('write-serial', target.value + '\r\n');
-                target.value = '';
-              }
-            }}
-            disabled={!isMonitorConnected}
-          />
-          <button
-            className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 disabled:opacity-50"
-            onClick={() => {
-              const input = document.querySelector('input[placeholder="Send command..."]') as HTMLInputElement;
-              if (input && isMonitorConnected) {
-                // @ts-ignore
-                window.ipcRenderer.invoke('write-serial', input.value + '\r\n');
-                input.value = '';
-              }
-            }}
-            disabled={!isMonitorConnected}
-          >
-            Send
-          </button>
-        </div>
+      {/* ── Command Input ── */}
+      <div className="flex gap-2 shrink-0">
+        <input
+          ref={inputRef}
+          type="text"
+          value={command}
+          onChange={(e) => setCommand(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') sendCommand(); }}
+          placeholder={connected ? 'Send command...' : 'Connect first...'}
+          disabled={!connected}
+          className="flex-1 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white rounded-lg px-3 py-2 text-sm font-mono focus:ring-1 focus:ring-primary outline-none disabled:opacity-50 placeholder:text-slate-400 dark:placeholder:text-slate-600"
+        />
+        <button
+          onClick={sendCommand}
+          disabled={!connected || !command.trim()}
+          className="px-3 py-2 bg-primary/10 text-primary hover:bg-primary/20 rounded-lg text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+        >
+          <Send size={14} /> Send
+        </button>
       </div>
     </div>
   );

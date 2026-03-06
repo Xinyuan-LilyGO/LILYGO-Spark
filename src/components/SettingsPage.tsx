@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Globe, Moon, Palette, ExternalLink, Sparkles, Zap, Volume2, CheckCircle, ChevronDown, ChevronRight, FileJson, FolderOpen, X, SlidersHorizontal, RefreshCw, HardDrive, Trash2, MessageSquare, Settings } from 'lucide-react';
+import { Globe, Moon, Palette, ExternalLink, Sparkles, Zap, Volume2, CheckCircle, ChevronDown, ChevronRight, FileJson, FolderOpen, X, SlidersHorizontal, RefreshCw, HardDrive, Trash2, MessageSquare, Settings, Wifi, WifiOff, Shield } from 'lucide-react';
 import { useTheme, type AccentColor, type AccentMode, type FlashCelebrationStyle } from '../contexts/ThemeContext';
 import { useDownload } from '../contexts/DownloadContext';
 import FeedbackPage, { type FeedbackData } from './FeedbackPage';
@@ -34,6 +34,17 @@ const SettingsPage: React.FC = () => {
   const [cacheClearing, setCacheClearing] = React.useState(false);
   const cacheStats = React.useMemo(() => getCacheStats(), [tasks]);
   const [activeTab, setActiveTab] = React.useState<'settings' | 'feedback'>('settings');
+
+  // Proxy settings
+  type ProxyMode = 'system' | 'direct' | 'custom';
+  type ProxyProtocol = 'http' | 'socks5';
+  const [proxyMode, setProxyMode] = React.useState<ProxyMode>('system');
+  const [proxyProtocol, setProxyProtocol] = React.useState<ProxyProtocol>('http');
+  const [proxyHost, setProxyHost] = React.useState('127.0.0.1');
+  const [proxyPort, setProxyPort] = React.useState('7890');
+  const [proxySaving, setProxySaving] = React.useState(false);
+  const [proxyTestResult, setProxyTestResult] = React.useState<{ success: boolean; message: string } | null>(null);
+  const [proxyTesting, setProxyTesting] = React.useState(false);
 
   const handleFeedbackSubmit = async (data: FeedbackData) => {
     const apiBaseUrl = window.ipcRenderer
@@ -79,6 +90,14 @@ const SettingsPage: React.FC = () => {
       window.ipcRenderer.invoke('get-custom-manifest-path').then((p: string | null) => setCustomManifestPath(p));
       window.ipcRenderer.invoke('get-developer-mode').then((enabled: boolean) => setDeveloperMode(enabled));
       window.ipcRenderer.invoke('get-canary-update').then((enabled: boolean) => setCanaryUpdate(enabled));
+      window.ipcRenderer.invoke('get-proxy-config').then((cfg: any) => {
+        if (cfg) {
+          setProxyMode(cfg.mode || 'system');
+          setProxyProtocol(cfg.protocol || 'http');
+          setProxyHost(cfg.host || '127.0.0.1');
+          setProxyPort(String(cfg.port || '7890'));
+        }
+      });
       if (window.electronUtils?.getAppVersion) {
           window.electronUtils.getAppVersion().then((v: string) => setAppVersion(v));
       }
@@ -152,6 +171,41 @@ const SettingsPage: React.FC = () => {
       setCustomManifestPath(null);
     } finally {
       setManifestLoading(false);
+    }
+  };
+
+  const handleProxySave = async (mode: ProxyMode) => {
+    if (!window.ipcRenderer) return;
+    setProxySaving(true);
+    setProxyTestResult(null);
+    try {
+      const config: any = { mode };
+      if (mode === 'custom') {
+        config.protocol = proxyProtocol;
+        config.host = proxyHost.trim() || '127.0.0.1';
+        config.port = parseInt(proxyPort) || 7890;
+      }
+      await window.ipcRenderer.invoke('set-proxy-config', config);
+      setProxyMode(mode);
+    } finally {
+      setProxySaving(false);
+    }
+  };
+
+  const handleProxyTest = async () => {
+    if (!window.ipcRenderer) return;
+    setProxyTesting(true);
+    setProxyTestResult(null);
+    try {
+      const result = await window.ipcRenderer.invoke('test-proxy');
+      setProxyTestResult({
+        success: result.success,
+        message: result.success ? (result.message || 'OK') : (result.error || 'Failed'),
+      });
+    } catch (e: any) {
+      setProxyTestResult({ success: false, message: e.message || 'Error' });
+    } finally {
+      setProxyTesting(false);
     }
   };
 
@@ -471,6 +525,94 @@ const SettingsPage: React.FC = () => {
             <div className="text-xs text-slate-500 dark:text-zinc-400 mt-2">
                 {t('settings.cache_hint')}
             </div>
+            </div>
+
+            {/* ── Proxy Settings ── */}
+            <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
+              <div className="flex items-center space-x-3 mb-3">
+                <Shield className="text-primary" size={20} />
+                <span className="font-medium text-slate-800 dark:text-slate-200">{t('settings.proxy_title')}</span>
+              </div>
+
+              <div className="flex flex-wrap gap-2 mb-3">
+                {(['system', 'direct', 'custom'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => { if (mode !== 'custom') handleProxySave(mode); else setProxyMode('custom'); }}
+                    disabled={proxySaving}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5
+                      ${proxyMode === mode
+                        ? 'bg-primary/15 text-primary border border-primary/40'
+                        : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-transparent hover:bg-slate-200 dark:hover:bg-zinc-700'
+                      }`}
+                  >
+                    {mode === 'system' && <><Wifi size={14} /> {t('settings.proxy_system')}</>}
+                    {mode === 'direct' && <><WifiOff size={14} /> {t('settings.proxy_direct')}</>}
+                    {mode === 'custom' && <><Globe size={14} /> {t('settings.proxy_custom')}</>}
+                  </button>
+                ))}
+              </div>
+
+              {proxyMode === 'custom' && (
+                <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-lg p-3 space-y-3 border border-slate-200 dark:border-zinc-700">
+                  <div className="flex flex-wrap gap-3 items-end">
+                    <div className="w-24">
+                      <label className="block text-[11px] text-slate-500 dark:text-zinc-400 mb-1">{t('settings.proxy_protocol')}</label>
+                      <select
+                        value={proxyProtocol}
+                        onChange={(e) => setProxyProtocol(e.target.value as ProxyProtocol)}
+                        className="w-full bg-white dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded-md px-2 py-1.5 text-sm text-slate-800 dark:text-white outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="http">HTTP</option>
+                        <option value="socks5">SOCKS5</option>
+                      </select>
+                    </div>
+                    <div className="flex-1 min-w-[140px]">
+                      <label className="block text-[11px] text-slate-500 dark:text-zinc-400 mb-1">{t('settings.proxy_host')}</label>
+                      <input
+                        type="text"
+                        value={proxyHost}
+                        onChange={(e) => setProxyHost(e.target.value)}
+                        placeholder="127.0.0.1"
+                        className="w-full bg-white dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded-md px-2 py-1.5 text-sm text-slate-800 dark:text-white font-mono outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+                    <div className="w-20">
+                      <label className="block text-[11px] text-slate-500 dark:text-zinc-400 mb-1">{t('settings.proxy_port')}</label>
+                      <input
+                        type="text"
+                        value={proxyPort}
+                        onChange={(e) => setProxyPort(e.target.value.replace(/\D/g, ''))}
+                        placeholder="7890"
+                        className="w-full bg-white dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded-md px-2 py-1.5 text-sm text-slate-800 dark:text-white font-mono outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleProxySave('custom')}
+                      disabled={proxySaving}
+                      className="px-3 py-1.5 bg-primary/10 text-primary rounded-md text-sm font-medium hover:bg-primary/20 disabled:opacity-50 transition-colors"
+                    >
+                      {proxySaving ? '...' : t('settings.proxy_save')}
+                    </button>
+                    <button
+                      onClick={handleProxyTest}
+                      disabled={proxyTesting}
+                      className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-md text-sm font-medium hover:bg-slate-200 dark:hover:bg-zinc-600 disabled:opacity-50 transition-colors"
+                    >
+                      {proxyTesting ? '...' : t('settings.proxy_test')}
+                    </button>
+                    {proxyTestResult && (
+                      <span className={`text-xs ${proxyTestResult.success ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                        {proxyTestResult.success ? '✓ ' : '✗ '}{proxyTestResult.message}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-2">{t('settings.proxy_hint')}</p>
             </div>
 
             <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
