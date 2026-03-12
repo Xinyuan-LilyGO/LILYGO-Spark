@@ -193,6 +193,18 @@ Users must enable "Canary Channel" in "Settings -> Advanced" to receive these up
 
 To solve firmware download issues for users in mainland China, all firmware files from `firmware_manifest.json` are mirrored to Alibaba Cloud OSS. A batch script handles downloading, hashing, compressing, and generating metadata.
 
+#### OSS Path Mapping
+
+Bucket: `lilygo` / Domain: `lilygo.oss-accelerate.aliyuncs.com`
+
+| Resource | OSS Path | HTTP URL |
+|----------|----------|----------|
+| **firmware_manifest.json** | `oss://lilygo/firmware_manifest.json` | `https://lilygo.oss-accelerate.aliyuncs.com/firmware_manifest.json` |
+| **Firmware ZIP files** | `oss://lilygo/firmware/{hash}_{name}.zip` | `https://lilygo.oss-accelerate.aliyuncs.com/firmware/{hash}_{name}.zip` |
+| **Firmware metadata** | `oss://lilygo/firmware/{hash}_{name}.json` | `https://lilygo.oss-accelerate.aliyuncs.com/firmware/{hash}_{name}.json` |
+
+> **Important**: `firmware_manifest.json` is at the **bucket root** (`oss://lilygo/firmware_manifest.json`), NOT under the `firmware/` subdirectory. Firmware binary ZIPs and metadata JSONs are under `oss://lilygo/firmware/`.
+
 #### File Naming Convention
 
 Each firmware file is processed into two files:
@@ -483,6 +495,18 @@ npm run build:mac:universal  # macOS 通用包
 ### 固件 OSS 镜像规范
 
 为解决中国大陆用户从 GitHub 下载固件困难的问题，所有 `firmware_manifest.json` 中的固件文件会镜像到阿里云 OSS。批处理脚本负责下载、哈希计算、压缩和生成元数据。
+
+#### OSS 路径映射
+
+Bucket: `lilygo` / 域名: `lilygo.oss-accelerate.aliyuncs.com`
+
+| 资源 | OSS 路径 | HTTP URL |
+|------|----------|----------|
+| **firmware_manifest.json** | `oss://lilygo/firmware_manifest.json` | `https://lilygo.oss-accelerate.aliyuncs.com/firmware_manifest.json` |
+| **固件 ZIP 文件** | `oss://lilygo/firmware/{hash}_{name}.zip` | `https://lilygo.oss-accelerate.aliyuncs.com/firmware/{hash}_{name}.zip` |
+| **固件元数据** | `oss://lilygo/firmware/{hash}_{name}.json` | `https://lilygo.oss-accelerate.aliyuncs.com/firmware/{hash}_{name}.json` |
+
+> **注意**：`firmware_manifest.json` 位于 **bucket 根目录**（`oss://lilygo/firmware_manifest.json`），**不是** `firmware/` 子目录下。固件 ZIP 和元数据 JSON 文件才在 `oss://lilygo/firmware/` 子目录下。
 
 #### 文件命名规范
 

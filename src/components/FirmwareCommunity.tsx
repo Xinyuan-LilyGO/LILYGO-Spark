@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, ChevronRight, Layers, Github, Save, Trash2, Zap, Microscope } from 'lucide-react';
+import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, ChevronRight, Layers, Github, Save, Trash2, Zap, Microscope, User } from 'lucide-react';
 import BurnerModal from './BurnerModal';
 import { useDownload } from '../contexts/DownloadContext';
 import type { DownloadedFile } from '../contexts/DownloadContext';
@@ -18,6 +18,9 @@ interface BinFile {
   release_name?: string | null;
   source?: string;
   source_code_url?: string;
+  author_name?: string;
+  author_link?: string;
+  author_email?: string;
 }
 
 interface Product {
@@ -61,6 +64,9 @@ interface Firmware {
   md5?: string;
   sha256?: string;
   source_code_url?: string;
+  author_name?: string;
+  author_link?: string;
+  author_email?: string;
 }
 
 interface Manifest {
@@ -139,7 +145,6 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
         const productId = v0 && 'product_id' in v0 ? v0.product_id : null;
         if (productId) {
           setSelectedProductId(productId);
-          if (first.id) toggleSeries(first.id, true);
         } else if (first.product_id) {
           setSelectedProductId(first.product_id);
         }
@@ -201,7 +206,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
       for (const b of product.bin_files) {
         fromBins.push({
           supported_product_ids: selectedProductId ? [selectedProductId] : [],
-          name: b.name,
+          name: b.release_name || b.name,
           version: b.release_tag || '—',
           type: 'bin',
           filename: b.name,
@@ -213,6 +218,9 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
           md5: b.md5,
           sha256: b.sha256,
           source_code_url: b.source_code_url || deriveSourceCodeUrl(b.url),
+          author_name: b.author_name,
+          author_link: b.author_link,
+          author_email: b.author_email,
         });
       }
     }
@@ -620,6 +628,22 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                                                         title={fw.source_code_url}
                                                     >
                                                         <Github size={12} /> {t('firmwareCenter.source_code')}
+                                                    </a>
+                                                )}
+                                                {fw.author_name && (
+                                                    <a
+                                                        href={fw.author_link || '#'}
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            if (fw.author_link && window.ipcRenderer) {
+                                                                const mode = localStorage.getItem('lilygo_link_open_mode') || 'internal';
+                                                                window.ipcRenderer.invoke('open-url', fw.author_link, mode);
+                                                            }
+                                                        }}
+                                                        className="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400 hover:text-amber-500 dark:hover:text-amber-300 transition-colors cursor-pointer"
+                                                        title={[fw.author_email, fw.author_link].filter(Boolean).join(' · ')}
+                                                    >
+                                                        <User size={12} /> {fw.author_name}
                                                     </a>
                                                 )}
                                             </div>

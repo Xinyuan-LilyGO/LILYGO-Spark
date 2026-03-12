@@ -1,0 +1,42 @@
+---
+description: OSS path mapping for Alibaba Cloud OSS (bucket: lilygo). Reference this when uploading files or modifying firmware_manifest.json.
+alwaysApply: true
+---
+
+# OSS Path Mapping (Alibaba Cloud)
+
+Bucket: `lilygo`
+Domain: `lilygo.oss-accelerate.aliyuncs.com`
+
+## Path Rules
+
+| Resource | OSS Path | HTTP URL |
+|----------|----------|----------|
+| **firmware_manifest.json** | `oss://lilygo/firmware_manifest.json` | `https://lilygo.oss-accelerate.aliyuncs.com/firmware_manifest.json` |
+| **Firmware ZIP files** | `oss://lilygo/firmware/{sha256_prefix}_{filename}.zip` | `https://lilygo.oss-accelerate.aliyuncs.com/firmware/{sha256_prefix}_{filename}.zip` |
+| **Firmware metadata** | `oss://lilygo/firmware/{sha256_prefix}_{filename}.json` | `https://lilygo.oss-accelerate.aliyuncs.com/firmware/{sha256_prefix}_{filename}.json` |
+
+## Critical Notes
+
+- `firmware_manifest.json` is at the **bucket root** (`oss://lilygo/firmware_manifest.json`), NOT under `firmware/` subdirectory.
+- Firmware binary ZIPs and metadata JSONs are under `oss://lilygo/firmware/` subdirectory.
+- The manifest URL is configured in `lilygo_config.json` → `firmware_manifest_url`.
+- The firmware download prefix is configured in `lilygo_config.json` → `oss_domain_prefix`.
+
+## ossutil Commands
+
+```bash
+# Upload manifest (to bucket root)
+ossutil cp -f firmware_manifest.json oss://lilygo/firmware_manifest.json
+
+# Upload firmware files (to firmware/ subdirectory)
+ossutil cp -f my_firmware.zip oss://lilygo/firmware/my_firmware.zip
+
+# List firmware files
+ossutil ls oss://lilygo/firmware/ --limited-num 20
+```
+
+## Common Mistakes
+
+- **WRONG**: `oss://lilygo/firmware/firmware_manifest.json` (manifest is NOT under firmware/)
+- **RIGHT**: `oss://lilygo/firmware_manifest.json` (manifest is at bucket root)
