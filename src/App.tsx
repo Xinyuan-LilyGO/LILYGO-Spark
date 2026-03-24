@@ -177,7 +177,10 @@ function App() {
         )}
         
         {activeTab === 'firmware' && (
-             <FirmwareCommunity onNavigateToAnalyzer={(filePath, fileName) => {
+             <FirmwareCommunity
+               isAdmin={user?.isAdmin || false}
+               token={token}
+               onNavigateToAnalyzer={(filePath, fileName) => {
                  setPendingAnalysisFile({ path: filePath, fileName });
                  setToolsDefaultTab('analyzer');
                  setActiveTab('tools');

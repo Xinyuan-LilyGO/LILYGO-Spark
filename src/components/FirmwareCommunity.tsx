@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, ChevronRight, Layers, Github, Save, Trash2, Zap, Microscope, User } from 'lucide-react';
+import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, ChevronRight, Layers, Github, Save, Trash2, Zap, Microscope, User, Pencil, X, ServerCrash } from 'lucide-react';
 import BurnerModal from './BurnerModal';
 import { useDownload } from '../contexts/DownloadContext';
 import type { DownloadedFile } from '../contexts/DownloadContext';
@@ -75,8 +75,17 @@ interface Manifest {
 }
 
 interface FirmwareCommunityProps {
+  isAdmin?: boolean;
+  token?: string | null;
   onSelectFirmware?: (url: string) => void;
   onNavigateToAnalyzer?: (filePath: string, fileName: string) => void;
+}
+
+async function getApiUrl(): Promise<string> {
+  if (window.ipcRenderer) {
+    return window.ipcRenderer.invoke('get-api-base-url');
+  }
+  throw new Error('Not in Electron environment');
 }
 
 // DownloadedFile imported from DownloadContext
@@ -112,7 +121,7 @@ function productHasFirmware(manifest: Manifest, productId: string, item?: Produc
   return inList || !!hasBins;
 }
 
-const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware: _onSelectFirmware, onNavigateToAnalyzer }) => {
+const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, onSelectFirmware: _onSelectFirmware, onNavigateToAnalyzer }) => {
   const { t } = useTranslation();
   const [manifest, setManifest] = useState<Manifest>({ product_list: [], firmware_list: [] });
   const [loading, setLoading] = useState(true);
@@ -130,6 +139,11 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
   // Burner Modal State
   const [burnerModalOpen, setBurnerModalOpen] = useState(false);
   const [fileToBurn, setFileToBurn] = useState<DownloadedFile | null>(null);
+
+  // Admin firmware management state
+  const [adminMode, setAdminMode] = useState(false);
+  const [editingFirmware, setEditingFirmware] = useState<{ sha256: string; fields: Record<string, string> } | null>(null);
+  const [adminBusy, setAdminBusy] = useState(false);
 
   const loadManifest = async () => {
     setLoading(true);
@@ -304,6 +318,85 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
           setFileToBurn(task.file);
           setBurnerModalOpen(true);
       }
+  };
+
+  // Admin: delete firmware from manifest
+  const handleDeleteFirmware = async (fw: Firmware) => {
+    if (!selectedProductId || !fw.sha256) return;
+    if (!confirm(t('firmwareCenter.confirm_delete', { name: fw.name }))) return;
+    setAdminBusy(true);
+    try {
+      const apiUrl = await getApiUrl();
+      const resp = await fetch(`${apiUrl}/manifest/firmware`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ product_id: selectedProductId, sha256: fw.sha256 }),
+      });
+      const data = await resp.json();
+      if (resp.ok) {
+        alert(t('firmwareCenter.delete_success'));
+        loadManifest();
+      } else {
+        alert(`${t('firmwareCenter.delete_failed')}: ${data.error}`);
+      }
+    } catch (e: any) {
+      alert(`${t('firmwareCenter.delete_failed')}: ${e.message}`);
+    } finally {
+      setAdminBusy(false);
+    }
+  };
+
+  // Admin: start editing firmware metadata
+  // Find the raw bin_file entry from the product to get accurate field values
+  const handleStartEdit = (fw: Firmware) => {
+    const product = selectedProduct as (Product | ProductGroup) | null;
+    const binFile = product?.bin_files?.find(b => b.sha256 === fw.sha256);
+    setEditingFirmware({
+      sha256: fw.sha256 || '',
+      fields: {
+        name: binFile?.name || fw.filename || fw.name || '',
+        release_tag: binFile?.release_tag || fw.version || '',
+        release_name: binFile?.release_name || fw.name || '',
+        description: '', // description is stored separately in bin_file
+        source: binFile?.source || '',
+        source_code_url: binFile?.source_code_url || fw.source_code_url || '',
+        author_name: binFile?.author_name || fw.author_name || '',
+        author_link: binFile?.author_link || fw.author_link || '',
+        author_email: binFile?.author_email || fw.author_email || '',
+        firmware_type: fw.type || '',
+        path: binFile?.path || '',
+      },
+    });
+  };
+
+  // Admin: save edited firmware metadata
+  const handleSaveEdit = async () => {
+    if (!editingFirmware || !selectedProductId) return;
+    setAdminBusy(true);
+    try {
+      const apiUrl = await getApiUrl();
+      const resp = await fetch(`${apiUrl}/manifest/firmware`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          product_id: selectedProductId,
+          sha256: editingFirmware.sha256,
+          updates: editingFirmware.fields,
+        }),
+      });
+      const data = await resp.json();
+      if (resp.ok) {
+        alert(t('firmwareCenter.edit_success'));
+        setEditingFirmware(null);
+        loadManifest();
+      } else {
+        alert(`${t('firmwareCenter.edit_failed')}: ${data.error}`);
+      }
+    } catch (e: any) {
+      alert(`${t('firmwareCenter.edit_failed')}: ${e.message}`);
+    } finally {
+      setAdminBusy(false);
+    }
   };
 
   return (
@@ -537,13 +630,28 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
 
             {/* Firmware List */}
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 min-h-0">
-                <h3 className="text-xl font-semibold mb-4 flex items-center text-slate-900 dark:text-white">
-                    <FileCode className="mr-2 text-primary" /> 
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-semibold flex items-center text-slate-900 dark:text-white">
+                    <FileCode className="mr-2 text-primary" />
                     Available Firmware
                     <span className="ml-3 text-sm font-normal text-slate-500 dark:text-slate-500 bg-slate-200 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
                         {relatedFirmwares.length}
                     </span>
-                </h3>
+                  </h3>
+                  {isAdmin && (
+                    <button
+                      onClick={() => { setAdminMode(prev => !prev); setEditingFirmware(null); }}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors flex items-center gap-1.5 ${
+                        adminMode
+                          ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-300 dark:border-red-700'
+                          : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-zinc-600 hover:text-slate-700 dark:hover:text-slate-300'
+                      }`}
+                    >
+                      <Pencil size={12} />
+                      {adminMode ? t('firmwareCenter.exit_admin_mode') : t('firmwareCenter.enter_admin_mode')}
+                    </button>
+                  )}
+                </div>
 
                 {relatedFirmwares.length === 0 ? (
                     <div className="p-6 sm:p-8 border border-dashed border-slate-300 dark:border-zinc-700 rounded-xl text-center text-slate-500 text-sm sm:text-base min-w-0">
@@ -652,6 +760,30 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                                         </div>
                                         
                                         <div className="flex items-center gap-2 shrink-0">
+                                            {/* Admin: Delete & Edit buttons — with text labels to distinguish from local actions */}
+                                            {isAdmin && adminMode && fw.sha256 && (
+                                              <>
+                                                <button
+                                                  onClick={() => handleDeleteFirmware(fw)}
+                                                  disabled={adminBusy}
+                                                  className="px-2 py-1 text-xs font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md transition-colors disabled:opacity-50 flex items-center gap-1"
+                                                  title={t('firmwareCenter.confirm_delete', { name: fw.name })}
+                                                >
+                                                  <ServerCrash size={14} />
+                                                  {t('firmwareCenter.delete_firmware')}
+                                                </button>
+                                                <button
+                                                  onClick={() => handleStartEdit(fw)}
+                                                  disabled={adminBusy}
+                                                  className="px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 border border-blue-300 dark:border-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-md transition-colors disabled:opacity-50 flex items-center gap-1"
+                                                  title={t('firmwareCenter.edit_firmware')}
+                                                >
+                                                  <Pencil size={14} />
+                                                  {t('firmwareCenter.edit_firmware')}
+                                                </button>
+                                                <div className="w-px h-6 bg-slate-200 dark:bg-zinc-700 mx-1" />
+                                              </>
+                                            )}
                                             {isDownloading ? (
                                                 <div className="flex flex-col items-center min-w-[120px]">
                                                     <div className="text-xs text-primary mb-1">{t('firmwareCenter.downloading')} {progress}%</div>
@@ -720,6 +852,72 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                                             <span className="text-slate-500 font-semibold mr-2">{t('firmwareCenter.note')}</span>
                                             {fw.release_note}
                                         </div>
+                                    )}
+
+                                    {/* Admin: Inline Edit Form */}
+                                    {isAdmin && adminMode && editingFirmware?.sha256 === fw.sha256 && (
+                                      <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-800/50">
+                                        <div className="flex items-center justify-between mb-3">
+                                          <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">{t('firmwareCenter.editing')}</span>
+                                          <button onClick={() => setEditingFirmware(null)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                                            <X size={16} />
+                                          </button>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                          {([
+                                            ['name', 'field_name'],
+                                            ['release_tag', 'field_version'],
+                                            ['release_name', 'field_release_name'],
+                                            ['source', 'field_source'],
+                                            ['source_code_url', 'field_source_code_url'],
+                                            ['author_name', 'field_author_name'],
+                                            ['author_link', 'field_author_link'],
+                                            ['author_email', 'field_author_email'],
+                                            ['firmware_type', 'field_firmware_type'],
+                                            ['path', 'field_path'],
+                                          ] as [string, string][]).map(([field, labelKey]) => (
+                                            <div key={field}>
+                                              <label className="text-xs text-slate-500 dark:text-slate-400">{t(`firmwareCenter.${labelKey}`)}</label>
+                                              <input
+                                                type="text"
+                                                value={editingFirmware.fields[field] || ''}
+                                                onChange={(e) => setEditingFirmware(prev => prev ? {
+                                                  ...prev,
+                                                  fields: { ...prev.fields, [field]: e.target.value }
+                                                } : null)}
+                                                className="w-full px-2 py-1 text-sm border border-slate-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                                              />
+                                            </div>
+                                          ))}
+                                          <div className="sm:col-span-2">
+                                            <label className="text-xs text-slate-500 dark:text-slate-400">{t('firmwareCenter.field_description')}</label>
+                                            <textarea
+                                              value={editingFirmware.fields.description || ''}
+                                              onChange={(e) => setEditingFirmware(prev => prev ? {
+                                                ...prev,
+                                                fields: { ...prev.fields, description: e.target.value }
+                                              } : null)}
+                                              rows={2}
+                                              className="w-full px-2 py-1 text-sm border border-slate-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                                            />
+                                          </div>
+                                        </div>
+                                        <div className="flex justify-end gap-2 mt-3">
+                                          <button
+                                            onClick={() => setEditingFirmware(null)}
+                                            className="px-3 py-1.5 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-zinc-700 rounded-lg transition-colors"
+                                          >
+                                            {t('firmwareCenter.cancel')}
+                                          </button>
+                                          <button
+                                            onClick={handleSaveEdit}
+                                            disabled={adminBusy}
+                                            className="px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors disabled:opacity-50"
+                                          >
+                                            {adminBusy ? '...' : t('firmwareCenter.save')}
+                                          </button>
+                                        </div>
+                                      </div>
                                     )}
                                 </div>
                             );
