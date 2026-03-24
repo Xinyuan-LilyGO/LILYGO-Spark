@@ -10662,8 +10662,8 @@
         {
           "product_id": "t-lora-c6",
           "name": "T-Lora C6",
-          "description": "Compact LoRa board with ESP32-C6. RISC-V single-core 160MHz, 4MB Flash, SX1262 LoRa, WiFi 6 (802.11ax), BLE 5.0, Zigbee/Thread (802.15.4), USB-C. The only LoRa board with WiFi 6 and Zigbee/Thread support.",
-          "mcu": "ESP32-C6",
+          "description": "ESP32-C6 compact LoRa board. 4MB Flash, no PSRAM, no display. WiFi 6 (2.4GHz 802.11ax), BLE 5.0, 802.15.4 (Thread/Zigbee/Matter capable). SX1262 LoRa (433/868/915MHz). BOOT + Reset buttons, custom LED, FPC antenna with 3D-printed holder. Supports C/C++, MicroPython, Lua. Ultra-compact. The only LILYGO LoRa board with WiFi 6 and Thread/Zigbee/Matter.",
+          "mcu": "ESP32-C6-MINI-1",
           "github_repo": "",
           "product_page": "https://lilygo.cc/products/t-lora-c6",
           "image_url": "/devices/t-lora-c6.jpg",
@@ -10672,8 +10672,8 @@
         {
           "product_id": "t-lora-dual",
           "name": "T-Lora Dual",
-          "description": "Dual LoRa radio development board. ESP32-S3, 16MB Flash, 8MB PSRAM, TWO LoRa transceivers (e.g. SX1262 + SX1280 or dual SX1262), WiFi/BLE 5.0, USB-C. Dual-radio for relay/gateway or dual-band LoRa applications.",
-          "mcu": "ESP32-S3",
+          "description": "ESP32 dual-band LoRa board. ESP32-PICO-D4, 4MB Flash, no PSRAM, no display. WiFi/Bluetooth 4.2. Dual LR1121 LoRa transceivers (Sub-GHz + 1.9GHz/2.4GHz, LoRa/FSK modulation). Shared SPI bus with independent CS/RST/BUSY/IRQ per module. Concurrent multi-band communication. ExpressLRS flight control compatible. No battery, no sensors, no display.",
+          "mcu": "ESP32-PICO-D4",
           "github_repo": "",
           "product_page": "https://lilygo.cc/products/t-lora-dual",
           "image_url": "/devices/t-lora-dual.jpg",
@@ -11187,7 +11187,7 @@
         {
           "product_id": "t-lora-pager",
           "name": "T-Lora Pager",
-          "description": "LoRa pager with QWERTY keyboard. ESP32-S3, 16MB Flash, 8MB PSRAM, 1.6\" TFT display, full QWERTY keyboard, multiple radio options (SX1262/SX1280/LR1121/CC1101/SI4432), GPS, WiFi/BLE 5.0, USB-C, battery management. Compact messaging device with 3MB APP + 9.9MB FATFS partition.",
+          "description": "ESP32-S3 handheld LoRa communicator. 16MB Flash (QSPI), 8MB PSRAM (QSPI), 2.33\" IPS LCD (ST7796U SPI, 480x222, 262K colors, 450 cd/m², AW9364 16-level backlight). WiFi/BLE 5.0. LoRa SX1262 (433/868/915/920MHz) or SX1280 2.4GHz. Optional CC1101/LR1121/SI4432 radio modules. GNSS UBlox MIA-M10Q GPS. NFC ST25R3916. BHI260AP smart sensor (accel/gyro). TCA8418 I2C keyboard with backlight. Rotary encoder. ES8311 audio codec + NS4150B 3W speaker. DRV2605 haptic. PCF85063A RTC. BQ25896+BQ27220 PMU. XL9555 GPIO expander. SD card (32GB max). USB-C (can output 5V). 1500mAh battery (5.55Wh). 12-pin expansion header. nRF24L01 PA shield compatible. The most feature-rich LILYGO handheld.",
           "mcu": "ESP32-S3",
           "github_repo": "https://github.com/Xinyuan-LilyGO/LilyGoLib",
           "product_page": "https://lilygo.cc/products/t-lora-pager",
@@ -11234,7 +11234,7 @@
         {
           "product_id": "t-lora-pager-meshtastic",
           "name": "T-Lora Pager Meshtastic",
-          "description": "T-Lora Pager pre-loaded with Meshtastic firmware. ESP32-S3, 1.6\" TFT, QWERTY keyboard, SX1262 LoRa, GPS, WiFi/BLE 5.0. Pocket-sized Meshtastic messenger.",
+          "description": "T-Lora Pager pre-loaded with Meshtastic/MeshCore firmware. Identical hardware: 16MB Flash, 8MB PSRAM, 2.33\" IPS LCD (ST7796U, 480x222), SX1262 LoRa, MIA-M10Q GPS, NFC ST25R3916, BHI260AP sensor, TCA8418 keyboard, rotary encoder, ES8311 audio + NS4150B speaker, DRV2605 haptic, PCF85063A RTC, BQ25896+BQ27220 PMU, SD card, 1500mAh battery. Same expansion options (nRF24L01/LR1121 shields).",
           "mcu": "ESP32-S3",
           "github_repo": "",
           "product_page": "https://lilygo.cc/products/t-lora-pager-meshtastic",
@@ -11252,7 +11252,7 @@
         {
           "product_id": "t-watch-2021",
           "name": "T-Watch 2021",
-          "description": "ESP32 smartwatch (2021 edition). 1.54\" IPS touch display (240x240, ST7789V), ESP32, 16MB Flash, 8MB PSRAM, AXP202 PMU, BMA423 accelerometer, step counter, IR transmitter, vibration motor, WiFi/Bluetooth 4.2, 380mAh battery, custom watch face support.",
+          "description": "ESP32 smartwatch (2021 edition). 8MB Flash, 2MB PSRAM, 1.3\" round IPS LCD (GC9A01, 240x240, capacitive touch), WiFi 802.11 b/g/n, BLE 4.2, BMA423 accelerometer with pedometer, RTC with alarm interrupt, vibration motor, Micro-USB. No LoRa, no GPS. Compact watch form factor for custom watch faces and wearable projects.",
           "mcu": "ESP32",
           "github_repo": "",
           "product_page": "https://lilygo.cc/products/t-watch-2021",
@@ -11361,7 +11361,7 @@
         {
           "product_id": "t-watch-s3",
           "name": "T-Watch S3",
-          "description": "ESP32-S3 smartwatch with 1.54\" IPS touch display (240x240), 16MB Flash, 8MB PSRAM, multiple radio options (SX1262/SX1280/LR1121/CC1101/SI4432), L76K GPS, BMA423 accelerometer, AXP2101 PMU, vibration motor, microphone, WiFi/BLE 5.0, USB-C, 400mAh battery. Supports Meshtastic, MeshCore, and custom firmware.",
+          "description": "ESP32-S3 smartwatch. 16MB Flash (QSPI), 8MB PSRAM (QSPI), 1.3\" IPS LCD (ST7789V3 SPI, 240x240, 262K colors, 450 cd/m², capacitive touch FT6336U). WiFi/BLE 5.0. LoRa SX1262 (433/868/915/920MHz or SX1280 2.4GHz variants). BMA423 accelerometer. AXP2101 PMU. DRV2605 haptic driver. PDM microphone (SPM1423HM4H-B). MAX98357A 3.2W Class D speaker. PCF8563 RTC. IR transmitter (IR12-21C). 1500mAh battery (5.55Wh). Micro-USB. No GPS. Supports Meshtastic, MeshCore, and custom firmware.",
           "mcu": "ESP32-S3",
           "github_repo": "https://github.com/Xinyuan-LilyGO/TTGO_TWatch_Library",
           "product_page": "https://lilygo.cc/products/t-watch-s3",
@@ -11562,7 +11562,7 @@
         {
           "product_id": "t-watch-s3-plus",
           "name": "T-Watch S3 Plus",
-          "description": "Enhanced ESP32-S3 smartwatch with 1.43\" AMOLED round display (466x466), 16MB Flash, 8MB PSRAM, SX1262 LoRa, L76K GPS, BMA423 accelerometer, AXP2101 PMU, PDM microphone, speaker, vibration motor, WiFi/BLE 5.0, USB-C, 300mAh battery, rotary crown. Supports MeshCore, Meshtastic, and custom firmware.",
+          "description": "ESP32-S3 smartwatch with GPS. 16MB Flash (QSPI), 8MB PSRAM (QSPI), 1.3\" IPS LCD (ST7789V3 SPI, 240x240, 262K colors, capacitive touch FT6336U). WiFi/BLE 5.0. LoRa SX1262 (433/868/915/920MHz or SX1280 2.4GHz). GNSS UBlox MIA-M10Q GPS. BMA423 accelerometer. AXP2101 PMU. DRV2605 haptic driver. PDM microphone (SPM1423HM4H-B). MAX98357A speaker. PCF8563 RTC. IR transmitter. 1500mAh battery (5.55Wh). Same as T-Watch S3 plus GPS module. Supports MeshCore, Meshtastic.",
           "mcu": "ESP32-S3",
           "github_repo": "",
           "product_page": "https://lilygo.cc/products/t-watch-s3-plus",
@@ -11619,7 +11619,7 @@
         {
           "product_id": "t-watch-ultra",
           "name": "T-Watch Ultra",
-          "description": "Rugged ESP32-S3 smartwatch with 1.54\" IPS touch display, 16MB Flash, 8MB PSRAM, multiple radio options (SX1262/SX1280/LR1121/CC1101/SI4432), L76K GPS, BMA423 accelerometer, AXP2101 PMU, vibration motor, microphone, WiFi/BLE 5.0, USB-C, 400mAh battery. Durable outdoor design with enhanced build quality.",
+          "description": "ESP32-S3 premium smartwatch. 16MB Flash (QSPI), 8MB PSRAM (QSPI), 2.06\" AMOLED (CO5300 QSPI, 410x502, 16.7M colors, 600 nit, 60000:1 contrast, capacitive touch CST9217). WiFi/BLE 5.0. SX1262 LoRa. NFC ST25R3916. GNSS UBlox MIA-M10Q GPS. BHI260AP smart sensor (accelerometer/gyroscope). AXP2101 PMU. DRV2605 haptic. PDM microphone (TDK T3902). MAX98357A 3.2W speaker. PCF85063A RTC. XL9555 GPIO expander. SD card (max 32GB). 1100mAh battery (4.07Wh). USB-C. 49x63.5x22mm. The most feature-rich LILYGO watch.",
           "mcu": "ESP32-S3",
           "github_repo": "https://github.com/Xinyuan-LilyGO/LilyGoLib",
           "product_page": "https://lilygo.cc/products/t-watch-ultra",
@@ -11656,7 +11656,7 @@
         {
           "product_id": "t-embed",
           "name": "T-Embed",
-          "description": "1.9\" IPS TFT LCD (170x320, ST7789V) embedded controller. ESP32-S3 dual-core LX7, 16MB Flash, 8MB PSRAM, rotary encoder with button, WS2812 RGB LED, I2S microphone, speaker, WiFi/BLE 5.0, USB-C, battery management. Compact control panel design.",
+          "description": "ESP32-S3 handheld dev board base platform. 16MB Flash, 8MB OPI PSRAM, 1.9\" IPS TFT LCD (ST7789, 320x170), WiFi/BLE 5.0, rotary encoder (doubles as BOOT button), built-in speaker, PDM microphone (disabled when CC1101 shield attached), WS2812 addressable LEDs, MicroSD card slot, USB-C with JTAG. No battery included, no LoRa, no GPS. Designed as base platform for CC1101/SI4732 expansion shields.",
           "mcu": "ESP32-S3",
           "github_repo": "",
           "product_page": "https://lilygo.cc/products/t-embed",
@@ -11975,8 +11975,8 @@
         {
           "product_id": "t-embed-cc1101",
           "name": "T-Embed CC1101",
-          "description": "Multi-protocol RF embedded controller. ESP32-S3, 16MB Flash, 8MB PSRAM, 1.9\" IPS LCD (170x320, ST7789V), CC1101 Sub-GHz transceiver (300-348/387-464/779-928MHz), PN532 NFC (13.56MHz MIFARE/NTAG), infrared TX/RX, rotary encoder, WS2812 RGB LEDs, I2S microphone, speaker, BQ25896 charger + BQ27220 fuel gauge, SD card slot, WiFi/BLE 5.0, USB-C, 1300mAh battery. Compatible with Bruce firmware (Flipper Zero alternative).",
-          "mcu": "ESP32-S3",
+          "description": "ESP32-S3 sub-GHz multi-tool. 16MB Flash, 8MB OPI PSRAM, 1.9\" IPS TFT LCD (ST7789V, 320x170, SPI). WiFi/BLE 5.0. CC1101 sub-GHz transceiver (300-348/387-464/779-928 MHz, ~50m range). PN532 NFC (13.56MHz HF, MIFARE Classic + NTAG). IR transmit and receive. WS2812 LEDs (8 LEDs). Rotary encoder. I2S speaker. BQ25896 charger + BQ27220 fuel gauge, 1300mAh battery. MicroSD card. USB-C. Optional nRF24L01 expansion. Compatible with Bruce firmware (Flipper Zero alternative).",
+          "mcu": "ESP32-S3 (WROOM-1)",
           "github_repo": "",
           "product_page": "https://lilygo.cc/products/t-embed-cc1101",
           "image_url": "/devices/t-embed-cc1101.jpg",
@@ -12340,8 +12340,8 @@
         {
           "product_id": "t-embed-cc1101-plus",
           "name": "T-Embed CC1101 Plus",
-          "description": "Enhanced multi-protocol RF embedded controller with added nRF24L01 2.4GHz radio. ESP32-S3, 16MB Flash, 8MB PSRAM, 1.9\" IPS LCD, CC1101 Sub-GHz, PN532 NFC, nRF24L01 2.4GHz transceiver (built-in), infrared TX/RX, rotary encoder, WS2812 RGB LEDs, I2S mic, speaker, BQ25896+BQ27220 PMU, SD card, WiFi/BLE 5.0, USB-C, 1300mAh battery. All CC1101 features plus 2.4GHz wireless.",
-          "mcu": "ESP32-S3",
+          "description": "T-Embed CC1101 with built-in nRF24L01 2.4GHz radio module. 16MB Flash, 8MB OPI PSRAM, 1.9\" IPS TFT LCD (ST7789V, 320x170). WiFi/BLE 5.0. CC1101 sub-GHz (300-348/387-464/779-928 MHz). nRF24L01 2.4GHz wireless (soldered on PCB, GPIO44 CS/GPIO43 CE). PN532 NFC (13.56MHz). IR TX/RX. WS2812 LEDs. Rotary encoder. Speaker. BQ25896+BQ27220 PMU, 1300mAh battery. MicroSD. USB-C. All CC1101 features plus 2.4GHz wireless.",
+          "mcu": "ESP32-S3 (WROOM-1)",
           "github_repo": "",
           "product_page": "https://lilygo.cc/products/t-embed-cc1101-plus",
           "image_url": "/devices/t-embed-cc1101-plus.jpg",
@@ -12467,7 +12467,7 @@
         {
           "product_id": "t-embed-si4732",
           "name": "T-Embed SI4732",
-          "description": "AM/FM/SW radio receiver embedded controller. ESP32-S3, 16MB Flash, 8MB PSRAM, 1.9\" IPS LCD, SI4732 all-band radio receiver (AM/FM/SW/LW), rotary encoder, WS2812 RGB LEDs, I2S speaker, WiFi/BLE 5.0, USB-C, battery management. Software-defined radio receiver with touchscreen UI.",
+          "description": "ESP32-S3 AM/FM/SW radio receiver. 16MB Flash, 8MB PSRAM, 1.9\" IPS TFT LCD (ST7789V, 320x170, SPI). WiFi/BLE 5.0. SI4732-A10 CMOS AM/FM/SW/LW/RDS radio receiver IC. Rotary encoder. 900mAh battery (702550 cell). Battery voltage detection on IO04. USB-C. No LoRa, no NFC, no GPS. Software-defined radio receiver with touchscreen UI.",
           "mcu": "ESP32-S3",
           "github_repo": "",
           "product_page": "https://lilygo.cc/products/t-embed-si4732",
