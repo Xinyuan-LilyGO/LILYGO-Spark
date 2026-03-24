@@ -600,6 +600,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                                                         <ExternalLink size={12} /> OSS ⚡
                                                     </a>
                                                 )}
+                                                {fw.download_url && (
                                                 <a
                                                     href={fw.download_url}
                                                     onClick={(e) => {
@@ -614,6 +615,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ onSelectFirmware:
                                                 >
                                                     <ExternalLink size={12} /> {t('firmwareCenter.origin')}
                                                 </a>
+                                                )}
                                                 {fw.source_code_url && (
                                                     <a
                                                         href={fw.source_code_url}
