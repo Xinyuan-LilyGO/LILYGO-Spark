@@ -21,6 +21,8 @@ interface AuthUser {
   login: string;
   name?: string;
   avatar_url?: string;
+  email?: string;
+  isAdmin?: boolean;
 }
 
 function App() {
@@ -33,7 +35,38 @@ function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
-  // Restore auth state
+  // Check admin role from server
+  const checkRole = async (t: string, u: AuthUser) => {
+    try {
+      let apiUrl: string;
+      if (window.ipcRenderer) {
+        apiUrl = await window.ipcRenderer.invoke('get-api-base-url');
+      } else {
+        return;
+      }
+      const roleUrl = `${apiUrl}/auth/role`;
+      console.log(`%c[AUTH] Checking role: ${roleUrl}`, 'color: #00bcd4; font-weight: bold; font-size: 14px;');
+      const resp = await fetch(roleUrl, { headers: { Authorization: `Bearer ${t}` } });
+      const data = await resp.json();
+      console.log(`%c[AUTH] Role response:`, 'color: #00bcd4; font-weight: bold; font-size: 14px;', data);
+      if (resp.ok) {
+        const updatedUser = { ...u, email: data.email || u.email, isAdmin: data.isAdmin };
+        if (data.isAdmin) {
+          console.log(`%c[AUTH] ★ ADMIN DETECTED: ${data.login} (${data.email})`, 'color: #ff9800; font-weight: bold; font-size: 16px; background: #1a1a1a; padding: 4px 8px; border-radius: 4px;');
+        } else {
+          console.log(`%c[AUTH] Regular user: ${data.login}`, 'color: #4caf50; font-weight: bold; font-size: 14px;');
+        }
+        setUser(updatedUser);
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token: t, user: updatedUser }));
+      } else {
+        console.warn(`%c[AUTH] Role check failed: ${resp.status}`, 'color: #f44336; font-weight: bold; font-size: 14px;', data);
+      }
+    } catch (e) {
+      console.error('%c[AUTH] Role check error:', 'color: #f44336; font-weight: bold; font-size: 14px;', e);
+    }
+  };
+
+  // Restore auth state + check role
   useEffect(() => {
     try {
       const stored = localStorage.getItem(AUTH_STORAGE_KEY);
@@ -42,6 +75,7 @@ function App() {
         if (u && t) {
           setUser(u);
           setToken(t);
+          checkRole(t, u);
         }
       }
     } catch (_) {}
@@ -54,6 +88,10 @@ function App() {
             setToken(data.token);
             setUser(data.user || null);
             localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token: data.token, user: data.user }));
+            // Check role immediately after login
+            if (data.user && data.token) {
+              checkRole(data.token, data.user);
+            }
         };
         window.ipcRenderer.on('login-success', handler);
         return () => {
@@ -134,7 +172,7 @@ function App() {
         
         {activeTab === 'upload' && (
             <div className="h-full overflow-auto">
-                <FirmwareUpload token={token} />
+                <FirmwareUpload token={token} isAdmin={user?.isAdmin || false} />
             </div>
         )}
         

@@ -9,6 +9,8 @@ interface AuthUser {
   login: string;
   name?: string;
   avatar_url?: string;
+  email?: string;
+  isAdmin?: boolean;
 }
 
 interface SidebarProps {
@@ -275,8 +277,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, user, onLogo
                 <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full shrink-0 ring-2 ring-slate-200 dark:ring-zinc-600" />
               )}
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{user.name || user.login}</div>
-                <div className="text-xs text-slate-500 truncate">@{user.login}</div>
+                <div className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate flex items-center gap-1.5">
+                  <span>{user.name || user.login}</span>
+                  {user.isAdmin && (
+                    <span className="text-[10px] font-semibold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded-full border border-amber-500/20 shrink-0">
+                      {t('sidebar.admin')}
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-slate-500 truncate">{user.email || `@${user.login}`}</div>
               </div>
               <button
                 onClick={onLogout}
