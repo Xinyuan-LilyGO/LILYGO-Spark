@@ -136,6 +136,12 @@ jobs:
           p12-file-base64: ${{ secrets.MAC_CERTS_P12 }}
           p12-password: ${{ secrets.MAC_CERTS_PASSWORD }}
 
+      - name: List available signing identities
+        run: |
+          echo "=== Available signing identities ==="
+          security find-identity -v -p codesigning | head -20
+          echo "==================================="
+
       - run: npm ci
 
       - name: Set Version
@@ -151,6 +157,58 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      - name: Verify code signing and notarization
+        if: always()
+        run: |
+          echo "========== Post-Build Signing Verification =========="
+          # Find the .app bundle inside release/mac*
+          APP_PATH=$(find release -name "*.app" -maxdepth 3 | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "⚠️  No .app bundle found in release/ — skipping verification"
+            ls -R release/ || true
+            exit 0
+          fi
+          echo "📦 Found app: $APP_PATH"
+          echo ""
+
+          echo "--- 1. codesign -dv (signing identity & team) ---"
+          codesign -dv --verbose=4 "$APP_PATH" 2>&1 || true
+          echo ""
+
+          echo "--- 2. codesign --verify (integrity check) ---"
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH" 2>&1 && \
+            echo "✅ Code signature verification PASSED" || \
+            echo "❌ Code signature verification FAILED"
+          echo ""
+
+          echo "--- 3. Identity & TeamIdentifier summary ---"
+          IDENTITY=$(codesign -dv "$APP_PATH" 2>&1 | grep "Authority=" | head -1 || echo "NONE")
+          TEAM=$(codesign -dv "$APP_PATH" 2>&1 | grep "TeamIdentifier=" || echo "NONE")
+          echo "  $IDENTITY"
+          echo "  $TEAM"
+          if echo "$TEAM" | grep -q "not set"; then
+            echo "⚠️  WARNING: TeamIdentifier is 'not set' — app is NOT properly signed!"
+          fi
+          echo ""
+
+          echo "--- 4. spctl --assess (Gatekeeper check) ---"
+          spctl --assess --type execute --verbose=2 "$APP_PATH" 2>&1 && \
+            echo "✅ Gatekeeper assessment PASSED" || \
+            echo "⚠️  Gatekeeper assessment FAILED (expected if notarization pending)"
+          echo ""
+
+          echo "--- 5. stapler validate (notarization staple check) ---"
+          # Check DMG files for notarization staple
+          for DMG in release/*.dmg; do
+            [ -f "$DMG" ] || continue
+            echo "Checking: $DMG"
+            xcrun stapler validate "$DMG" 2>&1 && \
+              echo "✅ Notarization staple VALID for $DMG" || \
+              echo "⚠️  No notarization staple on $DMG"
+          done
+          echo ""
+          echo "========== Verification Complete =========="
+
       - uses: actions/upload-artifact@v4
         with:
           name: macOS-artifacts-${{ matrix.arch }}
