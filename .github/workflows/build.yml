@@ -147,6 +147,7 @@ jobs:
       - run: npm run build:mac:${{ matrix.arch }}:only
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MAC_CERTS_P12: ${{ secrets.MAC_CERTS_P12 }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}

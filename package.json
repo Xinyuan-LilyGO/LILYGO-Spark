@@ -150,7 +150,7 @@
       "publish": [
         "github"
       ],
-      "identity": null,
+      "identity": "Shenzhen Xinyuan Electronic Technology Co., Ltd. (9R7Z63475C)",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "resources/mac/entitlements.mac.plist",

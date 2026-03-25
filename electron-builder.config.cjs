@@ -15,15 +15,23 @@ const mergedFiles = isMac
   ? [...(base.files || []), ...macFileExcludes]
   : base.files;
 
+// 检测是否有签名证书（CI 通过 apple-actions/import-codesign-certs 导入）
+const hasSigningCert = !!process.env.MAC_CERTS_P12;
 // 有 Apple 公证环境变量时才启用公证（CI 有，本地没有）
 const shouldNotarize = !!(process.env.APPLE_ID && process.env.APPLE_APP_SPECIFIC_PASSWORD && process.env.APPLE_TEAM_ID);
+
+const macOverrides = { ...base.mac };
+if (!hasSigningCert) {
+  // 本地无证书：跳过签名
+  macOverrides.identity = null;
+  console.log('[electron-builder config] Signing SKIPPED (no MAC_CERTS_P12)');
+} else {
+  console.log('[electron-builder config] Signing ENABLED');
+}
 if (shouldNotarize) {
+  macOverrides.notarize = true;
   console.log('[electron-builder config] Notarization ENABLED');
 }
-
-const macOverrides = shouldNotarize
-  ? { ...base.mac, notarize: true }
-  : base.mac;
 
 module.exports = {
   ...base,
