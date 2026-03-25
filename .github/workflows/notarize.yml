@@ -1,0 +1,338 @@
+name: macOS Notarization
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: '操作类型'
+        required: true
+        type: choice
+        options:
+          - submit
+          - staple
+      tag:
+        description: 'Release tag (留空 = 最新 release)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  notarize:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve release tag
+        id: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName')
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "📦 Target release: $TAG"
+
+          # Get current release body for status tracking
+          gh release view "$TAG" --json body -q '.body' > /tmp/release-body.md
+          echo "Release body saved to /tmp/release-body.md"
+
+      - name: Download macOS DMGs from release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.release.outputs.tag }}"
+          mkdir -p /tmp/dmgs
+
+          # Download all DMG files
+          ASSETS=$(gh release view "$TAG" --json assets -q '.assets[] | select(.name | endswith(".dmg")) | .name')
+          if [ -z "$ASSETS" ]; then
+            echo "❌ No DMG files found in release $TAG"
+            exit 1
+          fi
+
+          echo "Found DMGs:"
+          echo "$ASSETS"
+          echo ""
+
+          while IFS= read -r name; do
+            [ -z "$name" ] && continue
+            echo "⬇️  Downloading $name..."
+            gh release download "$TAG" --pattern "$name" --dir /tmp/dmgs
+          done <<< "$ASSETS"
+
+          ls -lh /tmp/dmgs/
+
+      # ══════════════════════════════════════════════
+      #  SUBMIT: Upload DMGs to Apple for notarization
+      # ══════════════════════════════════════════════
+      - name: "Submit: Send DMGs to Apple"
+        if: inputs.action == 'submit'
+        id: submit
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          echo "========== Submitting for Notarization =========="
+          RESULTS=""
+
+          for FILE in /tmp/dmgs/*.dmg; do
+            [ -f "$FILE" ] || continue
+            NAME=$(basename "$FILE")
+            echo ""
+            echo "━━━ Submitting: $NAME ━━━"
+
+            SUBMIT_OUT=$(xcrun notarytool submit "$FILE" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" \
+              --output-format json 2>&1) || true
+
+            SUB_ID=$(echo "$SUBMIT_OUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
+
+            if [ -z "$SUB_ID" ]; then
+              echo "❌ Submit failed for $NAME"
+              echo "$SUBMIT_OUT"
+              RESULTS="${RESULTS}- \`${NAME}\`: ❌ Submit failed\n"
+            else
+              echo "✅ Submitted: $SUB_ID"
+              RESULTS="${RESULTS}- \`${NAME}\`: 📤 Submitted → \`${SUB_ID}\`\n"
+            fi
+          done
+
+          echo ""
+          echo "========== All submissions complete =========="
+          echo "$RESULTS"
+
+          # Save for release notes update
+          echo "results<<EOFRESULTS" >> $GITHUB_OUTPUT
+          echo -e "$RESULTS" >> $GITHUB_OUTPUT
+          echo "EOFRESULTS" >> $GITHUB_OUTPUT
+
+      - name: "Submit: Update release notes"
+        if: inputs.action == 'submit'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.release.outputs.tag }}"
+          TIMESTAMP=$(date -u +'%Y-%m-%d %H:%M UTC')
+
+          # Read existing body
+          BODY=$(cat /tmp/release-body.md)
+
+          # Remove old notarization section if present
+          CLEAN_BODY=$(echo "$BODY" | sed '/^## 🔏 macOS Notarization/,/^## [^🔏]/{ /^## [^🔏]/!d; }' | sed '/^## 🔏 macOS Notarization/d')
+
+          {
+            echo "$CLEAN_BODY"
+            echo ""
+            echo "## 🔏 macOS Notarization / 公证状态"
+            echo ""
+            echo "**Status**: 📤 Submitted (${TIMESTAMP})"
+            echo ""
+            echo "${{ steps.submit.outputs.results }}"
+            echo ""
+            echo "> 公证已提交至 Apple，通常 5-15 分钟内完成。使用下方命令查询状态，完成后手动运行 **staple** workflow。"
+            echo ""
+            echo "<details><summary>查询公证状态 / Check status</summary>"
+            echo ""
+            echo '```bash'
+            echo 'xcrun notarytool info <submission-id> \'
+            echo '  --apple-id "$APPLE_ID" \'
+            echo '  --password "$APPLE_APP_SPECIFIC_PASSWORD" \'
+            echo '  --team-id "$APPLE_TEAM_ID"'
+            echo '```'
+            echo ""
+            echo "</details>"
+          } > /tmp/new-body.md
+
+          gh release edit "$TAG" --notes-file /tmp/new-body.md
+          echo "✅ Release notes updated with submission IDs"
+
+      # ══════════════════════════════════════════════
+      #  STAPLE: Check status + staple + re-upload
+      # ══════════════════════════════════════════════
+      - name: "Staple: Parse submission IDs from release notes"
+        if: inputs.action == 'staple'
+        id: parse
+        run: |
+          # Extract submission IDs from release body
+          # Format: `filename.dmg`: 📤 Submitted → `UUID`
+          python3 << 'PYEOF'
+          import re, os
+
+          body = open('/tmp/release-body.md').read()
+          pattern = r'`([^`]+\.dmg)`.*?→\s*`([0-9a-f-]{36})`'
+          matches = re.findall(pattern, body)
+
+          if not matches:
+              print("❌ No submission IDs found in release notes")
+              print("   Make sure to run 'submit' action first")
+              exit(1)
+
+          print(f"Found {len(matches)} submission(s):")
+          pairs = []
+          for filename, sub_id in matches:
+              print(f"  {filename} → {sub_id}")
+              pairs.append(f"{filename}={sub_id}")
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"pairs={','.join(pairs)}\n")
+          PYEOF
+
+      - name: "Staple: Check notarization status and staple"
+        if: inputs.action == 'staple'
+        id: staple
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          echo "========== Checking & Stapling =========="
+          RESULTS=""
+          ALL_OK=true
+
+          IFS=',' read -ra PAIRS <<< "${{ steps.parse.outputs.pairs }}"
+          for pair in "${PAIRS[@]}"; do
+            [ -z "$pair" ] && continue
+            FNAME="${pair%%=*}"
+            SUB_ID="${pair#*=}"
+            FILE="/tmp/dmgs/${FNAME}"
+
+            echo ""
+            echo "━━━ $FNAME (${SUB_ID}) ━━━"
+
+            if [ ! -f "$FILE" ]; then
+              echo "⚠️  File not found in release: $FNAME"
+              RESULTS="${RESULTS}- \`${FNAME}\`: ⚠️ Not found in release\n"
+              ALL_OK=false
+              continue
+            fi
+
+            # Check status
+            INFO_OUT=$(xcrun notarytool info "$SUB_ID" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" \
+              --output-format json 2>&1) || true
+
+            STATUS=$(echo "$INFO_OUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "unknown")
+            echo "   Status: $STATUS"
+
+            if [ "$STATUS" = "Accepted" ]; then
+              echo "   Stapling..."
+              if xcrun stapler staple "$FILE" 2>&1; then
+                echo "   ✅ Stapled!"
+                RESULTS="${RESULTS}- \`${FNAME}\`: ✅ Notarized & Stapled (\`${SUB_ID}\`)\n"
+              else
+                echo "   ⚠️ Staple command failed"
+                RESULTS="${RESULTS}- \`${FNAME}\`: ⚠️ Accepted but staple failed (\`${SUB_ID}\`)\n"
+                ALL_OK=false
+              fi
+            elif [ "$STATUS" = "In Progress" ]; then
+              echo "   ⏳ Still processing — try again later"
+              RESULTS="${RESULTS}- \`${FNAME}\`: ⏳ In Progress (\`${SUB_ID}\`)\n"
+              ALL_OK=false
+            elif [ "$STATUS" = "Invalid" ] || [ "$STATUS" = "Rejected" ]; then
+              echo "   ❌ $STATUS"
+              xcrun notarytool log "$SUB_ID" \
+                --apple-id "$APPLE_ID" \
+                --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+                --team-id "$APPLE_TEAM_ID" 2>&1 || true
+              RESULTS="${RESULTS}- \`${FNAME}\`: ❌ ${STATUS} (\`${SUB_ID}\`)\n"
+              ALL_OK=false
+            else
+              echo "   ❓ Unknown status: $STATUS"
+              RESULTS="${RESULTS}- \`${FNAME}\`: ❓ ${STATUS} (\`${SUB_ID}\`)\n"
+              ALL_OK=false
+            fi
+          done
+
+          echo ""
+          echo "========== Staple Complete =========="
+          echo -e "$RESULTS"
+
+          echo "results<<EOFRESULTS" >> $GITHUB_OUTPUT
+          echo -e "$RESULTS" >> $GITHUB_OUTPUT
+          echo "EOFRESULTS" >> $GITHUB_OUTPUT
+          echo "all_ok=$ALL_OK" >> $GITHUB_OUTPUT
+
+          if [ "$ALL_OK" != "true" ]; then
+            echo "❌ Not all files were stapled successfully"
+            exit 1
+          fi
+
+      - name: "Staple: Re-upload stapled DMGs to release"
+        if: inputs.action == 'staple' && steps.staple.outputs.all_ok == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.release.outputs.tag }}"
+          echo "Re-uploading stapled DMGs to release $TAG..."
+
+          for FILE in /tmp/dmgs/*.dmg; do
+            [ -f "$FILE" ] || continue
+            NAME=$(basename "$FILE")
+
+            # Verify staple is attached
+            if xcrun stapler validate "$FILE" 2>&1; then
+              echo "✅ $NAME has valid staple — uploading"
+              gh release upload "$TAG" "$FILE" --clobber
+            else
+              echo "⚠️  $NAME has no staple — skipping re-upload"
+            fi
+          done
+          echo "✅ All stapled DMGs re-uploaded"
+
+      - name: "Staple: Update release notes"
+        if: inputs.action == 'staple' && always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.release.outputs.tag }}"
+          TIMESTAMP=$(date -u +'%Y-%m-%d %H:%M UTC')
+          ALL_OK="${{ steps.staple.outputs.all_ok }}"
+
+          BODY=$(cat /tmp/release-body.md)
+
+          # Remove old notarization section
+          CLEAN_BODY=$(echo "$BODY" | sed '/^## 🔏 macOS Notarization/,/^## [^🔏]/{ /^## [^🔏]/!d; }' | sed '/^## 🔏 macOS Notarization/d')
+
+          if [ "$ALL_OK" = "true" ]; then
+            STATUS_LINE="**Status**: ✅ Notarized & Stapled (${TIMESTAMP})"
+            NOTE="> DMG 已包含 Apple 公证票据 (stapled)，离线安装也可通过 Gatekeeper 验证。"
+          else
+            STATUS_LINE="**Status**: ⚠️ Partially completed (${TIMESTAMP})"
+            NOTE="> 部分文件未完成公证或 staple，请检查状态后重新运行 staple workflow。"
+          fi
+
+          {
+            echo "$CLEAN_BODY"
+            echo ""
+            echo "## 🔏 macOS Notarization / 公证状态"
+            echo ""
+            echo "$STATUS_LINE"
+            echo ""
+            echo "${{ steps.staple.outputs.results }}"
+            echo ""
+            echo "$NOTE"
+            echo ""
+            echo "<details><summary>查询公证状态 / Check status</summary>"
+            echo ""
+            echo '```bash'
+            echo 'xcrun notarytool info <submission-id> \'
+            echo '  --apple-id "$APPLE_ID" \'
+            echo '  --password "$APPLE_APP_SPECIFIC_PASSWORD" \'
+            echo '  --team-id "$APPLE_TEAM_ID"'
+            echo '```'
+            echo ""
+            echo "</details>"
+          } > /tmp/new-body.md
+
+          gh release edit "$TAG" --notes-file /tmp/new-body.md
+          echo "✅ Release notes updated"
