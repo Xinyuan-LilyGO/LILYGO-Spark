@@ -408,6 +408,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Trigger notarization submit
+        if: always()
+        run: |
+          TAG="${{ needs.setup.outputs.tag_name }}"
+          echo "Triggering notarize.yml submit for $TAG..."
+          gh workflow run notarize.yml -f action=submit -f tag="$TAG" || echo "⚠️ Failed to trigger notarization (non-fatal)"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Cleanup old builds
         if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         run: |
