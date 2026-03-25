@@ -18,6 +18,11 @@ on:
           - mac
           - win
           - linux
+      notarize:
+        description: 'macOS 公证 (Notarize)'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -82,7 +87,7 @@ jobs:
             TAG_NAME="v${CANARY_VER}"
             
             echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
-            echo "release_name=Canary ${TAG_NAME} (${SHA_SHORT})" >> $GITHUB_OUTPUT
+            echo "release_name=Canary (${SHA_SHORT})" >> $GITHUB_OUTPUT
             echo "is_prerelease=true" >> $GITHUB_OUTPUT
             echo "build_version=${CANARY_VER}" >> $GITHUB_OUTPUT
           fi
@@ -150,10 +155,24 @@ jobs:
 
       - run: npm run prebuild
       - run: npm run build:compile
+      - name: Determine notarization flag
+        id: notarize
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "enabled=true" >> $GITHUB_OUTPUT
+            echo "Tag push detected — notarization ON"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "enabled=${{ inputs.notarize }}" >> $GITHUB_OUTPUT
+            echo "Manual dispatch — notarization=${{ inputs.notarize }}"
+          else
+            echo "enabled=false" >> $GITHUB_OUTPUT
+            echo "Regular push — notarization OFF"
+          fi
       - run: npm run build:mac:${{ matrix.arch }}:only
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MAC_CERTS_P12: ${{ secrets.MAC_CERTS_P12 }}
+          NOTARIZE: ${{ steps.notarize.outputs.enabled }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}

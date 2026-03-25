@@ -23,6 +23,7 @@ if (isMacBuild) {
     console.log(`  APPLE_ID:                   ${process.env.APPLE_ID ? 'SET' : 'NOT SET'}`);
     console.log(`  APPLE_APP_SPECIFIC_PASSWORD: ${process.env.APPLE_APP_SPECIFIC_PASSWORD ? 'SET' : 'NOT SET'}`);
     console.log(`  APPLE_TEAM_ID:              ${process.env.APPLE_TEAM_ID || 'NOT SET'}`);
+    console.log(`  NOTARIZE:                   ${process.env.NOTARIZE || 'NOT SET'}`);
     console.log('[Build Wrapper] ================================');
 }
 
