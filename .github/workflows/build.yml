@@ -125,8 +125,19 @@ jobs:
           key: ${{ runner.os }}-electron-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-electron-
+
+      - name: Import Code-Signing Certificate
+        env:
+          MAC_CERTS_P12: ${{ secrets.MAC_CERTS_P12 }}
+          MAC_CERTS_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
+        if: env.MAC_CERTS_P12 != ''
+        uses: apple-actions/import-codesign-certs@v2
+        with:
+          p12-file-base64: ${{ secrets.MAC_CERTS_P12 }}
+          p12-password: ${{ secrets.MAC_CERTS_PASSWORD }}
+
       - run: npm ci
-      
+
       - name: Set Version
         if: needs.setup.outputs.should_release == 'true'
         run: npm version ${{ needs.setup.outputs.build_version }} --no-git-tag-version
@@ -136,6 +147,9 @@ jobs:
       - run: npm run build:mac:${{ matrix.arch }}:only
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       - uses: actions/upload-artifact@v4
         with:
           name: macOS-artifacts-${{ matrix.arch }}
