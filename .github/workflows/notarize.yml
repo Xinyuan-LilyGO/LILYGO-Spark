@@ -107,12 +107,10 @@ jobs:
 
           echo ""
           echo "========== All submissions complete =========="
-          echo "$RESULTS"
+          echo -e "$RESULTS"
 
-          # Save for release notes update
-          echo "results<<EOFRESULTS" >> $GITHUB_OUTPUT
-          echo -e "$RESULTS" >> $GITHUB_OUTPUT
-          echo "EOFRESULTS" >> $GITHUB_OUTPUT
+          # Save results to file (avoid backtick issues in GITHUB_OUTPUT)
+          echo -e "$RESULTS" > /tmp/notarize-results.md
 
       - name: "Submit: Update release notes"
         if: inputs.action == 'submit'
@@ -135,7 +133,7 @@ jobs:
             echo ""
             echo "**Status**: 📤 Submitted (${TIMESTAMP})"
             echo ""
-            echo "${{ steps.submit.outputs.results }}"
+            cat /tmp/notarize-results.md
             echo ""
             echo "> 公证已提交至 Apple，通常 5-15 分钟内完成。使用下方命令查询状态，完成后手动运行 **staple** workflow。"
             echo ""
@@ -257,9 +255,8 @@ jobs:
           echo "========== Staple Complete =========="
           echo -e "$RESULTS"
 
-          echo "results<<EOFRESULTS" >> $GITHUB_OUTPUT
-          echo -e "$RESULTS" >> $GITHUB_OUTPUT
-          echo "EOFRESULTS" >> $GITHUB_OUTPUT
+          # Save results to file (avoid backtick issues in GITHUB_OUTPUT)
+          echo -e "$RESULTS" > /tmp/staple-results.md
           echo "all_ok=$ALL_OK" >> $GITHUB_OUTPUT
 
           if [ "$ALL_OK" != "true" ]; then
@@ -318,7 +315,7 @@ jobs:
             echo ""
             echo "$STATUS_LINE"
             echo ""
-            echo "${{ steps.staple.outputs.results }}"
+            cat /tmp/staple-results.md
             echo ""
             echo "$NOTE"
             echo ""
