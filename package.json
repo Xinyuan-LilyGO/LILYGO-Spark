@@ -61,17 +61,12 @@
     "electron-mac-permissions": "^2.2.2"
   },
   "dependencies": {
-    "@types/multer": "^2.0.0",
     "adm-zip": "^0.5.16",
-    "ali-oss": "^6.23.0",
     "clsx": "^2.1.0",
-    "electron-updater": "^6.7.3",
-    "electron-updator": "^1.0.1",
     "esptool-js": "^0.5.4",
     "i18next": "^25.8.4",
     "i18next-browser-languagedetector": "^8.2.0",
     "lucide-react": "^0.344.0",
-    "multer": "^2.0.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-i18next": "^16.5.4",
