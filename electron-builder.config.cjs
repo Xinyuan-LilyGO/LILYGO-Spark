@@ -15,7 +15,18 @@ const mergedFiles = isMac
   ? [...(base.files || []), ...macFileExcludes]
   : base.files;
 
+// 有 Apple 公证环境变量时才启用公证（CI 有，本地没有）
+const shouldNotarize = !!(process.env.APPLE_ID && process.env.APPLE_APP_SPECIFIC_PASSWORD && process.env.APPLE_TEAM_ID);
+if (shouldNotarize) {
+  console.log('[electron-builder config] Notarization ENABLED');
+}
+
+const macOverrides = shouldNotarize
+  ? { ...base.mac, notarize: true }
+  : base.mac;
+
 module.exports = {
   ...base,
   files: mergedFiles,
+  mac: macOverrides,
 };

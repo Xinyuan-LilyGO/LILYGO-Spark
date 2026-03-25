@@ -150,12 +150,11 @@
       "publish": [
         "github"
       ],
-      "identity": "Developer ID Application: Shenzhen Xinyuan Electronic Technology Co., Ltd. (9R7Z63475C)",
+      "identity": null,
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "resources/mac/entitlements.mac.plist",
       "entitlementsInherit": "resources/mac/entitlements.mac.plist",
-      "notarize": true,
       "protocols": [
         {
           "name": "LILYGO Spark Auth",
