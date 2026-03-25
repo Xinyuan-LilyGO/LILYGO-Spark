@@ -63,7 +63,7 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin }) => {
 
   // Form fields
   const [name, setName] = useState('');
-  const [productId, setProductId] = useState('');
+  const [productIds, setProductIds] = useState<string[]>([]);
   const [description, setDescription] = useState('');
   const [releaseTag, setReleaseTag] = useState('');
   const [releaseName, setReleaseName] = useState('');
@@ -130,7 +130,13 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin }) => {
     );
   }, [products, productSearch]);
 
-  const selectedProduct = products.find(p => p.product_id === productId);
+  const selectedProducts = products.filter(p => productIds.includes(p.product_id));
+
+  const toggleProduct = (pid: string) => {
+    setProductIds(prev =>
+      prev.includes(pid) ? prev.filter(id => id !== pid) : [...prev, pid]
+    );
+  };
 
   // Toggle firmware type tag
   const toggleType = (type: string) => {
@@ -166,7 +172,7 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin }) => {
   };
 
   const handleUpload = async () => {
-    if (!file || !token || !name || !productId) return;
+    if (!file || !token || !name || productIds.length === 0) return;
 
     setUploading(true);
     setUploadStatus('idle');
@@ -175,7 +181,7 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin }) => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('name', name);
-    formData.append('product_id', productId);
+    formData.append('product_id', productIds.join(','));
     formData.append('description', description);
     if (releaseTag) formData.append('release_tag', releaseTag);
     if (releaseName) formData.append('release_name', releaseName);
@@ -203,6 +209,7 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin }) => {
         // Reset form
         setFile(null);
         setName('');
+        setProductIds([]);
         setDescription('');
         setReleaseTag('');
         setReleaseName('');
@@ -421,7 +428,7 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin }) => {
                 />
               </div>
 
-              {/* Product Dropdown */}
+              {/* Product Multi-Select */}
               <div className="relative">
                 <label className="block text-slate-600 dark:text-slate-400 mb-1.5 text-sm font-medium">
                   {t('upload.target_product')} <span className="text-red-400">*</span>
@@ -429,15 +436,19 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin }) => {
                 <button
                   type="button"
                   onClick={() => setProductDropdownOpen(!productDropdownOpen)}
-                  className="w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-sm text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  className="w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-sm text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-primary/50 min-h-[38px]"
                 >
-                  <span className={selectedProduct ? 'text-slate-900 dark:text-white' : 'text-slate-400'}>
-                    {selectedProduct ? `${selectedProduct.name} (${selectedProduct.mcu})` : t('upload.select_product')}
+                  <span className={selectedProducts.length > 0 ? 'text-slate-900 dark:text-white truncate' : 'text-slate-400'}>
+                    {selectedProducts.length > 0
+                      ? selectedProducts.length === 1
+                        ? `${selectedProducts[0].name} (${selectedProducts[0].mcu})`
+                        : `${selectedProducts.length} products selected`
+                      : t('upload.select_product')}
                   </span>
-                  <ChevronDown size={14} className="text-slate-400" />
+                  <ChevronDown size={14} className="text-slate-400 shrink-0" />
                 </button>
                 {productDropdownOpen && (
-                  <div className="absolute z-50 mt-1 w-full bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl max-h-64 overflow-hidden flex flex-col">
+                  <div className="absolute z-50 mt-1 w-full bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl max-h-72 overflow-hidden flex flex-col">
                     <div className="p-2 border-b border-slate-200 dark:border-zinc-700">
                       <div className="relative">
                         <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -451,28 +462,67 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin }) => {
                         />
                       </div>
                     </div>
-                    <div className="overflow-auto max-h-52">
-                      {filteredProducts.map(p => (
-                        <button
-                          key={p.product_id}
-                          type="button"
-                          onClick={() => { setProductId(p.product_id); setProductDropdownOpen(false); setProductSearch(''); }}
-                          className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors ${
-                            productId === p.product_id ? 'bg-primary/10 text-primary' : 'text-slate-700 dark:text-slate-300'
-                          }`}
-                        >
-                          <div className="font-medium">{p.name}</div>
-                          <div className="text-xs text-slate-400">{p.mcu}{p.series_name ? ` · ${p.series_name}` : ''}</div>
-                        </button>
-                      ))}
+                    <div className="overflow-auto max-h-56">
+                      {filteredProducts.map(p => {
+                        const checked = productIds.includes(p.product_id);
+                        return (
+                          <button
+                            key={p.product_id}
+                            type="button"
+                            onClick={() => toggleProduct(p.product_id)}
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors flex items-center gap-2 ${
+                              checked ? 'bg-primary/10' : ''
+                            }`}
+                          >
+                            <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                              checked ? 'bg-primary border-primary text-white' : 'border-slate-300 dark:border-zinc-600'
+                            }`}>
+                              {checked && <CheckCircle size={12} />}
+                            </span>
+                            <div className="min-w-0">
+                              <div className={`font-medium ${checked ? 'text-primary' : 'text-slate-700 dark:text-slate-300'}`}>{p.name}</div>
+                              <div className="text-xs text-slate-400">{p.mcu}{p.series_name ? ` · ${p.series_name}` : ''}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
                       {filteredProducts.length === 0 && (
                         <div className="px-3 py-4 text-sm text-slate-400 text-center">{t('upload.no_products_found')}</div>
                       )}
                     </div>
+                    {productIds.length > 0 && (
+                      <div className="p-2 border-t border-slate-200 dark:border-zinc-700 flex items-center justify-between">
+                        <span className="text-xs text-slate-500">{productIds.length} selected</span>
+                        <button
+                          type="button"
+                          onClick={() => { setProductIds([]); }}
+                          className="text-xs text-red-400 hover:text-red-500"
+                        >
+                          Clear all
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             </div>
+
+            {/* Selected Products Tags */}
+            {selectedProducts.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {selectedProducts.map(p => (
+                  <span
+                    key={p.product_id}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary text-xs font-medium border border-primary/20"
+                  >
+                    {p.name}
+                    <button type="button" onClick={() => toggleProduct(p.product_id)} className="hover:text-red-400">
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
 
             {/* Description */}
             <div>
@@ -599,9 +649,9 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin }) => {
             {/* Submit */}
             <button
               onClick={handleUpload}
-              disabled={!file || !name || !productId || uploading}
+              disabled={!file || !name || productIds.length === 0 || uploading}
               className={`w-full py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-all ${
-                !file || !name || !productId || uploading
+                !file || !name || productIds.length === 0 || uploading
                   ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed'
                   : 'bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/20'
               }`}

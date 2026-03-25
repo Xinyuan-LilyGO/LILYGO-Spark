@@ -1462,6 +1462,77 @@
           "image_url": "/devices/watch-keyboard-c3-v1-0.jpg"
         }
       ]
+    },
+    {
+      "id": "general-esp32-series",
+      "name": "General ESP32 (Espressif)",
+      "description": "Generic Espressif ESP32 boards — not specific to any vendor. Firmware here (e.g. MicroPython, CircuitPython) works on any board with the matching chip.",
+      "image_url": "",
+      "products": [
+        {
+          "product_id": "general-esp32",
+          "name": "Generic ESP32",
+          "description": "Any board with an ESP32 (original) chip — Xtensa LX6 dual-core 240 MHz, Wi-Fi 4, BT 4.2 + BLE.",
+          "mcu": "ESP32",
+          "github_repo": "",
+          "product_page": "https://www.espressif.com/en/products/socs/esp32",
+          "image_url": ""
+        },
+        {
+          "product_id": "general-esp32s2",
+          "name": "Generic ESP32-S2",
+          "description": "Any board with an ESP32-S2 chip — Xtensa LX7 single-core 240 MHz, Wi-Fi 4, USB OTG.",
+          "mcu": "ESP32-S2",
+          "github_repo": "",
+          "product_page": "https://www.espressif.com/en/products/socs/esp32-s2",
+          "image_url": ""
+        },
+        {
+          "product_id": "general-esp32s3",
+          "name": "Generic ESP32-S3",
+          "description": "Any board with an ESP32-S3 chip — Xtensa LX7 dual-core 240 MHz, Wi-Fi 4, BLE 5, USB OTG, AI acceleration.",
+          "mcu": "ESP32-S3",
+          "github_repo": "",
+          "product_page": "https://www.espressif.com/en/products/socs/esp32-s3",
+          "image_url": ""
+        },
+        {
+          "product_id": "general-esp32c3",
+          "name": "Generic ESP32-C3",
+          "description": "Any board with an ESP32-C3 chip — RISC-V single-core 160 MHz, Wi-Fi 4, BLE 5.",
+          "mcu": "ESP32-C3",
+          "github_repo": "",
+          "product_page": "https://www.espressif.com/en/products/socs/esp32-c3",
+          "image_url": ""
+        },
+        {
+          "product_id": "general-esp32c6",
+          "name": "Generic ESP32-C6",
+          "description": "Any board with an ESP32-C6 chip — RISC-V 160 MHz, Wi-Fi 6, BLE 5, 802.15.4 (Thread/Zigbee).",
+          "mcu": "ESP32-C6",
+          "github_repo": "",
+          "product_page": "https://www.espressif.com/en/products/socs/esp32-c6",
+          "image_url": ""
+        },
+        {
+          "product_id": "general-esp32h2",
+          "name": "Generic ESP32-H2",
+          "description": "Any board with an ESP32-H2 chip — RISC-V single-core 96 MHz, BLE 5, 802.15.4 (Thread/Zigbee), no Wi-Fi.",
+          "mcu": "ESP32-H2",
+          "github_repo": "",
+          "product_page": "https://www.espressif.com/en/products/socs/esp32-h2",
+          "image_url": ""
+        },
+        {
+          "product_id": "general-esp32c2",
+          "name": "Generic ESP32-C2 (ESP8684)",
+          "description": "Any board with an ESP32-C2 (ESP8684) chip — RISC-V single-core 120 MHz, Wi-Fi 4, BLE 5. Ultra-low cost.",
+          "mcu": "ESP32-C2",
+          "github_repo": "",
+          "product_page": "https://www.espressif.com/en/products/socs/esp32-c2",
+          "image_url": ""
+        }
+      ]
     }
   ],
   "firmware_list": [

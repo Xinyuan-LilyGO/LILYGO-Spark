@@ -243,7 +243,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
       const task = tasks[fw.download_url];
       if (task?.downloading) return;
       await startDownload(fw.download_url, {
-        expectedMd5: fw.hash_md5 || fw.md5,
+        expectedMd5: fw.md5,
         ossUrl: fw.oss_url,
         originalFilename: fw.filename,
       });
