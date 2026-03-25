@@ -467,36 +467,82 @@ import { exec, spawn } from 'child_process';
 
 // ── Hash Verification ──
 
-async function fetchExpectedHash(assets: any[], targetFilename: string): Promise<string | null> {
-    const ymlNames = ['latest.yml', 'latest-mac.yml', 'latest-linux.yml'];
-    const ymlAsset = assets.find((a: any) => ymlNames.includes(a.name));
-    if (!ymlAsset?.browser_download_url) return null;
+interface ExpectedHashInfo {
+    sha512: string;
+    size: number;
+}
 
-    try {
-        const resp = await net.fetch(ymlAsset.browser_download_url, {
-            headers: { 'User-Agent': 'LILYGO-Spark-Updater' },
-        });
-        if (!resp.ok) return null;
-        const text = await resp.text();
+async function fetchExpectedHash(assets: any[], targetFilename: string): Promise<ExpectedHashInfo | null> {
+    // Pick platform-specific yml first, then fallback to others
+    const platformYml = process.platform === 'darwin' ? 'latest-mac.yml'
+        : process.platform === 'linux' ? 'latest-linux.yml'
+        : 'latest.yml';
+    const ymlNames = [platformYml, 'latest.yml', 'latest-mac.yml', 'latest-linux.yml'];
 
-        // Parse simple YAML to find sha512 for the target file
+    // Try each yml in priority order
+    for (const ymlName of ymlNames) {
+        const ymlAsset = assets.find((a: any) => a.name === ymlName);
+        if (!ymlAsset?.browser_download_url) continue;
+
+        const text = await fetchYmlWithMirrors(ymlAsset.browser_download_url);
+        if (!text) continue;
+
+        // Parse simple YAML to find sha512 + size for the target file
         // Format: path: filename\n  sha512: BASE64HASH\n  size: NUMBER
         const lines = text.split('\n');
         let foundFile = false;
+        let sha512 = '';
+        let size = 0;
         for (const line of lines) {
             if (line.trim().startsWith('path:') && line.includes(targetFilename)) {
                 foundFile = true;
             }
             if (foundFile && line.trim().startsWith('sha512:')) {
-                return line.trim().replace('sha512:', '').trim();
+                sha512 = line.trim().replace('sha512:', '').trim();
+            }
+            if (foundFile && line.trim().startsWith('size:')) {
+                size = parseInt(line.trim().replace('size:', '').trim(), 10) || 0;
+            }
+            if (foundFile && sha512) {
+                return { sha512, size };
             }
             if (foundFile && line.trim().startsWith('path:') && !line.includes(targetFilename)) {
                 foundFile = false;
+                sha512 = '';
+                size = 0;
             }
         }
-    } catch (e: any) {
-        console.log(`[Updater] Failed to fetch hash from yml: ${e.message}`);
     }
+    return null;
+}
+
+/** Fetch yml text through mirrors for China compatibility */
+async function fetchYmlWithMirrors(originalUrl: string): Promise<string | null> {
+    const simulateDown = getSimulateGithubDown();
+    const mirrors = simulateDown
+        ? DOWNLOAD_MIRRORS.filter(m => m.id !== 'origin')
+        : DOWNLOAD_MIRRORS;
+
+    for (const mirror of mirrors) {
+        const url = applyMirror(mirror, originalUrl);
+        try {
+            const ac = new AbortController();
+            const timer = setTimeout(() => ac.abort(), 8000);
+            const resp = await net.fetch(url, {
+                headers: { 'User-Agent': 'LILYGO-Spark-Updater' },
+                signal: ac.signal,
+            });
+            clearTimeout(timer);
+            if (resp.ok) {
+                const text = await resp.text();
+                console.log(`[Updater] Fetched yml via ${mirror.id}`);
+                return text;
+            }
+        } catch (e: any) {
+            console.log(`[Updater] yml fetch via ${mirror.id} failed: ${e.message}`);
+        }
+    }
+    console.log('[Updater] All yml fetch mirrors failed');
     return null;
 }
 
@@ -511,34 +557,67 @@ async function downloadAndVerify(
     filename: string,
     assets: any[],
 ): Promise<{ buffer: Buffer; downloadPath: string } | null> {
+    // Fetch expected hash BEFORE downloading so we can verify immediately
+    const hashInfo = await fetchExpectedHash(assets, filename);
+    if (hashInfo) {
+        console.log(`[Updater] Expected: sha512=${hashInfo.sha512.slice(0, 20)}..., size=${hashInfo.size}`);
+    } else {
+        console.log('[Updater] WARNING: No hash available for verification');
+    }
+
     const result = await downloadWithMirrors(win, url);
     if (!result) {
         sendStatusToWindow(ut('all_mirrors_failed'));
         return null;
     }
 
-    const expectedHash = await fetchExpectedHash(assets, filename);
-    if (expectedHash) {
-        sendStatusToWindow('Verifying file integrity...');
-        if (!verifySha512(result.buffer, expectedHash)) {
-            console.error('[Updater] SHA-512 verification FAILED');
+    sendStatusToWindow('Verifying file integrity...');
+
+    // Size check (if expected size is known)
+    if (hashInfo?.size && result.buffer.length !== hashInfo.size) {
+        console.error(`[Updater] Size mismatch: expected ${hashInfo.size}, got ${result.buffer.length} (mirror: ${result.mirrorId})`);
+        sendStatusToWindow(ut('hash_verify_failed'));
+        detectLocale(win);
+        dialog.showMessageBox(win, {
+            type: 'error',
+            title: ut('update_title'),
+            message: ut('hash_verify_failed'),
+            detail: `Expected size: ${hashInfo.size} bytes\nDownloaded: ${result.buffer.length} bytes\nMirror: ${result.mirrorId}`,
+            buttons: [ut('btn_close')],
+        });
+        return null;
+    }
+
+    // SHA-512 check
+    if (hashInfo?.sha512) {
+        if (!verifySha512(result.buffer, hashInfo.sha512)) {
+            console.error(`[Updater] SHA-512 verification FAILED (mirror: ${result.mirrorId})`);
             sendStatusToWindow(ut('hash_verify_failed'));
             detectLocale(win);
             dialog.showMessageBox(win, {
                 type: 'error',
                 title: ut('update_title'),
                 message: ut('hash_verify_failed'),
+                detail: `Downloaded ${result.buffer.length} bytes via ${result.mirrorId}\nHash mismatch — file may be corrupted.`,
                 buttons: [ut('btn_close')],
             });
             return null;
         }
-        console.log('[Updater] SHA-512 verification passed');
+        console.log(`[Updater] SHA-512 verification passed (${result.buffer.length} bytes via ${result.mirrorId})`);
     } else {
-        console.log('[Updater] No hash available for verification, skipping');
+        console.log(`[Updater] No hash — proceeding with ${result.buffer.length} bytes via ${result.mirrorId}`);
     }
 
-    const downloadPath = path.join(app.getPath('downloads'), filename);
+    // Write to Downloads with unique name to avoid overwriting
+    let downloadPath = path.join(app.getPath('downloads'), filename);
+    if (fs.existsSync(downloadPath)) {
+        const ext = path.extname(filename);
+        const base = path.basename(filename, ext);
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        downloadPath = path.join(app.getPath('downloads'), `${base}_${timestamp}${ext}`);
+    }
     fs.writeFileSync(downloadPath, result.buffer);
+    console.log(`[Updater] Saved verified file to: ${downloadPath}`);
     return { buffer: result.buffer, downloadPath };
 }
 
