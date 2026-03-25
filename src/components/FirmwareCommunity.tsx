@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, ChevronRight, Layers, Github, Save, Trash2, Zap, Microscope, User, Pencil, X, ServerCrash } from 'lucide-react';
+import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, ChevronRight, Layers, Github, Save, Trash2, Zap, Microscope, User, Pencil, X, ServerCrash, Share2, Check, Hash } from 'lucide-react';
 import BurnerModal from './BurnerModal';
 import { useDownload } from '../contexts/DownloadContext';
 import type { DownloadedFile } from '../contexts/DownloadContext';
@@ -116,6 +116,12 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
   const [editingFirmware, setEditingFirmware] = useState<{ sha256: string; fields: Record<string, string> } | null>(null);
   const [adminBusy, setAdminBusy] = useState(false);
 
+  // Share code state
+  const [shareCodeInput, setShareCodeInput] = useState('');
+  const [shareCodeError, setShareCodeError] = useState('');
+  const [copiedShareCode, setCopiedShareCode] = useState<string | null>(null);
+  const [shareCodeFirmware, setShareCodeFirmware] = useState<Firmware | null>(null);
+
   const loadManifest = async () => {
     setLoading(true);
     try {
@@ -189,6 +195,36 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
   const handleOnlyWithFirmwareChange = (checked: boolean) => {
     setOnlyWithFirmware(checked);
     localStorage.setItem(STORAGE_KEY_ONLY_WITH_FIRMWARE, String(checked));
+  };
+
+  // Share code: generate 8-char code from sha256
+  const generateShareCode = (fw: Firmware): string => {
+    return fw.sha256 ? fw.sha256.slice(0, 8) : '';
+  };
+
+  const handleCopyShareCode = (fw: Firmware) => {
+    const code = generateShareCode(fw);
+    if (!code) return;
+    navigator.clipboard.writeText(code);
+    setCopiedShareCode(code);
+    setTimeout(() => setCopiedShareCode(null), 2000);
+  };
+
+  // Open firmware detail modal by share code (sha256 prefix match)
+  const handleShareCodeGo = () => {
+    const code = shareCodeInput.trim().toLowerCase();
+    if (!code) return;
+    setShareCodeError('');
+
+    // Find firmware matching sha256 prefix
+    const fw = manifest.firmware_list.find(f => f.sha256?.toLowerCase().startsWith(code));
+    if (!fw) {
+      setShareCodeError(t('firmwareCenter.share_code_not_found'));
+      return;
+    }
+
+    setShareCodeFirmware(fw);
+    setShareCodeInput('');
   };
 
   // Filter logic: search + optionally only products with firmware
@@ -345,11 +381,128 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
     <div className="flex h-full bg-slate-50 text-slate-900 dark:bg-zinc-900 dark:text-slate-100 overflow-hidden relative transition-colors">
       {/* Burner Modal */}
       {burnerModalOpen && fileToBurn && (
-          <BurnerModal 
-              file={fileToBurn} 
-              onClose={() => setBurnerModalOpen(false)} 
+          <BurnerModal
+              file={fileToBurn}
+              onClose={() => setBurnerModalOpen(false)}
           />
       )}
+
+      {/* Share Code Firmware Modal */}
+      {shareCodeFirmware && (() => {
+        const fw = shareCodeFirmware;
+        const task = tasks[fw.download_url];
+        const isDownloaded = !!task?.file;
+        const isDownloading = task?.downloading ?? false;
+        const progress = task?.progress ?? 0;
+        // Resolve supported product names
+        const supportedProducts = fw.supported_product_ids.map(pid => {
+          const p = findProductById(pid);
+          return { id: pid, name: p?.name || pid };
+        });
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShareCodeFirmware(null)}>
+            <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-700 w-[560px] max-w-[90vw] max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-zinc-700">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 break-all">{fw.name}</h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
+                      fw.type === 'factory' ? 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/40 dark:text-green-300 dark:border-green-700' :
+                      fw.type === 'micropython' ? 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-700' :
+                      'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-700'
+                    }`}>
+                      {fw.type === 'bin' ? 'REPO' : fw.type.toUpperCase()}
+                    </span>
+                    {fw.sha256 && <span className="text-xs text-slate-400 font-mono">{generateShareCode(fw)}</span>}
+                  </div>
+                </div>
+                <button onClick={() => setShareCodeFirmware(null)} className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-lg transition-colors ml-3">
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-5 space-y-4">
+                {/* Info rows */}
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 font-mono">
+                  <span>{t('firmwareCenter.version')}: {fw.version}</span>
+                  {fw.filename && <span className="break-all">{t('firmwareCenter.file')}: {fw.filename}</span>}
+                  {fw.size && <span>{formatFileSize(fw.size)}</span>}
+                  {fw.compressed_size && fw.size && (
+                    <span className="text-green-600 dark:text-green-400">
+                      ZIP ↓ {formatFileSize(fw.compressed_size)} ({Math.round((1 - fw.compressed_size / fw.size) * 100)}%)
+                    </span>
+                  )}
+                </div>
+
+                {/* Links */}
+                <div className="flex flex-wrap gap-3 text-xs">
+                  {fw.oss_url && (
+                    <a href={fw.oss_url} onClick={e => { e.preventDefault(); window.ipcRenderer?.invoke('open-url', fw.oss_url, localStorage.getItem('lilygo_link_open_mode') || 'internal'); }} className="inline-flex items-center gap-1 text-blue-500 hover:text-blue-600 transition-colors cursor-pointer">
+                      <ExternalLink size={12} /> OSS ⚡
+                    </a>
+                  )}
+                  {fw.source_code_url && (
+                    <a href={fw.source_code_url} onClick={e => { e.preventDefault(); window.ipcRenderer?.invoke('open-url', fw.source_code_url!, localStorage.getItem('lilygo_link_open_mode') || 'internal'); }} className="inline-flex items-center gap-1 text-slate-500 hover:text-primary transition-colors cursor-pointer">
+                      <Github size={12} /> {t('firmwareCenter.source_code')}
+                    </a>
+                  )}
+                  {fw.author_name && (
+                    <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                      <User size={12} /> {fw.author_name}
+                    </span>
+                  )}
+                </div>
+
+                {fw.description && (
+                  <p className="text-sm text-slate-600 dark:text-slate-400">{fw.description}</p>
+                )}
+
+                {/* Supported Products */}
+                <div>
+                  <h4 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{t('firmwareCenter.supported_products')}</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {supportedProducts.map(p => (
+                      <span key={p.id} className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-zinc-600">
+                        <Cpu size={12} className="text-slate-400" />
+                        {p.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer: Actions */}
+              <div className="flex items-center justify-end gap-3 p-5 border-t border-slate-200 dark:border-zinc-700">
+                {isDownloading ? (
+                  <div className="flex flex-col items-center min-w-[160px]">
+                    <div className="text-xs text-primary mb-1">{t('firmwareCenter.downloading')} {progress}%</div>
+                    <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                      <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
+                    </div>
+                  </div>
+                ) : isDownloaded ? (
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => handleBurnClick(fw.download_url)} className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg flex items-center shadow-lg shadow-emerald-900/20 transition-all active:scale-95">
+                      <Zap size={18} className="mr-2" />
+                      {t('firmwareCenter.burn')}
+                    </button>
+                    <button onClick={() => handleSaveAs(fw.download_url)} className="p-2.5 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-lg transition-colors" title={t('firmwareCenter.save_as')}>
+                      <Save size={18} />
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={() => handleDownload(fw)} className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-lg flex items-center shadow-lg shadow-primary/20 transition-all active:scale-95">
+                    <Download size={18} className="mr-2" />
+                    {t('firmwareCenter.download')}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Left Column: Device List */}
       <div className="w-[36%] min-w-[260px] max-w-[500px] shrink-0 border-r border-slate-200 dark:border-zinc-700 flex flex-col bg-slate-100/80 dark:bg-zinc-800/50">
@@ -364,6 +517,28 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
               className="w-full bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-primary text-slate-800 dark:text-slate-200 placeholder-slate-500"
             />
           </div>
+          {/* Share Code Input */}
+          <div className="relative">
+            <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500" size={14} />
+            <input
+              type="text"
+              placeholder={t('firmwareCenter.share_code_placeholder')}
+              value={shareCodeInput}
+              onChange={(e) => { setShareCodeInput(e.target.value); setShareCodeError(''); }}
+              onKeyDown={(e) => e.key === 'Enter' && handleShareCodeGo()}
+              className={`w-full bg-white dark:bg-zinc-900 border rounded-lg pl-9 pr-16 py-1.5 text-xs font-mono focus:outline-none focus:border-primary text-slate-800 dark:text-slate-200 placeholder-slate-400 ${shareCodeError ? 'border-red-400' : 'border-slate-300 dark:border-zinc-700'}`}
+            />
+            {shareCodeInput && (
+              <button
+                onClick={handleShareCodeGo}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 px-2 py-0.5 text-xs bg-primary text-white rounded hover:bg-primary-hover transition-colors"
+              >
+                {t('firmwareCenter.share_code_go')}
+              </button>
+            )}
+          </div>
+          {shareCodeError && <p className="text-xs text-red-500 -mt-1">{shareCodeError}</p>}
+
           <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
             <input
               type="checkbox"
@@ -608,7 +783,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
                             const progress = task?.progress ?? 0;
 
                             return (
-                                <div key={idx} className="bg-slate-100 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 rounded-xl p-4 hover:border-primary/50 transition-colors group min-w-0">
+                                <div key={idx} className={"bg-slate-100 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 rounded-xl p-4 hover:border-primary/50 transition-all group min-w-0"}>
                                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-start flex-wrap gap-x-3 gap-y-1 mb-1">
@@ -622,6 +797,16 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
                                                 }`}>
                                                     {fw.type === 'bin' ? 'REPO' : fw.type.toUpperCase()}
                                                 </span>
+                                                {fw.sha256 && (
+                                                  <button
+                                                    onClick={() => handleCopyShareCode(fw)}
+                                                    className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border border-slate-300 dark:border-zinc-600 text-slate-400 dark:text-zinc-500 hover:text-primary hover:border-primary/50 transition-colors mt-1 font-mono"
+                                                    title={`${t('firmwareCenter.share_code_label')}: ${generateShareCode(fw)}`}
+                                                  >
+                                                    {copiedShareCode === generateShareCode(fw) ? <Check size={10} className="text-green-500" /> : <Share2 size={10} />}
+                                                    <span>{generateShareCode(fw)}</span>
+                                                  </button>
+                                                )}
                                             </div>
                                             <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 font-mono">
                                                 <span>{t('firmwareCenter.version')}: {fw.version}</span>

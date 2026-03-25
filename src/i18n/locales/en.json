@@ -100,7 +100,14 @@
         "field_firmware_type": "Firmware Type",
         "field_path": "Flash Address",
         "enter_admin_mode": "Admin Mode",
-        "exit_admin_mode": "Exit Admin"
+        "exit_admin_mode": "Exit Admin",
+        "share_code_placeholder": "Enter share code...",
+        "share_code_go": "Go",
+        "share_code_copied": "Share code copied!",
+        "share_code_not_found": "No firmware found for this share code",
+        "share": "Share",
+        "share_code_label": "Share Code",
+        "supported_products": "Supported Products"
     },
     "guide": {
         "title": "User Guide",
