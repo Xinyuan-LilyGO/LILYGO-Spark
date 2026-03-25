@@ -562,7 +562,7 @@ async function installWindowsSetup(win: BrowserWindow, url: string, filename: st
         cancelId: 1,
     }).then((res) => {
         if (res.response === 0) {
-            const child = spawn(result.downloadPath, ['/S'], {
+            const child = spawn(result.downloadPath, ['/S', '--force-run'], {
                 detached: true,
                 stdio: 'ignore',
             });

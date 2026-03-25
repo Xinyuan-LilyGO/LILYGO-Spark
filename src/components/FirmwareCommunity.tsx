@@ -527,7 +527,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                  <div className="min-w-0 flex-1">
                     <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white mb-2 truncate">{selectedProduct.name}</h2>
-                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-h-[4.5em] overflow-y-auto leading-[1.5] scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600" title={selectedProduct.description}>{selectedProduct.description}</p>
+                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-[1.5] line-clamp-3" title={selectedProduct.description}>{selectedProduct.description}</p>
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-3 sm:mt-4">
                         {selectedProduct.github_repo && (
                           <button

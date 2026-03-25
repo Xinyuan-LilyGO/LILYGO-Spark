@@ -215,7 +215,7 @@ jobs:
         run: |
           echo "========== Notarization (submit → poll → staple) =========="
           NOTARIZE_FILES=()
-          for f in release/*.dmg release/*.zip; do
+          for f in release/*.dmg; do
             [ -f "$f" ] && NOTARIZE_FILES+=("$f")
           done
 
@@ -306,7 +306,7 @@ jobs:
       - name: Verify notarization staple
         if: steps.notarize.outputs.enabled == 'true'
         run: |
-          for f in release/*.dmg release/*.zip; do
+          for f in release/*.dmg; do
             [ -f "$f" ] || continue
             echo "Checking: $f"
             xcrun stapler validate "$f" 2>&1 && \
@@ -341,9 +341,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.setup.outputs.tag_name }}
-          files: |
-            release/*.dmg
-            release/*.zip
+          files: release/*.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
