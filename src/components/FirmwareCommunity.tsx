@@ -508,6 +508,16 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
         );
       })()}
 
+      {/* Copy Toast */}
+      {copiedShareCode && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[60] animate-fade-in">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-zinc-800 dark:bg-zinc-700 text-white text-sm rounded-xl shadow-2xl border border-zinc-600">
+            <Check size={14} className="text-green-400" />
+            {t('firmwareCenter.share_code_copied')}
+          </div>
+        </div>
+      )}
+
       {/* Left Column: Device List */}
       <div className="w-[36%] min-w-[260px] max-w-[500px] shrink-0 border-r border-slate-200 dark:border-zinc-700 flex flex-col bg-slate-100/80 dark:bg-zinc-800/50">
         <div className="p-4 border-b border-slate-200 dark:border-zinc-700 space-y-3">
