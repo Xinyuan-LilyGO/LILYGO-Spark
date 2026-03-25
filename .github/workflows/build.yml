@@ -66,28 +66,28 @@ jobs:
         if: steps.check.outputs.should_release == 'true'
         id: tag
         run: |
-          TIME_STR=$(date -u +'%Y%m%d.%H%M%S')
+          TIME_STR=$(date -u +'%y%m%d.%H%M%S')
           SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
           BASE_VERSION="${{ steps.package-version.outputs.version }}"
-          
+
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             # Stable release triggered by tag
             TAG_NAME=${{ github.ref_name }}
             # Remove 'v' for build version
             BUILD_VERSION=${TAG_NAME#v}
-            
+
             echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
             echo "release_name=${TAG_NAME}" >> $GITHUB_OUTPUT
             echo "is_prerelease=false" >> $GITHUB_OUTPUT
             echo "build_version=${BUILD_VERSION}" >> $GITHUB_OUTPUT
           else
             # Canary/Nightly release
-            # Format: v0.1.0-canary.20260215.223038
+            # Format: v0.1.0-canary.260325.020441
             CANARY_VER="${BASE_VERSION}-canary.${TIME_STR}"
             TAG_NAME="v${CANARY_VER}"
-            
+
             echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
-            echo "release_name=Canary (${SHA_SHORT})" >> $GITHUB_OUTPUT
+            echo "release_name=${TAG_NAME} (${SHA_SHORT})" >> $GITHUB_OUTPUT
             echo "is_prerelease=true" >> $GITHUB_OUTPUT
             echo "build_version=${CANARY_VER}" >> $GITHUB_OUTPUT
           fi
@@ -205,6 +205,7 @@ jobs:
           echo "========== Signing Verification Complete =========="
 
       - name: Notarize DMG and ZIP
+        id: notarize-run
         if: steps.notarize.outputs.enabled == 'true'
         timeout-minutes: 40
         env:
@@ -222,6 +223,9 @@ jobs:
             echo "⚠️  No DMG/ZIP found to notarize"
             exit 0
           fi
+
+          NOTARIZED_LIST=""
+          SUBMISSION_IDS=""
 
           for FILE in "${NOTARIZE_FILES[@]}"; do
             echo ""
@@ -244,11 +248,13 @@ jobs:
             fi
             echo "📋 Submission ID: $SUB_ID"
 
-            # Step 2: Poll with retry (resilient to transient network errors)
-            echo "[2/3] Polling for result (max 30 min, 60s intervals)..."
+            # Step 2: Poll with retry (limited only by step timeout-minutes)
+            echo "[2/3] Polling for result (60s intervals, limited by step timeout)..."
             FINAL_STATUS="timeout"
-            for i in $(seq 1 30); do
+            ATTEMPT=0
+            while true; do
               sleep 60
+              ATTEMPT=$((ATTEMPT + 1))
               INFO_OUT=$(xcrun notarytool info "$SUB_ID" \
                 --apple-id "$APPLE_ID" \
                 --password "$APPLE_APP_SPECIFIC_PASSWORD" \
@@ -256,7 +262,7 @@ jobs:
                 --output-format json 2>&1) || true
 
               STATUS=$(echo "$INFO_OUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "poll_error")
-              echo "  ⏳ Attempt $i/30: status=$STATUS"
+              echo "  ⏳ Attempt $ATTEMPT: status=$STATUS"
 
               if [ "$STATUS" = "Accepted" ]; then
                 FINAL_STATUS="Accepted"
@@ -274,18 +280,28 @@ jobs:
             done
 
             if [ "$FINAL_STATUS" != "Accepted" ]; then
-              echo "⚠️  Notarization timed out after 30 min (status=$FINAL_STATUS)"
+              echo "⚠️  Notarization did not complete (status=$FINAL_STATUS)"
               echo "    App is signed but NOT notarized. Users can right-click → Open."
               continue
             fi
 
             # Step 3: Staple
             echo "[3/3] Stapling notarization ticket..."
-            xcrun stapler staple "$FILE" 2>&1 && \
-              echo "✅ $(basename "$FILE") notarized and stapled!" || \
+            if xcrun stapler staple "$FILE" 2>&1; then
+              echo "✅ $(basename "$FILE") notarized and stapled!"
+              NOTARIZED_LIST="${NOTARIZED_LIST}$(basename "$FILE"),"
+              SUBMISSION_IDS="${SUBMISSION_IDS}$(basename "$FILE")=${SUB_ID},"
+            else
               echo "⚠️  Staple failed (notarization valid but ticket not attached)"
+              SUBMISSION_IDS="${SUBMISSION_IDS}$(basename "$FILE")=${SUB_ID}(staple-failed),"
+            fi
           done
           echo "========== Notarization Complete =========="
+
+          # Output notarization results for downstream jobs
+          echo "notarized_files=${NOTARIZED_LIST:-none}" >> $GITHUB_OUTPUT
+          echo "submission_ids=${SUBMISSION_IDS:-none}" >> $GITHUB_OUTPUT
+          echo "notarization_done=true" >> $GITHUB_OUTPUT
 
       - name: Verify notarization staple
         if: steps.notarize.outputs.enabled == 'true'
@@ -297,6 +313,24 @@ jobs:
               echo "✅ Staple valid: $f" || \
               echo "⚠️  No staple: $f"
           done
+
+      - name: Save notarization status
+        if: always()
+        run: |
+          mkdir -p release/notarization-status
+          if [ "${{ steps.notarize-run.outputs.notarization_done }}" = "true" ]; then
+            cat > release/notarization-status/${{ matrix.arch }}.json <<EOJSON
+          {"arch":"${{ matrix.arch }}","notarized":true,"files":"${{ steps.notarize-run.outputs.notarized_files }}","submission_ids":"${{ steps.notarize-run.outputs.submission_ids }}"}
+          EOJSON
+          else
+            echo '{"arch":"${{ matrix.arch }}","notarized":false,"files":"none","submission_ids":"none"}' \
+              > release/notarization-status/${{ matrix.arch }}.json
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: notarization-status-${{ matrix.arch }}
+          path: release/notarization-status/*.json
 
       - uses: actions/upload-artifact@v4
         with:
@@ -427,8 +461,43 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Download notarization status
+        uses: actions/download-artifact@v4
+        with:
+          pattern: notarization-status-*
+          path: /tmp/notarization-status
+          merge-multiple: true
+        continue-on-error: true
+
       - name: Update release body with download links and changelog
         run: |
+          # Read notarization status
+          NOTARIZE_INFO=""
+          if ls /tmp/notarization-status/*.json 1>/dev/null 2>&1; then
+            for f in /tmp/notarization-status/*.json; do
+              ARCH=$(python3 -c "import sys,json; print(json.load(open('$f')).get('arch',''))" 2>/dev/null || true)
+              NOTARIZED=$(python3 -c "import sys,json; print(json.load(open('$f')).get('notarized',False))" 2>/dev/null || true)
+              FILES=$(python3 -c "import sys,json; print(json.load(open('$f')).get('files','none'))" 2>/dev/null || true)
+              SUB_IDS=$(python3 -c "import sys,json; print(json.load(open('$f')).get('submission_ids','none'))" 2>/dev/null || true)
+              if [ "$NOTARIZED" = "True" ] && [ "$FILES" != "none" ] && [ -n "$FILES" ]; then
+                # Parse submission IDs into readable format: file=id,file=id -> table rows
+                ID_LINES=""
+                IFS=',' read -ra PAIRS <<< "$SUB_IDS"
+                for pair in "${PAIRS[@]}"; do
+                  [ -z "$pair" ] && continue
+                  FNAME="${pair%%=*}"
+                  SID="${pair#*=}"
+                  [ -n "$FNAME" ] && [ -n "$SID" ] && ID_LINES="${ID_LINES}    - \`${FNAME}\`: \`${SID}\`\n"
+                done
+                NOTARIZE_INFO="${NOTARIZE_INFO}  - **${ARCH}**: ✅ Notarized & Stapled\n${ID_LINES}"
+              elif [ "$NOTARIZED" = "True" ]; then
+                NOTARIZE_INFO="${NOTARIZE_INFO}  - **${ARCH}**: ✅ Notarized\n"
+              else
+                NOTARIZE_INFO="${NOTARIZE_INFO}  - **${ARCH}**: ⚠️ Not notarized (signing only)\n"
+              fi
+            done
+          fi
+
           TAG="${{ needs.setup.outputs.tag_name }}"
           VERSION="${{ needs.setup.outputs.build_version }}"
           SHA_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
@@ -510,6 +579,25 @@ jobs:
             echo ""
             if [ -n "$PREV_TAG" ]; then
               echo "**Full Changelog**: [${PREV_TAG}...${TAG}](https://github.com/${REPO}/compare/${PREV_TAG}...${TAG})"
+            fi
+            echo ""
+            if [ -n "$NOTARIZE_INFO" ]; then
+              echo ""
+              echo "## 🔏 macOS Notarization / 公证状态"
+              echo ""
+              echo -e "$NOTARIZE_INFO"
+              echo "> DMG 已包含 Apple 公证票据 (stapled)，离线安装也可通过 Gatekeeper 验证。"
+              echo ""
+              echo "<details><summary>查询公证状态命令 / Check notarization status</summary>"
+              echo ""
+              echo '```bash'
+              echo 'xcrun notarytool info <submission-id> \'
+              echo '  --apple-id "$APPLE_ID" \'
+              echo '  --password "$APPLE_APP_SPECIFIC_PASSWORD" \'
+              echo '  --team-id "$APPLE_TEAM_ID"'
+              echo '```'
+              echo ""
+              echo "</details>"
             fi
             echo ""
             echo "---"

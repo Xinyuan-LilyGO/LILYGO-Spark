@@ -272,6 +272,31 @@ firmware_oss/
 
 ---
 
+### macOS Code Signing & Notarization
+
+All macOS DMG builds pushed via `v*` tags are automatically code-signed and notarized by Apple. The notarization ticket is stapled into the DMG, so users can verify the app offline without contacting Apple servers.
+
+Each Release's notes include the Apple notarization **Submission ID** per architecture. You can query the notarization status with:
+
+```bash
+xcrun notarytool info <submission-id> \
+  --apple-id "$APPLE_ID" \
+  --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+  --team-id "$APPLE_TEAM_ID"
+```
+
+You can also validate a downloaded DMG locally:
+
+```bash
+# Check if the notarization ticket is stapled
+xcrun stapler validate /path/to/LILYGO-Spark-*.dmg
+
+# Verify code signature
+codesign --verify --deep --strict --verbose=2 /path/to/LILYGO\ Spark.app
+```
+
+---
+
 ### Easter Eggs & Effects
 
 For hackers and makers who enjoy a bit of fun:
@@ -571,6 +596,31 @@ firmware_oss/
   a1b2c3d4e5f67890_firmware-t-deck-tft.bin.zip
   a1b2c3d4e5f67890_firmware-t-deck-tft.bin.json
   ...
+```
+
+---
+
+### macOS 代码签名与公证
+
+所有通过 `v*` Tag 触发的 macOS DMG 构建均已自动完成 Apple 代码签名和公证。公证票据 (notarization ticket) 已通过 staple 嵌入 DMG，用户离线安装也可通过 Gatekeeper 验证。
+
+每个 Release 的说明中包含各架构的 Apple 公证 **Submission ID**，可使用以下命令查询公证状态：
+
+```bash
+xcrun notarytool info <submission-id> \
+  --apple-id "$APPLE_ID" \
+  --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+  --team-id "$APPLE_TEAM_ID"
+```
+
+也可以在本地验证已下载的 DMG：
+
+```bash
+# 检查公证票据是否已嵌入
+xcrun stapler validate /path/to/LILYGO-Spark-*.dmg
+
+# 验证代码签名
+codesign --verify --deep --strict --verbose=2 /path/to/LILYGO\ Spark.app
 ```
 
 ---

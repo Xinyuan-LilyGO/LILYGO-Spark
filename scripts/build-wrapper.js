@@ -1,13 +1,13 @@
 const { execSync } = require('child_process');
 
-// Generate timestamp YYYYMMDDHHMM
+// Generate timestamp YYMMDDHHMM (2-digit year for shorter filenames)
 const now = new Date();
-const yyyy = now.getFullYear();
+const yy = String(now.getFullYear()).slice(2);
 const mm = String(now.getMonth() + 1).padStart(2, '0');
 const dd = String(now.getDate()).padStart(2, '0');
 const hh = String(now.getHours()).padStart(2, '0');
 const min = String(now.getMinutes()).padStart(2, '0');
-const timestamp = `${yyyy}${mm}${dd}${hh}${min}`;
+const timestamp = `${yy}${mm}${dd}${hh}${min}`;
 
 // Set environment variable
 process.env.BUILD_TIMESTAMP = timestamp;

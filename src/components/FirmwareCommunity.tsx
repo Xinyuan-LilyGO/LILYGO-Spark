@@ -5,24 +5,6 @@ import BurnerModal from './BurnerModal';
 import { useDownload } from '../contexts/DownloadContext';
 import type { DownloadedFile } from '../contexts/DownloadContext';
 
-interface BinFile {
-  name: string;
-  url: string;
-  path?: string;
-  size?: number;
-  compressed_size?: number;
-  oss_url?: string;
-  md5?: string;
-  sha256?: string;
-  release_tag?: string | null;
-  release_name?: string | null;
-  source?: string;
-  source_code_url?: string;
-  author_name?: string;
-  author_link?: string;
-  author_email?: string;
-}
-
 interface Product {
   product_id: string;
   name: string;
@@ -31,7 +13,6 @@ interface Product {
   github_repo: string;
   product_page: string;
   image_url: string;
-  bin_files?: BinFile[];
 }
 
 interface ProductGroup {
@@ -45,7 +26,6 @@ interface ProductGroup {
   mcu?: string;
   github_repo?: string;
   product_page?: string;
-  bin_files?: BinFile[];
 }
 
 interface Firmware {
@@ -56,14 +36,15 @@ interface Firmware {
   filename: string;
   download_url: string;
   description: string;
-  hash_md5?: string;
   release_note?: string;
   size?: number;
   compressed_size?: number;
   oss_url?: string;
   md5?: string;
   sha256?: string;
+  source?: string;
   source_code_url?: string;
+  published_at?: string;
   author_name?: string;
   author_link?: string;
   author_email?: string;
@@ -100,14 +81,6 @@ function resolveImageUrl(url: string): string {
   return url;
 }
 
-function deriveSourceCodeUrl(rawUrl: string): string | undefined {
-  const raw = rawUrl.match(/^https:\/\/raw\.githubusercontent\.com\/([^/]+\/[^/]+)\//);
-  if (raw) return `https://github.com/${raw[1]}`;
-  const rel = rawUrl.match(/^https:\/\/github\.com\/([^/]+\/[^/]+)\//);
-  if (rel) return `https://github.com/${rel[1]}`;
-  return undefined;
-}
-
 function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 B';
   if (bytes < 1024) return `${bytes} B`;
@@ -115,10 +88,8 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function productHasFirmware(manifest: Manifest, productId: string, item?: Product | ProductGroup | null): boolean {
-  const inList = manifest.firmware_list.some(f => f.supported_product_ids.includes(productId));
-  const hasBins = (item as { bin_files?: BinFile[] } | null)?.bin_files?.length;
-  return inList || !!hasBins;
+function productHasFirmware(manifest: Manifest, productId: string): boolean {
+  return manifest.firmware_list.some(f => f.supported_product_ids.includes(productId));
 }
 
 const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, onSelectFirmware: _onSelectFirmware, onNavigateToAnalyzer }) => {
@@ -209,37 +180,11 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
 
   const selectedProduct = findProductById(selectedProductId);
 
-  // firmware_list (curated) + product.bin_files (from GitHub manifest merge)
   const relatedFirmwares = React.useMemo(() => {
-    const fromList = manifest.firmware_list.filter(f =>
+    return manifest.firmware_list.filter(f =>
       selectedProductId && f.supported_product_ids.includes(selectedProductId)
     );
-    const fromBins: Firmware[] = [];
-    const product = selectedProduct as (Product | ProductGroup) | null;
-    if (product?.bin_files?.length) {
-      for (const b of product.bin_files) {
-        fromBins.push({
-          supported_product_ids: selectedProductId ? [selectedProductId] : [],
-          name: b.release_name || b.name,
-          version: b.release_tag || '—',
-          type: 'bin',
-          filename: b.name,
-          download_url: b.url,
-          description: b.path || (b.source === 'tree' ? 'From repository' : ''),
-          size: b.size,
-          compressed_size: b.compressed_size,
-          oss_url: b.oss_url,
-          md5: b.md5,
-          sha256: b.sha256,
-          source_code_url: b.source_code_url || deriveSourceCodeUrl(b.url),
-          author_name: b.author_name,
-          author_link: b.author_link,
-          author_email: b.author_email,
-        });
-      }
-    }
-    return [...fromList, ...fromBins];
-  }, [manifest.firmware_list, selectedProduct, selectedProductId]);
+  }, [manifest.firmware_list, selectedProductId]);
 
   const handleOnlyWithFirmwareChange = (checked: boolean) => {
     setOnlyWithFirmware(checked);
@@ -255,7 +200,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
       const matches = groupName.toLowerCase().includes(q) || 
                       (group.mcu ?? '').toLowerCase().includes(q);
       if (!matches) return null;
-      if (onlyWithFirmware && !productHasFirmware(manifest, group.product_id ?? '', group)) return null;
+      if (onlyWithFirmware && !productHasFirmware(manifest, group.product_id ?? '')) return null;
       return group;
     }
 
@@ -268,11 +213,11 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
     });
     if (onlyWithFirmware) {
       matchingProducts = matchingProducts.filter((v: Product) =>
-        productHasFirmware(manifest, v.product_id, v)
+        productHasFirmware(manifest, v.product_id)
       );
     }
     const productsToUse = seriesMatches
-      ? (onlyWithFirmware ? group.products!.filter((v: Product) => productHasFirmware(manifest, v.product_id, v)) : group.products)
+      ? (onlyWithFirmware ? group.products!.filter((v: Product) => productHasFirmware(manifest, v.product_id)) : group.products)
       : matchingProducts;
 
     if (productsToUse.length > 0) {
@@ -347,24 +292,21 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
   };
 
   // Admin: start editing firmware metadata
-  // Find the raw bin_file entry from the product to get accurate field values
   const handleStartEdit = (fw: Firmware) => {
-    const product = selectedProduct as (Product | ProductGroup) | null;
-    const binFile = product?.bin_files?.find(b => b.sha256 === fw.sha256);
     setEditingFirmware({
       sha256: fw.sha256 || '',
       fields: {
-        name: binFile?.name || fw.filename || fw.name || '',
-        release_tag: binFile?.release_tag || fw.version || '',
-        release_name: binFile?.release_name || fw.name || '',
-        description: '', // description is stored separately in bin_file
-        source: binFile?.source || '',
-        source_code_url: binFile?.source_code_url || fw.source_code_url || '',
-        author_name: binFile?.author_name || fw.author_name || '',
-        author_link: binFile?.author_link || fw.author_link || '',
-        author_email: binFile?.author_email || fw.author_email || '',
+        name: fw.filename || fw.name || '',
+        release_tag: fw.version || '',
+        release_name: fw.name || '',
+        description: fw.description || '',
+        source: fw.source || '',
+        source_code_url: fw.source_code_url || '',
+        author_name: fw.author_name || '',
+        author_link: fw.author_link || '',
+        author_email: fw.author_email || '',
         firmware_type: fw.type || '',
-        path: binFile?.path || '',
+        path: '',
       },
     });
   };

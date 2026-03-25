@@ -55,27 +55,9 @@ const OSS_FIRMWARE_PREFIX = (config.oss_domain_prefix || 'https://lilygo.oss-acc
 // --------------- Extract unique URLs ---------------
 function extractUrls(manifest) {
   const urlSet = new Set();
-
-  // product_list -> products -> bin_files -> url
-  if (manifest.product_list) {
-    for (const series of manifest.product_list) {
-      if (!series.products) continue;
-      for (const product of series.products) {
-        if (!product.bin_files) continue;
-        for (const bin of product.bin_files) {
-          if (bin.url) urlSet.add(bin.url);
-        }
-      }
-    }
+  for (const fw of manifest.firmware_list || []) {
+    if (fw.download_url) urlSet.add(fw.download_url);
   }
-
-  // firmware_list -> download_url
-  if (manifest.firmware_list) {
-    for (const fw of manifest.firmware_list) {
-      if (fw.download_url) urlSet.add(fw.download_url);
-    }
-  }
-
   return [...urlSet];
 }
 
