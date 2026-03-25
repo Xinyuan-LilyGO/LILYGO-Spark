@@ -126,3 +126,43 @@ input, textarea, code, pre, .select-text {
 .animate-flash-success {
   animation: flash-success-pulse 1.5s ease-in-out 2;
 }
+
+/* ── macOS-style thin overlay scrollbar ── */
+
+/* WebKit (Chrome, Edge, Electron) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+
+.dark * {
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
