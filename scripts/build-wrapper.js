@@ -20,10 +20,7 @@ const isMacBuild = args.includes('--mac');
 if (isMacBuild) {
     console.log('[Build Wrapper] === macOS Signing Environment ===');
     console.log(`  MAC_CERTS_P12:              ${process.env.MAC_CERTS_P12 ? 'SET (' + process.env.MAC_CERTS_P12.length + ' chars)' : 'NOT SET'}`);
-    console.log(`  APPLE_ID:                   ${process.env.APPLE_ID ? 'SET' : 'NOT SET'}`);
-    console.log(`  APPLE_APP_SPECIFIC_PASSWORD: ${process.env.APPLE_APP_SPECIFIC_PASSWORD ? 'SET' : 'NOT SET'}`);
-    console.log(`  APPLE_TEAM_ID:              ${process.env.APPLE_TEAM_ID || 'NOT SET'}`);
-    console.log(`  NOTARIZE:                   ${process.env.NOTARIZE || 'NOT SET'}`);
+    console.log(`  (Notarization is handled by a separate CI step, not electron-builder)`);
     console.log('[Build Wrapper] ================================');
 }
 

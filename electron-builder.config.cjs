@@ -17,27 +17,17 @@ const mergedFiles = isMac
 
 // 检测是否有签名证书（CI 通过 apple-actions/import-codesign-certs 导入）
 const hasSigningCert = !!process.env.MAC_CERTS_P12;
-// 公证需要：1) NOTARIZE=true 显式开启  2) Apple 凭证齐全
-const notarizeRequested = process.env.NOTARIZE === 'true';
-const hasNotarizeCreds = !!(process.env.APPLE_ID && process.env.APPLE_APP_SPECIFIC_PASSWORD && process.env.APPLE_TEAM_ID);
-const shouldNotarize = notarizeRequested && hasNotarizeCreds;
 
 const macOverrides = { ...base.mac };
 if (!hasSigningCert) {
-  // 本地无证书：跳过签名
   macOverrides.identity = null;
   console.log('[electron-builder config] Signing SKIPPED (no MAC_CERTS_P12)');
 } else {
   console.log('[electron-builder config] Signing ENABLED');
 }
-if (shouldNotarize) {
-  macOverrides.notarize = true;
-  console.log('[electron-builder config] Notarization ENABLED');
-} else if (notarizeRequested && !hasNotarizeCreds) {
-  console.log('[electron-builder config] Notarization REQUESTED but Apple credentials missing — SKIPPED');
-} else {
-  console.log('[electron-builder config] Notarization SKIPPED (NOTARIZE != true)');
-}
+// 公证由 CI 独立 step 处理（xcrun notarytool），不在 electron-builder 内执行
+macOverrides.notarize = false;
+console.log('[electron-builder config] Notarization handled externally (not by electron-builder)');
 
 module.exports = {
   ...base,

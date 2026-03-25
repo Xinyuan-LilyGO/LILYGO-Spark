@@ -172,61 +172,131 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MAC_CERTS_P12: ${{ secrets.MAC_CERTS_P12 }}
-          NOTARIZE: ${{ steps.notarize.outputs.enabled }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      - name: Verify code signing and notarization
-        if: always()
+
+      - name: Verify code signing
         run: |
           echo "========== Post-Build Signing Verification =========="
-          # Find the .app bundle inside release/mac*
           APP_PATH=$(find release -name "*.app" -maxdepth 3 | head -1)
           if [ -z "$APP_PATH" ]; then
-            echo "⚠️  No .app bundle found in release/ — skipping verification"
+            echo "⚠️  No .app bundle found — skipping"
             ls -R release/ || true
             exit 0
           fi
-          echo "📦 Found app: $APP_PATH"
-          echo ""
+          echo "📦 App: $APP_PATH"
 
-          echo "--- 1. codesign -dv (signing identity & team) ---"
+          echo "--- codesign -dv ---"
           codesign -dv --verbose=4 "$APP_PATH" 2>&1 || true
-          echo ""
 
-          echo "--- 2. codesign --verify (integrity check) ---"
+          echo "--- codesign --verify ---"
           codesign --verify --deep --strict --verbose=2 "$APP_PATH" 2>&1 && \
-            echo "✅ Code signature verification PASSED" || \
-            echo "❌ Code signature verification FAILED"
-          echo ""
+            echo "✅ Signature OK" || echo "❌ Signature FAILED"
 
-          echo "--- 3. Identity & TeamIdentifier summary ---"
-          IDENTITY=$(codesign -dv "$APP_PATH" 2>&1 | grep "Authority=" | head -1 || echo "NONE")
           TEAM=$(codesign -dv "$APP_PATH" 2>&1 | grep "TeamIdentifier=" || echo "NONE")
-          echo "  $IDENTITY"
           echo "  $TEAM"
           if echo "$TEAM" | grep -q "not set"; then
-            echo "⚠️  WARNING: TeamIdentifier is 'not set' — app is NOT properly signed!"
+            echo "❌ TeamIdentifier not set — signing failed!"
+            exit 1
           fi
-          echo ""
 
-          echo "--- 4. spctl --assess (Gatekeeper check) ---"
+          echo "--- spctl --assess ---"
           spctl --assess --type execute --verbose=2 "$APP_PATH" 2>&1 && \
-            echo "✅ Gatekeeper assessment PASSED" || \
-            echo "⚠️  Gatekeeper assessment FAILED (expected if notarization pending)"
-          echo ""
+            echo "✅ Gatekeeper OK" || \
+            echo "⚠️  Gatekeeper rejected (expected without notarization)"
+          echo "========== Signing Verification Complete =========="
 
-          echo "--- 5. stapler validate (notarization staple check) ---"
-          # Check DMG files for notarization staple
-          for DMG in release/*.dmg; do
-            [ -f "$DMG" ] || continue
-            echo "Checking: $DMG"
-            xcrun stapler validate "$DMG" 2>&1 && \
-              echo "✅ Notarization staple VALID for $DMG" || \
-              echo "⚠️  No notarization staple on $DMG"
+      - name: Notarize DMG and ZIP
+        if: steps.notarize.outputs.enabled == 'true'
+        timeout-minutes: 40
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          echo "========== Notarization (submit → poll → staple) =========="
+          NOTARIZE_FILES=()
+          for f in release/*.dmg release/*.zip; do
+            [ -f "$f" ] && NOTARIZE_FILES+=("$f")
           done
-          echo ""
-          echo "========== Verification Complete =========="
+
+          if [ ${#NOTARIZE_FILES[@]} -eq 0 ]; then
+            echo "⚠️  No DMG/ZIP found to notarize"
+            exit 0
+          fi
+
+          for FILE in "${NOTARIZE_FILES[@]}"; do
+            echo ""
+            echo "━━━ Notarizing: $(basename "$FILE") ━━━"
+
+            # Step 1: Submit (fast, just uploads)
+            echo "[1/3] Submitting to Apple..."
+            SUBMIT_OUT=$(xcrun notarytool submit "$FILE" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" \
+              --output-format json 2>&1) || true
+            echo "$SUBMIT_OUT"
+
+            SUB_ID=$(echo "$SUBMIT_OUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
+            if [ -z "$SUB_ID" ]; then
+              echo "❌ Submit failed — no submission ID returned"
+              echo "$SUBMIT_OUT"
+              exit 1
+            fi
+            echo "📋 Submission ID: $SUB_ID"
+
+            # Step 2: Poll with retry (resilient to transient network errors)
+            echo "[2/3] Polling for result (max 30 min, 60s intervals)..."
+            FINAL_STATUS="timeout"
+            for i in $(seq 1 30); do
+              sleep 60
+              INFO_OUT=$(xcrun notarytool info "$SUB_ID" \
+                --apple-id "$APPLE_ID" \
+                --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+                --team-id "$APPLE_TEAM_ID" \
+                --output-format json 2>&1) || true
+
+              STATUS=$(echo "$INFO_OUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "poll_error")
+              echo "  ⏳ Attempt $i/30: status=$STATUS"
+
+              if [ "$STATUS" = "Accepted" ]; then
+                FINAL_STATUS="Accepted"
+                break
+              elif [ "$STATUS" = "Invalid" ] || [ "$STATUS" = "Rejected" ]; then
+                FINAL_STATUS="$STATUS"
+                echo "❌ Notarization $STATUS — fetching log..."
+                xcrun notarytool log "$SUB_ID" \
+                  --apple-id "$APPLE_ID" \
+                  --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+                  --team-id "$APPLE_TEAM_ID" 2>&1 || true
+                exit 1
+              fi
+              # "In Progress" or network error → just retry next loop
+            done
+
+            if [ "$FINAL_STATUS" != "Accepted" ]; then
+              echo "⚠️  Notarization timed out after 30 min (status=$FINAL_STATUS)"
+              echo "    App is signed but NOT notarized. Users can right-click → Open."
+              continue
+            fi
+
+            # Step 3: Staple
+            echo "[3/3] Stapling notarization ticket..."
+            xcrun stapler staple "$FILE" 2>&1 && \
+              echo "✅ $(basename "$FILE") notarized and stapled!" || \
+              echo "⚠️  Staple failed (notarization valid but ticket not attached)"
+          done
+          echo "========== Notarization Complete =========="
+
+      - name: Verify notarization staple
+        if: steps.notarize.outputs.enabled == 'true'
+        run: |
+          for f in release/*.dmg release/*.zip; do
+            [ -f "$f" ] || continue
+            echo "Checking: $f"
+            xcrun stapler validate "$f" 2>&1 && \
+              echo "✅ Staple valid: $f" || \
+              echo "⚠️  No staple: $f"
+          done
 
       - uses: actions/upload-artifact@v4
         with:
