@@ -880,7 +880,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
                                               <label className="text-xs text-slate-500 dark:text-slate-400">{t(`firmwareCenter.${labelKey}`)}</label>
                                               <input
                                                 type="text"
-                                                value={editingFirmware.fields[field] || ''}
+                                                value={editingFirmware!.fields[field] || ''}
                                                 onChange={(e) => setEditingFirmware(prev => prev ? {
                                                   ...prev,
                                                   fields: { ...prev.fields, [field]: e.target.value }
@@ -892,7 +892,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
                                           <div className="sm:col-span-2">
                                             <label className="text-xs text-slate-500 dark:text-slate-400">{t('firmwareCenter.field_description')}</label>
                                             <textarea
-                                              value={editingFirmware.fields.description || ''}
+                                              value={editingFirmware!.fields.description || ''}
                                               onChange={(e) => setEditingFirmware(prev => prev ? {
                                                 ...prev,
                                                 fields: { ...prev.fields, description: e.target.value }

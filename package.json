@@ -153,8 +153,8 @@
       "identity": "Developer ID Application: Shenzhen Xinyuan Electronic Technology Co., Ltd. (9R7Z63475C)",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist",
+      "entitlements": "resources/mac/entitlements.mac.plist",
+      "entitlementsInherit": "resources/mac/entitlements.mac.plist",
       "notarize": true,
       "protocols": [
         {
