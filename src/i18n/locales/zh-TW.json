@@ -129,12 +129,13 @@
     "field_path": "燒錄位址",
     "enter_admin_mode": "管理模式",
     "exit_admin_mode": "退出管理",
-    "share_code_placeholder": "輸入分享碼...",
-    "share_code_go": "跳轉",
-    "share_code_copied": "分享碼已複製！",
-    "share_code_not_found": "未找到此分享碼對應的韌體",
+    "share_code_placeholder": "輸入韌體分享碼...",
+    "share_code_go": "查找",
+    "share_code_copied": "韌體分享碼已複製！",
+    "share_code_not_found": "未找到此韌體分享碼對應的韌體",
     "share": "分享",
-    "share_code_label": "分享碼",
+    "share_code_label": "韌體分享碼",
+    "share_code_modal_title": "韌體分享碼",
     "supported_products": "支援的產品"
   },
   "community": {

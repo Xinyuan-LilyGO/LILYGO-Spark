@@ -405,6 +405,10 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
               {/* Header */}
               <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-zinc-700">
                 <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium text-primary mb-1 flex items-center gap-1.5">
+                    <Hash size={12} />
+                    {t('firmwareCenter.share_code_modal_title')}
+                  </div>
                   <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 break-all">{fw.name}</h3>
                   <div className="flex items-center gap-2 mt-1">
                     <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
@@ -484,7 +488,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
                   </div>
                 ) : isDownloaded ? (
                   <div className="flex items-center gap-2">
-                    <button onClick={() => handleBurnClick(fw.download_url)} className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg flex items-center shadow-lg shadow-emerald-900/20 transition-all active:scale-95">
+                    <button onClick={() => { setShareCodeFirmware(null); handleBurnClick(fw.download_url); }} className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg flex items-center shadow-lg shadow-emerald-900/20 transition-all active:scale-95">
                       <Zap size={18} className="mr-2" />
                       {t('firmwareCenter.burn')}
                     </button>
@@ -800,11 +804,12 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
                                                 {fw.sha256 && (
                                                   <button
                                                     onClick={() => handleCopyShareCode(fw)}
-                                                    className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border border-slate-300 dark:border-zinc-600 text-slate-400 dark:text-zinc-500 hover:text-primary hover:border-primary/50 transition-colors mt-1 font-mono"
+                                                    className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border border-slate-300 dark:border-zinc-600 text-slate-400 dark:text-zinc-500 hover:text-primary hover:border-primary/50 transition-colors mt-1"
                                                     title={`${t('firmwareCenter.share_code_label')}: ${generateShareCode(fw)}`}
                                                   >
                                                     {copiedShareCode === generateShareCode(fw) ? <Check size={10} className="text-green-500" /> : <Share2 size={10} />}
-                                                    <span>{generateShareCode(fw)}</span>
+                                                    <span className="text-slate-500 dark:text-zinc-400">{t('firmwareCenter.share_code_label')}:</span>
+                                                    <span className="font-mono">{generateShareCode(fw)}</span>
                                                   </button>
                                                 )}
                                             </div>

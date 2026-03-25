@@ -129,12 +129,13 @@
     "field_path": "烧录地址",
     "enter_admin_mode": "管理模式",
     "exit_admin_mode": "退出管理",
-    "share_code_placeholder": "输入分享码...",
-    "share_code_go": "跳转",
-    "share_code_copied": "分享码已复制！",
-    "share_code_not_found": "未找到此分享码对应的固件",
+    "share_code_placeholder": "输入固件分享码...",
+    "share_code_go": "查找",
+    "share_code_copied": "固件分享码已复制！",
+    "share_code_not_found": "未找到此固件分享码对应的固件",
     "share": "分享",
-    "share_code_label": "分享码",
+    "share_code_label": "固件分享码",
+    "share_code_modal_title": "固件分享码",
     "supported_products": "支持的产品"
   },
   "community": {

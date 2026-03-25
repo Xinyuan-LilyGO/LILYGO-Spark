@@ -129,12 +129,13 @@
     "field_path": "書き込みアドレス",
     "enter_admin_mode": "管理モード",
     "exit_admin_mode": "管理終了",
-    "share_code_placeholder": "共有コードを入力...",
-    "share_code_go": "移動",
-    "share_code_copied": "共有コードをコピーしました！",
-    "share_code_not_found": "この共有コードに該当するファームウェアが見つかりません",
+    "share_code_placeholder": "FW共有コードを入力...",
+    "share_code_go": "検索",
+    "share_code_copied": "FW共有コードをコピーしました！",
+    "share_code_not_found": "このFW共有コードに該当するファームウェアが見つかりません",
     "share": "共有",
-    "share_code_label": "共有コード",
+    "share_code_label": "FW共有コード",
+    "share_code_modal_title": "FW共有コード",
     "supported_products": "対応製品"
   },
   "community": {
