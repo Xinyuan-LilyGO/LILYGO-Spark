@@ -115,6 +115,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
   const [adminMode, setAdminMode] = useState(false);
   const [editingFirmware, setEditingFirmware] = useState<{ sha256: string; fields: Record<string, string> } | null>(null);
   const [adminBusy, setAdminBusy] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   // Share code state
   const [shareCodeInput, setShareCodeInput] = useState('');
@@ -301,6 +302,12 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
       }
   };
 
+  // Show a non-blocking toast notification (avoids Windows alert() focus bug)
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   // Admin: delete firmware from manifest
   const handleDeleteFirmware = async (fw: Firmware) => {
     if (!selectedProductId || !fw.sha256) return;
@@ -315,13 +322,13 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
       });
       const data = await resp.json();
       if (resp.ok) {
-        alert(t('firmwareCenter.delete_success'));
+        showToast(t('firmwareCenter.delete_success'));
         loadManifest();
       } else {
-        alert(`${t('firmwareCenter.delete_failed')}: ${data.error}`);
+        showToast(`${t('firmwareCenter.delete_failed')}: ${data.error}`, 'error');
       }
     } catch (e: any) {
-      alert(`${t('firmwareCenter.delete_failed')}: ${e.message}`);
+      showToast(`${t('firmwareCenter.delete_failed')}: ${e.message}`, 'error');
     } finally {
       setAdminBusy(false);
     }
@@ -332,9 +339,8 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
     setEditingFirmware({
       sha256: fw.sha256 || '',
       fields: {
-        name: fw.filename || fw.name || '',
+        name: fw.name || '',
         release_tag: fw.version || '',
-        release_name: fw.name || '',
         description: fw.description || '',
         source: fw.source || '',
         source_code_url: fw.source_code_url || '',
@@ -364,14 +370,14 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
       });
       const data = await resp.json();
       if (resp.ok) {
-        alert(t('firmwareCenter.edit_success'));
+        showToast(t('firmwareCenter.edit_success'));
         setEditingFirmware(null);
         loadManifest();
       } else {
-        alert(`${t('firmwareCenter.edit_failed')}: ${data.error}`);
+        showToast(`${t('firmwareCenter.edit_failed')}: ${data.error}`, 'error');
       }
     } catch (e: any) {
-      alert(`${t('firmwareCenter.edit_failed')}: ${e.message}`);
+      showToast(`${t('firmwareCenter.edit_failed')}: ${e.message}`, 'error');
     } finally {
       setAdminBusy(false);
     }
@@ -379,6 +385,14 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
 
   return (
     <div className="flex h-full bg-slate-50 text-slate-900 dark:bg-zinc-900 dark:text-slate-100 overflow-hidden relative transition-colors">
+      {/* Toast notification */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-sm text-white transition-all ${
+          toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+        }`}>
+          {toast.message}
+        </div>
+      )}
       {/* Burner Modal */}
       {burnerModalOpen && fileToBurn && (
           <BurnerModal
@@ -1009,7 +1023,6 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
                                           {([
                                             ['name', 'field_name'],
                                             ['release_tag', 'field_version'],
-                                            ['release_name', 'field_release_name'],
                                             ['source', 'field_source'],
                                             ['source_code_url', 'field_source_code_url'],
                                             ['author_name', 'field_author_name'],
