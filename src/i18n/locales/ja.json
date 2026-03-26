@@ -81,6 +81,7 @@
     "only_with_firmware": "ファームウェアがある製品のみ表示",
     "product_count": "（{{count}} 件）",
     "search_devices": "デバイスを検索...",
+    "search_or_share_code": "デバイス検索 または #共有コード...",
     "no_devices_found": "デバイスが見つかりません",
     "available_firmware": "利用可能なファームウェア",
     "no_firmware_found": "このデバイスのファームウェアがマニフェストに見つかりません。",

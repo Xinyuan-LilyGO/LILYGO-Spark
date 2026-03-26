@@ -81,6 +81,7 @@
     "only_with_firmware": "仅显示有固件的产品",
     "product_count": "（共 {{count}} 个）",
     "search_devices": "搜索设备...",
+    "search_or_share_code": "搜索设备 或输入 #分享码...",
     "no_devices_found": "未找到设备",
     "available_firmware": "可用固件",
     "no_firmware_found": "未在清单中找到该设备的固件。",

@@ -53,6 +53,7 @@
         "only_with_firmware": "Only show products with firmware",
         "product_count": "({{count}} total)",
         "search_devices": "Search devices...",
+        "search_or_share_code": "Search devices or #share code...",
         "no_devices_found": "No devices found",
         "available_firmware": "Available Firmware",
         "no_firmware_found": "No firmware found for this device in the manifest.",

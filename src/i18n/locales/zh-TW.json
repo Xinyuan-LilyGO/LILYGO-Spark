@@ -81,6 +81,7 @@
     "only_with_firmware": "僅顯示有固件的產品",
     "product_count": "（共 {{count}} 個）",
     "search_devices": "搜尋裝置...",
+    "search_or_share_code": "搜尋裝置 或輸入 #分享碼...",
     "no_devices_found": "未找到裝置",
     "available_firmware": "可用固件",
     "no_firmware_found": "未在清單中找到該裝置的固件。",
