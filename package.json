@@ -141,6 +141,10 @@
       }
     ],
     "asar": true,
+    "asarUnpack": [
+      "node_modules/@serialport/**",
+      "node_modules/serialport/**"
+    ],
     "mac": {
       "publish": [
         "github"
