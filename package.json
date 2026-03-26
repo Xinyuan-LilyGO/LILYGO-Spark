@@ -140,6 +140,7 @@
         "to": "firmware_manifest.json"
       }
     ],
+    "afterPack": "./scripts/afterPack.js",
     "asar": true,
     "asarUnpack": [
       "node_modules/@serialport/**",

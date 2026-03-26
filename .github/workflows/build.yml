@@ -281,9 +281,6 @@ jobs:
 
       - run: npm run prebuild
       - run: npm run build:compile
-      - name: Remove x86_64 native builds for ARM64 cross-compile
-        if: matrix.arch == 'arm64'
-        run: rm -rf node_modules/@serialport/bindings-cpp/build
       - run: sudo apt-get update && sudo apt-get install -y rpm
       - name: Build Linux
         run: node scripts/build-wrapper.js --linux ${{ matrix.target }} --${{ matrix.arch }}
