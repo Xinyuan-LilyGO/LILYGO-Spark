@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, ChevronRight, Layers, Github, Save, Trash2, Zap, Microscope, User, Pencil, X, ServerCrash, Share2, Check, Hash } from 'lucide-react';
 import BurnerModal from './BurnerModal';
+import ProductManager from './ProductManager';
 import { useDownload } from '../contexts/DownloadContext';
 import type { DownloadedFile } from '../contexts/DownloadContext';
 
@@ -125,6 +126,9 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
 
   // Download counts state
   const [downloadCounts, setDownloadCounts] = useState<Record<string, number>>({});
+
+  // Product manager modal state
+  const [showProductManager, setShowProductManager] = useState(false);
 
   // Share code state
   const [copiedShareCode, setCopiedShareCode] = useState<string | null>(null);
@@ -433,6 +437,13 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
           <BurnerModal
               file={fileToBurn}
               onClose={() => setBurnerModalOpen(false)}
+          />
+      )}
+      {/* Product Manager Modal */}
+      {showProductManager && token && (
+          <ProductManager
+              token={token}
+              onClose={() => { setShowProductManager(false); loadManifest(); }}
           />
       )}
 
@@ -823,17 +834,26 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
                     </span>
                   </h3>
                   {isAdmin && (
-                    <button
-                      onClick={() => { setAdminMode(prev => !prev); setEditingFirmware(null); }}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors flex items-center gap-1.5 ${
-                        adminMode
-                          ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-300 dark:border-red-700'
-                          : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-zinc-600 hover:text-slate-700 dark:hover:text-slate-300'
-                      }`}
-                    >
-                      <Pencil size={12} />
-                      {adminMode ? t('firmwareCenter.exit_admin_mode') : t('firmwareCenter.enter_admin_mode')}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowProductManager(true)}
+                        className="px-3 py-1.5 text-xs font-medium rounded-md border transition-colors flex items-center gap-1.5 bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-zinc-600 hover:text-primary hover:border-primary/50"
+                      >
+                        <Layers size={12} />
+                        {t('productManager.title')}
+                      </button>
+                      <button
+                        onClick={() => { setAdminMode(prev => !prev); setEditingFirmware(null); }}
+                        className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors flex items-center gap-1.5 ${
+                          adminMode
+                            ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-300 dark:border-red-700'
+                            : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-zinc-600 hover:text-slate-700 dark:hover:text-slate-300'
+                        }`}
+                      >
+                        <Pencil size={12} />
+                        {adminMode ? t('firmwareCenter.exit_admin_mode') : t('firmwareCenter.enter_admin_mode')}
+                      </button>
+                    </div>
                   )}
                 </div>
 

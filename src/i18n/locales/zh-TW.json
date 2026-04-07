@@ -439,5 +439,23 @@
     "reject_reason_placeholder": "拒絕原因（選填）",
     "download": "下載",
     "required": "必填"
+  },
+  "productManager": {
+    "title": "產品管理",
+    "new_product": "新建產品",
+    "new_group": "新建分組",
+    "edit_product": "編輯產品",
+    "edit_group": "編輯分組",
+    "add_to_group": "新增產品到此分組",
+    "loading": "載入產品中...",
+    "empty": "暫無產品",
+    "select_hint": "選擇產品或分組進行編輯",
+    "cancel": "取消",
+    "save": "儲存",
+    "create": "建立",
+    "delete": "刪除",
+    "confirm_delete": "確認刪除",
+    "confirm_delete_message": "確定要刪除 \"{{name}}\" 嗎？",
+    "group_delete_warning": "該分組下的產品將轉為獨立產品。"
   }
 }

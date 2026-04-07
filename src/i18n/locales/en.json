@@ -651,5 +651,23 @@
         "reject_reason_placeholder": "Rejection reason (optional)",
         "download": "Download",
         "required": "required"
+    },
+    "productManager": {
+        "title": "Product Manager",
+        "new_product": "New Product",
+        "new_group": "New Group",
+        "edit_product": "Edit Product",
+        "edit_group": "Edit Group",
+        "add_to_group": "Add product to this group",
+        "loading": "Loading products...",
+        "empty": "No products found",
+        "select_hint": "Select a product or group to edit",
+        "cancel": "Cancel",
+        "save": "Save",
+        "create": "Create",
+        "delete": "Delete",
+        "confirm_delete": "Confirm Delete",
+        "confirm_delete_message": "Are you sure you want to delete \"{{name}}\"?",
+        "group_delete_warning": "Products in this group will be converted to standalone products."
     }
 }

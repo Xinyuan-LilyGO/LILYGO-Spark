@@ -439,5 +439,23 @@
     "reject_reason_placeholder": "拒否理由（任意）",
     "download": "ダウンロード",
     "required": "必須"
+  },
+  "productManager": {
+    "title": "製品管理",
+    "new_product": "新規製品",
+    "new_group": "新規グループ",
+    "edit_product": "製品を編集",
+    "edit_group": "グループを編集",
+    "add_to_group": "このグループに製品を追加",
+    "loading": "製品を読み込み中...",
+    "empty": "製品がありません",
+    "select_hint": "製品またはグループを選択して編集",
+    "cancel": "キャンセル",
+    "save": "保存",
+    "create": "作成",
+    "delete": "削除",
+    "confirm_delete": "削除の確認",
+    "confirm_delete_message": "\"{{name}}\" を削除してもよろしいですか？",
+    "group_delete_warning": "このグループ内の製品は独立製品に変換されます。"
   }
 }

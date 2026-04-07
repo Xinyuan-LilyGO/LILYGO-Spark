@@ -650,5 +650,23 @@
     "reject_reason_placeholder": "拒绝原因（可选）",
     "download": "下载",
     "required": "必填"
+  },
+  "productManager": {
+    "title": "产品管理",
+    "new_product": "新建产品",
+    "new_group": "新建分组",
+    "edit_product": "编辑产品",
+    "edit_group": "编辑分组",
+    "add_to_group": "添加产品到此分组",
+    "loading": "加载产品中...",
+    "empty": "暂无产品",
+    "select_hint": "选择产品或分组进行编辑",
+    "cancel": "取消",
+    "save": "保存",
+    "create": "创建",
+    "delete": "删除",
+    "confirm_delete": "确认删除",
+    "confirm_delete_message": "确定要删除 \"{{name}}\" 吗？",
+    "group_delete_warning": "该分组下的产品将转为独立产品。"
   }
 }
