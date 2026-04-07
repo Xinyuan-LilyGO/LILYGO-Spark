@@ -92,6 +92,7 @@
     "burn": "燒錄",
     "retry": "重試",
     "download": "下載",
+    "download_count": "下載次數",
     "note": "備註：",
     "select_device_hint": "選擇裝置以查看固件",
     "version": "版本",

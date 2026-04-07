@@ -64,6 +64,7 @@
         "burn": "Burn",
         "retry": "Retry",
         "download": "Download",
+        "download_count": "Downloads",
         "note": "Note:",
         "select_device_hint": "Select a device to view firmware",
         "version": "Version",

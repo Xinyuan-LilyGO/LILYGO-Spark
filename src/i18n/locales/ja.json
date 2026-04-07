@@ -92,6 +92,7 @@
     "burn": "書き込み",
     "retry": "再試行",
     "download": "ダウンロード",
+    "download_count": "ダウンロード数",
     "note": "メモ：",
     "select_device_hint": "デバイスを選択してファームウェアを表示",
     "version": "バージョン",

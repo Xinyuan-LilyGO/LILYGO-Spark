@@ -88,6 +88,12 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function formatDownloadCount(count: number): string {
+  if (count < 1000) return String(count);
+  if (count < 10000) return `${(count / 1000).toFixed(1)}k`;
+  return `${Math.round(count / 1000)}k`;
+}
+
 function productHasFirmware(manifest: Manifest, productId: string): boolean {
   return manifest.firmware_list.some(f => f.supported_product_ids.includes(productId));
 }
@@ -116,6 +122,9 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
   const [editingFirmware, setEditingFirmware] = useState<{ sha256: string; fields: Record<string, string> } | null>(null);
   const [adminBusy, setAdminBusy] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  // Download counts state
+  const [downloadCounts, setDownloadCounts] = useState<Record<string, number>>({});
 
   // Share code state
   const [copiedShareCode, setCopiedShareCode] = useState<string | null>(null);
@@ -146,8 +155,22 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
     }
   };
 
+  const loadDownloadCounts = async () => {
+    try {
+      const apiUrl = await getApiUrl();
+      const resp = await fetch(`${apiUrl}/stats/downloads`);
+      const data = await resp.json();
+      if (data.success && data.counts) {
+        setDownloadCounts(data.counts);
+      }
+    } catch (error) {
+      console.error('Failed to load download counts:', error);
+    }
+  };
+
   useEffect(() => {
     loadManifest();
+    loadDownloadCounts();
   }, []);
 
   useEffect(() => {
@@ -283,6 +306,19 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
         ossUrl: fw.oss_url,
         originalFilename: fw.filename,
       });
+      // Fire-and-forget: report download count
+      if (fw.sha256) {
+        getApiUrl().then(apiUrl =>
+          fetch(`${apiUrl}/stats/download/${fw.sha256}`, { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+              if (data.success) {
+                setDownloadCounts(prev => ({ ...prev, [fw.sha256!]: data.count }));
+              }
+            })
+            .catch(() => {})
+        );
+      }
   };
 
   const handleRemove = async (url: string) => {
@@ -444,6 +480,11 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
                 {/* Info rows */}
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 font-mono">
                   <span>{t('firmwareCenter.version')}: {fw.version}</span>
+                  {fw.sha256 && downloadCounts[fw.sha256] > 0 && (
+                    <span className="inline-flex items-center gap-0.5 text-slate-500 dark:text-slate-400">
+                      <Download size={11} /> {formatDownloadCount(downloadCounts[fw.sha256])}
+                    </span>
+                  )}
                   {fw.filename && <span className="break-all">{t('firmwareCenter.file')}: {fw.filename}</span>}
                   {fw.size && <span>{formatFileSize(fw.size)}</span>}
                   {fw.compressed_size && fw.size && (
@@ -837,6 +878,11 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
                                         </div>
                                         <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 font-mono">
                                             <span>{t('firmwareCenter.version')}: {fw.version}</span>
+                                            {fw.sha256 && downloadCounts[fw.sha256] > 0 && (
+                                                <span className="inline-flex items-center gap-0.5 text-slate-500 dark:text-slate-400" title={t('firmwareCenter.download_count')}>
+                                                    <Download size={11} /> {formatDownloadCount(downloadCounts[fw.sha256])}
+                                                </span>
+                                            )}
                                             {fw.filename && <span className="break-all">{t('firmwareCenter.file')}: {fw.filename}</span>}
                                             {(fw.size || task?.file?.fileSize) && (
                                                 <span title="Original size">{formatFileSize(fw.size || task?.file?.fileSize || 0)}</span>

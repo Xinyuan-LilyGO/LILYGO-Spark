@@ -92,6 +92,7 @@
     "burn": "烧录",
     "retry": "重试",
     "download": "下载",
+    "download_count": "下载次数",
     "note": "备注：",
     "select_device_hint": "选择设备以查看固件",
     "version": "版本",
