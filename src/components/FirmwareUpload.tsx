@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Upload, FileUp, CheckCircle, AlertCircle, Loader2, Search, X, Shield, Clock, ThumbsUp, ThumbsDown, ChevronDown, Tag } from 'lucide-react';
+import { Upload, FileUp, CheckCircle, AlertCircle, Loader2, Search, X, Shield, Clock, ThumbsUp, ThumbsDown, ChevronDown, Tag, Share2, Ban } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import FullWindowDropZone from './FullWindowDropZone';
+import ShareCodeModal from './ShareCodeModal';
 
 interface FirmwareUploadProps {
   token: string | null;
@@ -87,6 +88,10 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin }) => {
   const [reviewLoading, setReviewLoading] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+
+  // Share code modal
+  const [shareModalData, setShareModalData] = useState<{ code: string; name: string } | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   // Load products from manifest (via IPC, same as FirmwareCommunity)
   useEffect(() => {
@@ -297,6 +302,36 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin }) => {
       alert('Review request failed');
     } finally {
       setReviewingId(null);
+    }
+  };
+
+  // Cancel pending upload
+  const handleCancel = async (id: string) => {
+    if (!token) return;
+    if (!confirm(t('share.cancel_confirm'))) return;
+
+    setCancellingId(id);
+    try {
+      const apiUrl = await getApiUrl();
+      const resp = await fetch(`${apiUrl}/upload/${id}/cancel`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await resp.json();
+      if (resp.ok && data.success) {
+        alert(t('share.cancel_success'));
+        loadMyUploads();
+      } else {
+        alert(data.error || 'Cancel failed');
+      }
+    } catch (e) {
+      console.error('Cancel failed:', e);
+      alert('Cancel request failed');
+    } finally {
+      setCancellingId(null);
     }
   };
 
@@ -699,6 +734,27 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin }) => {
                           )}
                         </div>
                       </div>
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {/* Share button - available for all statuses */}
+                        <button
+                          onClick={() => setShareModalData({ code: u.firmware.sha256.slice(0, 8), name: u.firmware.name })}
+                          className="px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium flex items-center gap-1.5 border border-primary/20 transition-colors"
+                        >
+                          <Share2 size={12} /> {t('share.share')}
+                        </button>
+                        {/* Cancel review - only for pending */}
+                        {u.status === 'pending' && (
+                          <button
+                            onClick={() => handleCancel(u.id)}
+                            disabled={cancellingId === u.id}
+                            className="px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-medium flex items-center gap-1.5 border border-red-500/20 transition-colors disabled:opacity-50"
+                          >
+                            {cancellingId === u.id ? <Loader2 size={12} className="animate-spin" /> : <Ban size={12} />}
+                            {t('share.cancel_review')}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -789,6 +845,15 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin }) => {
           </div>
         )}
       </div>
+
+      {/* Share Code Modal */}
+      {shareModalData && (
+        <ShareCodeModal
+          shareCode={shareModalData.code}
+          firmwareName={shareModalData.name}
+          onClose={() => setShareModalData(null)}
+        />
+      )}
     </div>
   );
 };

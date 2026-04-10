@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, ChevronRight, Layers, Github, Save, Trash2, Zap, Microscope, User, Pencil, X, ServerCrash, Share2, Check, Hash } from 'lucide-react';
 import BurnerModal from './BurnerModal';
 import ProductManager from './ProductManager';
+import ShareCodeRedeemModal from './ShareCodeRedeemModal';
 import { useDownload } from '../contexts/DownloadContext';
 import type { DownloadedFile } from '../contexts/DownloadContext';
 
@@ -133,6 +134,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
   // Share code state
   const [copiedShareCode, setCopiedShareCode] = useState<string | null>(null);
   const [shareCodeFirmware, setShareCodeFirmware] = useState<Firmware | null>(null);
+  const [showRedeemModal, setShowRedeemModal] = useState(false);
 
   const loadManifest = async () => {
     setLoading(true);
@@ -245,11 +247,16 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
   };
 
   // Open firmware detail modal by share code (sha256 prefix match)
+  // First try local manifest, then fall back to server API for pending/unapproved firmware
   const handleShareCodeGo = (code: string) => {
     const fw = manifest.firmware_list.find(f => f.sha256?.toLowerCase().startsWith(code));
     if (fw) {
       setShareCodeFirmware(fw);
       setSearchQuery('');
+    } else {
+      // Not in manifest — open the redeem modal with the code pre-filled
+      setSearchQuery('');
+      setShowRedeemModal(true);
     }
   };
 
@@ -431,6 +438,18 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
         }`}>
           {toast.message}
         </div>
+      )}
+      {/* Share Code Redeem Modal — for pending/unapproved firmware via server API */}
+      {showRedeemModal && (
+        <ShareCodeRedeemModal
+          onClose={() => setShowRedeemModal(false)}
+          onDownloadFlash={(firmware) => {
+            if (firmware.oss_url) {
+              window.open(firmware.oss_url, '_blank');
+            }
+            setShowRedeemModal(false);
+          }}
+        />
       )}
       {/* Burner Modal */}
       {burnerModalOpen && fileToBurn && (
