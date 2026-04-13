@@ -495,8 +495,10 @@ jobs:
 
       - name: Install ossutil v2
         run: |
-          curl -Lo /tmp/ossutil https://gosspublic.alicdn.com/ossutil/v2/2.0.3-beta.09171700/linux-amd64/ossutil
-          chmod +x /tmp/ossutil
+          curl -Lo /tmp/ossutil.zip https://gosspublic.alicdn.com/ossutil/v2/2.2.2/ossutil-2.2.2-linux-amd64.zip
+          unzip -o /tmp/ossutil.zip -d /tmp/ossutil-bin
+          chmod +x /tmp/ossutil-bin/ossutil
+          mv /tmp/ossutil-bin/ossutil /tmp/ossutil
           /tmp/ossutil version
 
       # ── Step 1: Download ALL release binaries from GitHub ──
