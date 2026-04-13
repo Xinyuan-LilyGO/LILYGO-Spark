@@ -476,3 +476,188 @@ jobs:
               "> 部分文件未完成公证或 staple，请检查状态后手动运行 notarize workflow。" \
               /tmp/notarize-results.md
           fi
+
+  sync-oss:
+    needs: [setup, finalize, notarize]
+    # Run after ALL builds are done AND macOS notarization is complete.
+    # The notarized (stapled) DMGs have already been re-uploaded to GitHub Release
+    # by the notarize job, so we can safely mirror everything to OSS now.
+    if: >-
+      always() &&
+      needs.setup.outputs.should_release == 'true' &&
+      needs.finalize.result == 'success'
+    runs-on: ubuntu-latest
+    env:
+      OSS_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
+      OSS_ACCESS_KEY_SECRET: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ossutil v2
+        run: |
+          curl -Lo /tmp/ossutil https://gosspublic.alicdn.com/ossutil/v2/2.0.3-beta.09171700/linux-amd64/ossutil
+          chmod +x /tmp/ossutil
+          /tmp/ossutil version
+
+      # ── Step 1: Download ALL release binaries from GitHub ──
+      - name: Download release assets from GitHub
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ needs.setup.outputs.tag_name }}"
+          mkdir -p /tmp/release-assets
+
+          # Only download installer binaries (skip source archives)
+          gh release download "$TAG" \
+            --repo Xinyuan-LilyGO/LILYGO-Spark \
+            --dir /tmp/release-assets \
+            --pattern '*.dmg' \
+            --pattern '*.exe' \
+            --pattern '*.AppImage' \
+            --pattern '*.deb' \
+            --pattern '*.rpm'
+
+          echo "=== Downloaded assets ==="
+          ls -lh /tmp/release-assets/
+          echo "Total: $(du -sh /tmp/release-assets/ | cut -f1)"
+
+      # ── Step 2: Upload binaries to OSS ──
+      - name: Upload binaries to OSS
+        run: |
+          TAG="${{ needs.setup.outputs.tag_name }}"
+          OSS_ARGS="--access-key-id $OSS_ACCESS_KEY_ID --access-key-secret $OSS_ACCESS_KEY_SECRET --region cn-hongkong --force"
+
+          FAIL=0
+          for f in /tmp/release-assets/*; do
+            fname=$(basename "$f")
+            echo "Uploading $fname ($(du -h "$f" | cut -f1)) ..."
+            if ! /tmp/ossutil cp "$f" "oss://lilygo/spark-releases/${TAG}/${fname}" $OSS_ARGS; then
+              echo "::error::Failed to upload $fname"
+              FAIL=1
+            fi
+          done
+
+          if [ "$FAIL" -eq 1 ]; then
+            echo "::error::Some binary uploads failed — aborting before updating latest JSON/JS"
+            exit 1
+          fi
+
+          echo "All binaries uploaded to oss://lilygo/spark-releases/${TAG}/"
+
+      # ── Step 3: Generate JSON + JS with OSS URLs (not GitHub URLs) ──
+      - name: Generate release-info.json and spark-latest.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ needs.setup.outputs.tag_name }}"
+          VERSION="${{ needs.setup.outputs.build_version }}"
+          IS_PRE="${{ needs.setup.outputs.is_prerelease }}"
+          OSS_BASE="https://lilygo.oss-accelerate.aliyuncs.com/spark-releases/${TAG}"
+
+          # Fetch release metadata from GitHub (for asset names/sizes)
+          RELEASE_JSON=$(gh api "repos/Xinyuan-LilyGO/LILYGO-Spark/releases/tags/${TAG}")
+          PUBLISHED_AT=$(echo "$RELEASE_JSON" | jq -r '.published_at')
+
+          # Asset key → filename suffix pattern
+          declare -A PATTERNS=(
+            ["macOS-arm64"]="macOS-arm64.dmg"
+            ["macOS-x64"]="macOS-x64.dmg"
+            ["macOS-universal"]="macOS-universal.dmg"
+            ["windows-x64-setup"]="windows-x64-setup.exe"
+            ["windows-x64-portable"]="windows-x64-portable.exe"
+            ["windows-arm64-setup"]="windows-arm64-setup.exe"
+            ["linux-x86_64-AppImage"]="linux-x86_64.AppImage"
+            ["linux-amd64-deb"]="linux-amd64.deb"
+            ["linux-x86_64-rpm"]="linux-x86_64.rpm"
+          )
+
+          # Build assets JSON with OSS download URLs
+          ASSETS_JSON="{}"
+          for key in "${!PATTERNS[@]}"; do
+            suffix="${PATTERNS[$key]}"
+            ASSET=$(echo "$RELEASE_JSON" | jq -r --arg s "$suffix" \
+              '.assets[] | select(.name | endswith($s)) | {name, size}')
+            if [ -n "$ASSET" ] && [ "$ASSET" != "null" ]; then
+              ASSET_NAME=$(echo "$ASSET" | jq -r '.name')
+              ASSET_SIZE=$(echo "$ASSET" | jq -r '.size')
+              ASSETS_JSON=$(echo "$ASSETS_JSON" | jq \
+                --arg k "$key" \
+                --arg name "$ASSET_NAME" \
+                --argjson size "$ASSET_SIZE" \
+                --arg url "${OSS_BASE}/${ASSET_NAME}" \
+                '. + {($k): {name: $name, size: $size, url: $url}}')
+            fi
+          done
+
+          # release-info.json
+          jq -n \
+            --arg version "$VERSION" \
+            --arg tag "$TAG" \
+            --arg published_at "$PUBLISHED_AT" \
+            --arg is_prerelease "$IS_PRE" \
+            --argjson assets "$ASSETS_JSON" \
+            '{
+              version: $version,
+              tag: $tag,
+              published_at: $published_at,
+              is_prerelease: ($is_prerelease == "true"),
+              assets: $assets
+            }' > /tmp/release-info.json
+
+          echo "=== release-info.json ==="
+          cat /tmp/release-info.json | jq .
+
+          # spark-latest.js — bake JSON into the widget template
+          COMPACT_JSON=$(cat /tmp/release-info.json | jq -c .)
+          node -e "
+            const fs = require('fs');
+            const tpl = fs.readFileSync('.github/scripts/spark-widget-template.js', 'utf8');
+            const data = process.argv[1];
+            fs.writeFileSync('/tmp/spark-latest.js', tpl.replace('__RELEASE_DATA__', data));
+          " "$COMPACT_JSON"
+
+          echo "=== spark-latest.js generated ($(wc -c < /tmp/spark-latest.js) bytes) ==="
+
+      # ── Step 4: Update latest/ on OSS (atomic — only after binaries are confirmed) ──
+      - name: Publish latest JSON and JS to OSS
+        run: |
+          TAG="${{ needs.setup.outputs.tag_name }}"
+          OSS_ARGS="--access-key-id $OSS_ACCESS_KEY_ID --access-key-secret $OSS_ACCESS_KEY_SECRET --region cn-hongkong --force"
+
+          # Versioned copy
+          /tmp/ossutil cp /tmp/release-info.json "oss://lilygo/spark-releases/${TAG}/release-info.json" $OSS_ARGS
+          /tmp/ossutil cp /tmp/spark-latest.js   "oss://lilygo/spark-releases/${TAG}/spark-latest.js"   $OSS_ARGS
+
+          # latest/ — this is what the wiki widget loads; update LAST
+          /tmp/ossutil cp /tmp/release-info.json oss://lilygo/spark-releases/latest/release-info.json $OSS_ARGS
+          /tmp/ossutil cp /tmp/spark-latest.js   oss://lilygo/spark-releases/latest/spark-latest.js   $OSS_ARGS \
+            --meta "Cache-Control:public, max-age=300"
+
+          echo "✅ Published:"
+          echo "  spark-releases/${TAG}/  (binaries + JSON + JS)"
+          echo "  spark-releases/latest/  (JSON + JS)"
+
+      # ── Step 5: Clean up old versions (keep latest 5) ──
+      - name: Cleanup old OSS versions
+        run: |
+          OSS_ARGS="--access-key-id $OSS_ACCESS_KEY_ID --access-key-secret $OSS_ACCESS_KEY_SECRET --region cn-hongkong"
+          KEEP=5
+
+          # List all versioned directories under spark-releases/
+          VERSIONS=$(/tmp/ossutil ls oss://lilygo/spark-releases/ $OSS_ARGS -d 2>/dev/null \
+            | grep -oE 'spark-releases/v[^/]+/' \
+            | sed 's|spark-releases/||;s|/||' \
+            | sort -V)
+
+          COUNT=$(echo "$VERSIONS" | grep -c . || true)
+          echo "Found $COUNT versions on OSS (keeping latest $KEEP)"
+
+          if [ "$COUNT" -gt "$KEEP" ]; then
+            DELETE_COUNT=$((COUNT - KEEP))
+            TO_DELETE=$(echo "$VERSIONS" | head -n "$DELETE_COUNT")
+            for ver in $TO_DELETE; do
+              echo "🗑  Deleting old version: $ver"
+              /tmp/ossutil rm "oss://lilygo/spark-releases/${ver}/" $OSS_ARGS --recursive --force || true
+            done
+            echo "Cleaned up $DELETE_COUNT old versions"
+          fi
