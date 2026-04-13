@@ -487,19 +487,15 @@ jobs:
       needs.setup.outputs.should_release == 'true' &&
       needs.finalize.result == 'success'
     runs-on: ubuntu-latest
-    env:
-      OSS_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
-      OSS_ACCESS_KEY_SECRET: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install ossutil v2
-        run: |
-          curl -Lo /tmp/ossutil.zip https://gosspublic.alicdn.com/ossutil/v2/2.2.2/ossutil-2.2.2-linux-amd64.zip
-          unzip -o /tmp/ossutil.zip -d /tmp/ossutil-bin
-          chmod +x /tmp/ossutil-bin/ossutil
-          mv /tmp/ossutil-bin/ossutil /tmp/ossutil
-          /tmp/ossutil version
+      - name: Setup ossutil
+        uses: manyuanrong/setup-ossutil@v3.0
+        with:
+          endpoint: oss-cn-hongkong.aliyuncs.com
+          access-key-id: ${{ secrets.OSS_ACCESS_KEY_ID }}
+          access-key-secret: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
 
       # ── Step 1: Download ALL release binaries from GitHub ──
       - name: Download release assets from GitHub
@@ -527,13 +523,12 @@ jobs:
       - name: Upload binaries to OSS
         run: |
           TAG="${{ needs.setup.outputs.tag_name }}"
-          OSS_ARGS="--access-key-id $OSS_ACCESS_KEY_ID --access-key-secret $OSS_ACCESS_KEY_SECRET --region cn-hongkong --force"
 
           FAIL=0
           for f in /tmp/release-assets/*; do
             fname=$(basename "$f")
             echo "Uploading $fname ($(du -h "$f" | cut -f1)) ..."
-            if ! /tmp/ossutil cp "$f" "oss://lilygo/spark-releases/${TAG}/${fname}" $OSS_ARGS; then
+            if ! ossutil cp "$f" "oss://lilygo/spark-releases/${TAG}/${fname}" -f; then
               echo "::error::Failed to upload $fname"
               FAIL=1
             fi
@@ -624,29 +619,27 @@ jobs:
       - name: Publish latest JSON and JS to OSS
         run: |
           TAG="${{ needs.setup.outputs.tag_name }}"
-          OSS_ARGS="--access-key-id $OSS_ACCESS_KEY_ID --access-key-secret $OSS_ACCESS_KEY_SECRET --region cn-hongkong --force"
 
           # Versioned copy
-          /tmp/ossutil cp /tmp/release-info.json "oss://lilygo/spark-releases/${TAG}/release-info.json" $OSS_ARGS
-          /tmp/ossutil cp /tmp/spark-latest.js   "oss://lilygo/spark-releases/${TAG}/spark-latest.js"   $OSS_ARGS
+          ossutil cp /tmp/release-info.json "oss://lilygo/spark-releases/${TAG}/release-info.json" -f
+          ossutil cp /tmp/spark-latest.js   "oss://lilygo/spark-releases/${TAG}/spark-latest.js"   -f
 
           # latest/ — this is what the wiki widget loads; update LAST
-          /tmp/ossutil cp /tmp/release-info.json oss://lilygo/spark-releases/latest/release-info.json $OSS_ARGS
-          /tmp/ossutil cp /tmp/spark-latest.js   oss://lilygo/spark-releases/latest/spark-latest.js   $OSS_ARGS \
+          ossutil cp /tmp/release-info.json oss://lilygo/spark-releases/latest/release-info.json -f
+          ossutil cp /tmp/spark-latest.js   oss://lilygo/spark-releases/latest/spark-latest.js   -f \
             --meta "Cache-Control:public, max-age=300"
 
-          echo "✅ Published:"
+          echo "Published:"
           echo "  spark-releases/${TAG}/  (binaries + JSON + JS)"
           echo "  spark-releases/latest/  (JSON + JS)"
 
       # ── Step 5: Clean up old versions (keep latest 5) ──
       - name: Cleanup old OSS versions
         run: |
-          OSS_ARGS="--access-key-id $OSS_ACCESS_KEY_ID --access-key-secret $OSS_ACCESS_KEY_SECRET --region cn-hongkong"
           KEEP=5
 
           # List all versioned directories under spark-releases/
-          VERSIONS=$(/tmp/ossutil ls oss://lilygo/spark-releases/ $OSS_ARGS -d 2>/dev/null \
+          VERSIONS=$(ossutil ls oss://lilygo/spark-releases/ -d 2>/dev/null \
             | grep -oE 'spark-releases/v[^/]+/' \
             | sed 's|spark-releases/||;s|/||' \
             | sort -V)
@@ -658,8 +651,8 @@ jobs:
             DELETE_COUNT=$((COUNT - KEEP))
             TO_DELETE=$(echo "$VERSIONS" | head -n "$DELETE_COUNT")
             for ver in $TO_DELETE; do
-              echo "🗑  Deleting old version: $ver"
-              /tmp/ossutil rm "oss://lilygo/spark-releases/${ver}/" $OSS_ARGS --recursive --force || true
+              echo "Deleting old version: $ver"
+              ossutil rm "oss://lilygo/spark-releases/${ver}/" --recursive --force || true
             done
             echo "Cleaned up $DELETE_COUNT old versions"
           fi
