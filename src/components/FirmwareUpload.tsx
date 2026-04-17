@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Upload, FileUp, CheckCircle, AlertCircle, Loader2, Search, X, Shield, Clock, ThumbsUp, ThumbsDown, ChevronDown, Tag, Share2, Ban } from 'lucide-react';
+import { Upload, FileUp, CheckCircle, AlertCircle, Loader2, Search, X, Shield, Clock, ThumbsUp, ThumbsDown, ChevronDown, Tag, Share2, Ban, History, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import FullWindowDropZone from './FullWindowDropZone';
 import ShareCodeModal from './ShareCodeModal';
@@ -92,6 +92,14 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin }) => {
   // Share code modal
   const [shareModalData, setShareModalData] = useState<{ code: string; name: string } | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  // Review history (admin only, paginated)
+  const [historyItems, setHistoryItems] = useState<UploadRecord[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotalPages, setHistoryTotalPages] = useState(1);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const HISTORY_PER_PAGE = 10;
 
   // Load products from manifest (via IPC, same as FirmwareCommunity)
   useEffect(() => {
@@ -270,8 +278,34 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin }) => {
     }
   };
 
+  // Load review history (admin)
+  const loadHistory = async (page: number) => {
+    if (!token) return;
+    setHistoryLoading(true);
+    try {
+      const apiUrl = await getApiUrl();
+      const resp = await fetch(`${apiUrl}/upload/history?page=${page}&per_page=${HISTORY_PER_PAGE}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        setHistoryItems(data.items || []);
+        setHistoryPage(data.page || 1);
+        setHistoryTotalPages(data.total_pages || 1);
+        setHistoryTotal(data.total || 0);
+      }
+    } catch (e) {
+      console.error('Failed to load history:', e);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   useEffect(() => {
-    if (activeTab === 'review' && isAdmin) loadPending();
+    if (activeTab === 'review' && isAdmin) {
+      loadPending();
+      loadHistory(1);
+    }
     if (activeTab === 'my_uploads') loadMyUploads();
   }, [activeTab, isAdmin]);
 
@@ -294,6 +328,7 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin }) => {
         setRejectReason('');
         alert(action === 'approve' ? t('upload.approve_success') : t('upload.reject_success'));
         loadPending();
+        loadHistory(1);
       } else {
         alert(data.error || 'Review failed');
       }
@@ -842,6 +877,92 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin }) => {
                 ))}
               </div>
             )}
+
+            {/* Review History (read-only, paginated) */}
+            <div className="mt-10">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <History size={18} className="text-primary" />
+                  {t('upload.review_history')}
+                  {historyTotal > 0 && (
+                    <span className="text-xs font-normal text-slate-400">
+                      · {t('upload.total_records', { count: historyTotal })}
+                    </span>
+                  )}
+                </h3>
+                <button onClick={() => loadHistory(historyPage)} className="text-xs text-primary hover:underline">{t('upload.refresh')}</button>
+              </div>
+
+              {historyLoading ? (
+                <div className="flex justify-center py-8"><Loader2 size={20} className="animate-spin text-primary" /></div>
+              ) : historyItems.length === 0 ? (
+                <div className="text-center py-8 text-slate-400 text-sm">
+                  <History size={32} className="mx-auto mb-2 opacity-50" />
+                  <p>{t('upload.no_history')}</p>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-3">
+                    {historyItems.map(u => (
+                      <div key={u.id} className="p-3 rounded-xl bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <span className="font-medium text-slate-900 dark:text-white text-sm">{u.firmware.name}</span>
+                              {statusBadge(u.status)}
+                            </div>
+                            <div className="text-xs text-slate-500 space-y-0.5">
+                              <p>
+                                {u.firmware.filename} · {formatSize(u.firmware.size)} · {u.firmware.product_id}
+                              </p>
+                              <p className="flex items-center gap-1 flex-wrap">
+                                {u.uploader.avatar_url && (
+                                  <img src={u.uploader.avatar_url} alt="" className="w-4 h-4 rounded-full inline-block" />
+                                )}
+                                <span>{u.uploader.login}</span>
+                                <span className="text-slate-400">· {new Date(u.uploaded_at).toLocaleString()}</span>
+                              </p>
+                              <p>
+                                <span className="text-slate-400">{t('upload.reviewed_by')}:</span> {u.reviewed_by || '-'}
+                                {u.reviewed_at && (
+                                  <span className="text-slate-400"> · {t('upload.reviewed_at')}: {new Date(u.reviewed_at).toLocaleString()}</span>
+                                )}
+                              </p>
+                              {u.status === 'rejected' && u.reject_reason && (
+                                <p className="text-red-400">Reason: {u.reject_reason}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Pagination */}
+                  {historyTotalPages > 1 && (
+                    <div className="flex items-center justify-center gap-3 mt-4">
+                      <button
+                        onClick={() => loadHistory(historyPage - 1)}
+                        disabled={historyPage <= 1 || historyLoading}
+                        className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-xs flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed hover:border-primary/30"
+                      >
+                        <ChevronLeft size={12} /> {t('upload.prev_page')}
+                      </button>
+                      <span className="text-xs text-slate-500">
+                        {t('upload.page_info', { page: historyPage, total: historyTotalPages })}
+                      </span>
+                      <button
+                        onClick={() => loadHistory(historyPage + 1)}
+                        disabled={historyPage >= historyTotalPages || historyLoading}
+                        className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-xs flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed hover:border-primary/30"
+                      >
+                        {t('upload.next_page')} <ChevronRight size={12} />
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>

@@ -650,7 +650,15 @@
         "reject_success": "Firmware rejected",
         "reject_reason_placeholder": "Rejection reason (optional)",
         "download": "Download",
-        "required": "required"
+        "required": "required",
+        "review_history": "Review History",
+        "no_history": "No review history",
+        "reviewed_by": "Reviewed by",
+        "reviewed_at": "Reviewed at",
+        "prev_page": "Previous",
+        "next_page": "Next",
+        "page_info": "Page {{page}} of {{total}}",
+        "total_records": "{{count}} records"
     },
     "share": {
         "share_code": "Share Code",

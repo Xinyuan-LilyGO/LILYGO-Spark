@@ -438,7 +438,15 @@
     "reject_success": "ファームウェアを拒否しました",
     "reject_reason_placeholder": "拒否理由（任意）",
     "download": "ダウンロード",
-    "required": "必須"
+    "required": "必須",
+    "review_history": "レビュー履歴",
+    "no_history": "レビュー履歴なし",
+    "reviewed_by": "レビュアー",
+    "reviewed_at": "レビュー日時",
+    "prev_page": "前へ",
+    "next_page": "次へ",
+    "page_info": "{{page}} / {{total}} ページ",
+    "total_records": "全 {{count}} 件"
   },
   "share": {
     "share_code": "シェアコード",
