@@ -4,6 +4,7 @@ import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, 
 import BurnerModal from './BurnerModal';
 import ProductManager from './ProductManager';
 import ShareCodeRedeemModal from './ShareCodeRedeemModal';
+import CommentsPanel, { type CurrentUser } from './CommentsPanel';
 import { useDownload } from '../contexts/DownloadContext';
 import type { DownloadedFile } from '../contexts/DownloadContext';
 
@@ -60,6 +61,7 @@ interface Manifest {
 interface FirmwareCommunityProps {
   isAdmin?: boolean;
   token?: string | null;
+  currentUser?: CurrentUser | null;
   onSelectFirmware?: (url: string) => void;
   onNavigateToAnalyzer?: (filePath: string, fileName: string) => void;
 }
@@ -100,7 +102,7 @@ function productHasFirmware(manifest: Manifest, productId: string): boolean {
   return manifest.firmware_list.some(f => f.supported_product_ids.includes(productId));
 }
 
-const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, onSelectFirmware: _onSelectFirmware, onNavigateToAnalyzer }) => {
+const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, currentUser, onSelectFirmware: _onSelectFirmware, onNavigateToAnalyzer }) => {
   const { t } = useTranslation();
   const [manifest, setManifest] = useState<Manifest>({ product_list: [], firmware_list: [] });
   const [loading, setLoading] = useState(true);
@@ -1159,6 +1161,13 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, o
                                         </div>
                                       </div>
                                     )}
+
+                                    {/* Comments section */}
+                                    <CommentsPanel
+                                      firmwareSha256={fw.sha256}
+                                      firmwareName={fw.name}
+                                      currentUser={currentUser}
+                                    />
                                 </div>
                             );
                         })}

@@ -180,6 +180,7 @@ function App() {
              <FirmwareCommunity
                isAdmin={user?.isAdmin || false}
                token={token}
+               currentUser={user}
                onNavigateToAnalyzer={(filePath, fileName) => {
                  setPendingAnalysisFile({ path: filePath, fileName });
                  setToolsDefaultTab('analyzer');
