@@ -411,7 +411,7 @@ export function setupConfigHandler(mainWindow?: BrowserWindow | null, onSettings
     }
 
     console.error('Local manifest not found at any:', [bundledPath, ...localPaths]);
-    return { product_list: [], firmware_list: [] };
+    return { product_list: [], firmware_list: [], series_list: [] };
   });
 
   ipcMain.handle('get-custom-manifest-path', async () => getCustomManifestPath());

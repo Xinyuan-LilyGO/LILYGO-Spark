@@ -3,10 +3,13 @@ import { Upload, FileUp, CheckCircle, AlertCircle, Loader2, Search, X, Shield, C
 import { useTranslation } from 'react-i18next';
 import FullWindowDropZone from './FullWindowDropZone';
 import ShareCodeModal from './ShareCodeModal';
+import { SeriesApi } from './series/api';
+import type { FirmwareSeries } from './series/types';
 
 interface FirmwareUploadProps {
   token: string | null;
   isAdmin: boolean;
+  userEmail?: string;
 }
 
 interface ProductOption {
@@ -52,7 +55,7 @@ async function getApiUrl(): Promise<string> {
   throw new Error('Not in Electron environment');
 }
 
-const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin }) => {
+const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin, userEmail }) => {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'upload' | 'my_uploads' | 'review'>('upload');
 
@@ -76,6 +79,8 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin }) => {
   const [authorEmail, setAuthorEmail] = useState('');
   const [firmwareTypes, setFirmwareTypes] = useState<string[]>(['community']);
   const [flashPath, setFlashPath] = useState('0x0');
+  const [allSeries, setAllSeries] = useState<FirmwareSeries[]>([]);
+  const [seriesIds, setSeriesIds] = useState<string[]>([]);
 
   // Product search
   const [products, setProducts] = useState<ProductOption[]>([]);
@@ -131,6 +136,24 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin }) => {
       }
     })();
   }, []);
+
+  // Load series (for optional series_ids selection)
+  useEffect(() => {
+    (async () => {
+      try {
+        const list = await SeriesApi.list();
+        setAllSeries(list);
+      } catch (e) {
+        console.error('Failed to load series:', e);
+      }
+    })();
+  }, []);
+
+  const eligibleSeries = useMemo(() => {
+    if (isAdmin) return allSeries;
+    if (!userEmail) return [];
+    return allSeries.filter(s => s.admin_emails.includes(userEmail));
+  }, [allSeries, isAdmin, userEmail]);
 
   const filteredProducts = useMemo(() => {
     if (!productSearch) return products;
@@ -206,6 +229,9 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin }) => {
     if (authorEmail) formData.append('author_email', authorEmail);
     formData.append('firmware_type', firmwareTypes.join(','));
     formData.append('flash_path', flashPath);
+    if (seriesIds.length > 0) {
+      formData.append('series_ids', seriesIds.join(','));
+    }
 
     try {
       const apiUrl = await getApiUrl();
@@ -226,6 +252,7 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin }) => {
         setDescription('');
         setReleaseTag('');
         setReleaseName('');
+        setSeriesIds([]);
       } else {
         setUploadStatus('error');
         setUploadMessage(data.error || 'Upload failed');
@@ -626,6 +653,33 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin }) => {
                 ))}
               </div>
             </div>
+
+            {/* Series selection — only shown if the user can manage at least one series */}
+            {eligibleSeries.length > 0 && (
+              <div>
+                <label className="block text-slate-600 dark:text-slate-400 mb-1.5 text-sm font-medium">{t('series.attach_to_series')}</label>
+                <div className="flex flex-wrap gap-2">
+                  {eligibleSeries.map(s => {
+                    const checked = seriesIds.includes(s.id);
+                    return (
+                      <button
+                        type="button"
+                        key={s.id}
+                        onClick={() => setSeriesIds(prev => checked ? prev.filter(x => x !== s.id) : [...prev, s.id])}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border transition-colors ${
+                          checked
+                            ? 'bg-primary/10 text-primary border-primary/40 ring-1 ring-primary/30'
+                            : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-zinc-700 hover:text-primary hover:border-primary/40'
+                        }`}
+                      >
+                        {checked ? '✓ ' : ''}{s.name}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">{t('series.attach_hint')}</div>
+              </div>
+            )}
 
             {/* Firmware Type Tags */}
             <div>

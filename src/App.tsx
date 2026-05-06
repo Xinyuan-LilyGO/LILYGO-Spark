@@ -172,7 +172,7 @@ function App() {
         
         {activeTab === 'upload' && (
             <div className="h-full overflow-auto">
-                <FirmwareUpload token={token} isAdmin={user?.isAdmin || false} />
+                <FirmwareUpload token={token} isAdmin={user?.isAdmin || false} userEmail={user?.email} />
             </div>
         )}
         
