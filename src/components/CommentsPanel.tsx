@@ -556,9 +556,6 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ firmwareId, firmwareName,
                   </button>
                 </div>
               </div>
-              {errorMsg && !submitting && (
-                <div className="text-xs text-red-500 mt-1 text-right">{errorMsg}</div>
-              )}
             </>
           )}
         </div>
@@ -702,13 +699,19 @@ export const CommentsPreview: React.FC = () => {
 
   return (
     <div
-      className="mt-3 rounded-xl border border-slate-200/70 dark:border-zinc-700/60 bg-slate-50/60 dark:bg-zinc-800/40 hover:border-primary/40 transition-colors overflow-hidden"
+      role="button"
+      tabIndex={0}
+      onClick={openModal}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openModal();
+        }
+      }}
+      title={t('comments.view_all')}
+      className="mt-3 rounded-xl border border-slate-200/70 dark:border-zinc-700/60 bg-slate-50/60 dark:bg-zinc-800/40 hover:border-primary/40 transition-colors overflow-hidden cursor-pointer group"
     >
-      <button
-        onClick={openModal}
-        className="w-full text-left px-3 py-2.5 flex items-start gap-2.5 group"
-        title={t('comments.view_all')}
-      >
+      <div className="w-full text-left px-3 py-2.5 flex items-start gap-2.5">
         <CommentAvatar user={top.user} size={24} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-500">
@@ -729,9 +732,9 @@ export const CommentsPreview: React.FC = () => {
           </div>
         </div>
         <button
+          type="button"
           onClick={e => {
             e.stopPropagation();
-            e.preventDefault();
             toggleLike(top.id);
           }}
           aria-label={liked ? t('comments.unlike_aria') : t('comments.like_aria')}
@@ -746,7 +749,7 @@ export const CommentsPreview: React.FC = () => {
             <span className="font-mono tabular-nums text-[11px]">{top.likes}</span>
           )}
         </button>
-      </button>
+      </div>
     </div>
   );
 };
