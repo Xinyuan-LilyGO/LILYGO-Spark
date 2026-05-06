@@ -47,6 +47,18 @@ async function getApiBase(): Promise<string> {
   throw new Error('Not in Electron environment');
 }
 
+/** 只解析 JSON 响应；非 2xx 或非 JSON 时返回 null（避免 SyntaxError 和 HTML 404 刷屏） */
+async function fetchJson<T = any>(url: string, init?: RequestInit): Promise<T | null> {
+  try {
+    const resp = await fetch(url, init);
+    const ct = resp.headers.get('content-type') || '';
+    if (!resp.ok || !ct.includes('application/json')) return null;
+    return (await resp.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
 function likeStorageKey(firmwareId: string, commentId: string): string {
   return `lilygo_cmt_like:${firmwareId}:${commentId}`;
 }
@@ -127,14 +139,29 @@ function useComments(firmwareId: string | null): UseCommentsResult {
     setLoadingSummary(true);
     try {
       const api = await getApiBase();
-      const resp = await fetch(`${api}/comments/${firmwareId}/summary`);
-      const data = await resp.json();
+      // 新接口：summary（服务端已排序，只返回 count + top）
+      const data = await fetchJson<{ success?: boolean; count?: number; top?: ServerComment | null }>(
+        `${api}/comments/${firmwareId}/summary`
+      );
       if (data?.success) {
         setCount(data.count || 0);
         setTop(data.top || null);
+        return;
       }
-    } catch (e) {
-      console.error('Failed to load comments summary:', e);
+      // 旧服务器没有 summary 路由：回退到 list 接口自行计算
+      const list = await fetchJson<{ success?: boolean; comments?: ServerComment[] }>(
+        `${api}/comments/${firmwareId}`
+      );
+      if (list?.success) {
+        const visible = (list.comments || []).filter(c => !c.deleted);
+        const sorted = visible.sort((a, b) => {
+          const la = a.likes || 0, lb = b.likes || 0;
+          if (la !== lb) return lb - la;
+          return b.created_at.localeCompare(a.created_at);
+        });
+        setCount(sorted.length);
+        setTop(sorted[0] || null);
+      }
     } finally {
       setLoadingSummary(false);
     }
@@ -145,16 +172,21 @@ function useComments(firmwareId: string | null): UseCommentsResult {
     setLoadingAll(true);
     try {
       const api = await getApiBase();
-      const resp = await fetch(`${api}/comments/${firmwareId}`);
-      const data = await resp.json();
+      const data = await fetchJson<{ success?: boolean; comments?: ServerComment[] }>(
+        `${api}/comments/${firmwareId}`
+      );
       if (data?.success) {
-        const list: ServerComment[] = data.comments || [];
-        setComments(list);
-        setCount(list.length);
-        setTop(list[0] || null);
+        const visible = (data.comments || []).filter(c => !c.deleted);
+        // 如果后端是旧版（没按 likes 排序），前端再排一次
+        const sorted = visible.sort((a, b) => {
+          const la = a.likes || 0, lb = b.likes || 0;
+          if (la !== lb) return lb - la;
+          return b.created_at.localeCompare(a.created_at);
+        });
+        setComments(sorted);
+        setCount(sorted.length);
+        setTop(sorted[0] || null);
       }
-    } catch (e) {
-      console.error('Failed to load comments:', e);
     } finally {
       setLoadingAll(false);
     }
