@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MessageCircle, Send, Trash2, X, Loader2 } from 'lucide-react';
+import { MessageCircle, Send, Trash2, X, Loader2, ThumbsUp, PencilLine, ChevronRight } from 'lucide-react';
 
 // ---- Types ----------------------------------------------------------------
 
@@ -334,13 +334,13 @@ const CommentRow: React.FC<CommentRowProps> = ({ comment, currentUser, liked, on
           <button
             onClick={onToggleLike}
             aria-label={liked ? t('comments.unlike_aria') : t('comments.like_aria')}
-            className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md border transition-colors ${
+            className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full transition-all ${
               liked
-                ? 'border-primary/50 text-primary bg-primary/5'
-                : 'border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-slate-400 hover:text-primary hover:border-primary/40'
+                ? 'text-primary bg-primary/10 ring-1 ring-primary/30'
+                : 'text-slate-500 dark:text-slate-400 hover:text-primary hover:bg-primary/5'
             }`}
           >
-            <PinkyLikeIcon size={14} filled={liked} />
+            {liked ? <PinkyLikeIcon size={14} filled /> : <ThumbsUp size={13} />}
             <span className="font-mono tabular-nums">{comment.likes || 0}</span>
           </button>
           {canDelete && onDelete && (
@@ -558,82 +558,112 @@ const CommentsPanel: React.FC<CommentsPanelProps> = ({ firmwareSha256, firmwareN
     setModalOpen(true);
   };
 
-  return (
-    <div className="mt-3 pt-3 border-t border-slate-200 dark:border-zinc-700/50">
-      {/* Header row */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <button
-          onClick={openModal}
-          className="inline-flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-300 hover:text-primary transition-colors"
-          title={t('comments.view_all')}
-        >
-          <MessageCircle size={16} className="text-primary" />
-          <span className="font-medium">{countLabel}</span>
-        </button>
+  const hasTop = !loadingSummary && !!top;
 
-        <div className="flex items-center gap-2 relative">
-          {loginTipVisible && (
-            <div className="absolute bottom-full mb-1 right-0 px-2.5 py-1 rounded-md bg-zinc-800 dark:bg-zinc-700 text-white text-xs shadow-lg whitespace-nowrap animate-fade-in">
-              {t('comments.login_required')}
-            </div>
-          )}
-          <button
-            onClick={handleWrite}
-            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md border border-slate-300 dark:border-zinc-600 text-slate-600 dark:text-slate-300 hover:text-primary hover:border-primary/50 transition-colors"
-          >
-            <MessageCircle size={12} />
-            {t('comments.write')}
-          </button>
+  const writeButton = (
+    <div className="relative">
+      {loginTipVisible && (
+        <div className="absolute bottom-full mb-1.5 right-0 px-2.5 py-1 rounded-md bg-zinc-800 dark:bg-zinc-700 text-white text-xs shadow-lg whitespace-nowrap animate-fade-in z-10">
+          {t('comments.login_required')}
         </div>
-      </div>
+      )}
+      <button
+        onClick={handleWrite}
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full text-slate-500 dark:text-slate-400 hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/15 transition-colors"
+      >
+        <PencilLine size={12} />
+        {t('comments.write')}
+      </button>
+    </div>
+  );
 
-      {/* Top comment preview */}
-      {!loadingSummary && top && (
+  // 空状态：极简 inline 行，没评论时不制造视觉噪音
+  if (!hasTop) {
+    return (
+      <>
+        <div className="mt-2 flex items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-500">
+          <span className="inline-flex items-center gap-1.5">
+            <MessageCircle size={12} className="opacity-60" />
+            <span>{t('comments.count_zero')}</span>
+          </span>
+          {writeButton}
+        </div>
+        {modalOpen && (
+          <CommentsModal
+            firmwareId={firmwareId}
+            firmwareName={firmwareName}
+            currentUser={currentUser}
+            onClose={() => setModalOpen(false)}
+          />
+        )}
+      </>
+    );
+  }
+
+  // 有评论：一张精致卡片
+  const liked = isLiked(top.id);
+
+  return (
+    <div className="mt-3">
+      <div className="group relative rounded-xl border border-slate-200/70 dark:border-zinc-700/60 bg-gradient-to-br from-slate-50/60 to-slate-50/30 dark:from-zinc-800/40 dark:to-zinc-800/20 hover:border-primary/40 hover:shadow-sm transition-all">
+        {/* 顶部迷你 header */}
+        <div className="flex items-center justify-between px-3 pt-2.5 pb-1.5">
+          <button
+            onClick={openModal}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-primary transition-colors"
+            title={t('comments.view_all')}
+          >
+            <MessageCircle size={13} className="text-primary" />
+            <span>{countLabel}</span>
+            {count > 1 && <ChevronRight size={12} className="opacity-60 group-hover:opacity-100 transition-opacity" />}
+          </button>
+          {writeButton}
+        </div>
+
+        {/* 顶评内容 */}
         <button
           onClick={openModal}
-          className="mt-2 w-full text-left rounded-lg px-3 py-2 bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700/70 hover:border-primary/40 transition-colors"
+          className="w-full text-left px-3 pb-3 flex items-start gap-2.5"
           title={t('comments.view_all')}
         >
-          <div className="flex items-start gap-2">
-            <CommentAvatar user={top.user} size={24} />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                <span className="font-medium text-slate-700 dark:text-slate-300 truncate">
-                  {top.user.name || top.user.login}
+          <CommentAvatar user={top.user} size={26} />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-500">
+              <span className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[140px]">
+                {top.user.name || top.user.login}
+              </span>
+              {top.user.isAdmin && (
+                <span className="text-[9px] px-1 py-px rounded-sm bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-300/60 dark:border-amber-700/60 leading-none">
+                  {t('comments.admin_badge')}
                 </span>
-                <span>·</span>
-                <span>{formatRelativeTime(top.created_at, i18n.language || 'en')}</span>
-                {!!(top.likes && top.likes > 0) && (
-                  <>
-                    <span>·</span>
-                    <span className="inline-flex items-center gap-0.5">
-                      <PinkyLikeIcon size={11} filled />
-                      <span className="font-mono tabular-nums">{top.likes}</span>
-                    </span>
-                  </>
-                )}
-              </div>
-              <div className="text-sm text-slate-700 dark:text-slate-300 line-clamp-2 mt-0.5 break-words">
-                {top.content}
-              </div>
+              )}
+              <span className="opacity-60">·</span>
+              <span>{formatRelativeTime(top.created_at, i18n.language || 'en')}</span>
             </div>
-            <button
-              onClick={e => {
-                e.stopPropagation();
-                toggleLike(top.id);
-              }}
-              aria-label={isLiked(top.id) ? t('comments.unlike_aria') : t('comments.like_aria')}
-              className={`shrink-0 inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md border transition-colors ${
-                isLiked(top.id)
-                  ? 'border-primary/50 text-primary bg-primary/5'
-                  : 'border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-slate-400 hover:text-primary hover:border-primary/40'
-              }`}
-            >
-              <PinkyLikeIcon size={12} filled={isLiked(top.id)} />
-            </button>
+            <div className="text-sm text-slate-700 dark:text-slate-200 line-clamp-2 mt-0.5 break-words leading-snug">
+              {top.content}
+            </div>
           </div>
+          <button
+            onClick={e => {
+              e.stopPropagation();
+              e.preventDefault();
+              toggleLike(top.id);
+            }}
+            aria-label={liked ? t('comments.unlike_aria') : t('comments.like_aria')}
+            className={`shrink-0 inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full transition-all ${
+              liked
+                ? 'text-primary bg-primary/10 ring-1 ring-primary/30'
+                : 'text-slate-500 dark:text-slate-400 hover:text-primary hover:bg-primary/5'
+            }`}
+          >
+            {liked ? <PinkyLikeIcon size={13} filled /> : <ThumbsUp size={12} />}
+            {!!(top.likes && top.likes > 0) && (
+              <span className="font-mono tabular-nums text-[11px]">{top.likes}</span>
+            )}
+          </button>
         </button>
-      )}
+      </div>
 
       {modalOpen && (
         <CommentsModal
