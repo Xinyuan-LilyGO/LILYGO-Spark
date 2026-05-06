@@ -4,7 +4,7 @@ import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, 
 import BurnerModal from './BurnerModal';
 import ProductManager from './ProductManager';
 import ShareCodeRedeemModal from './ShareCodeRedeemModal';
-import CommentsPanel, { type CurrentUser } from './CommentsPanel';
+import { CommentsProvider, CommentsActions, CommentsPreview, type CurrentUser } from './CommentsPanel';
 import { useDownload } from '../contexts/DownloadContext';
 import type { DownloadedFile } from '../contexts/DownloadContext';
 
@@ -891,7 +891,13 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                             const progress = task?.progress ?? 0;
 
                             return (
-                                <div key={idx} className={"bg-slate-100 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 rounded-xl p-4 hover:border-primary/50 transition-all group min-w-0"}>
+                                <CommentsProvider
+                                    key={idx}
+                                    firmwareSha256={fw.sha256}
+                                    firmwareName={fw.name}
+                                    currentUser={currentUser}
+                                >
+                                <div className={"bg-slate-100 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 rounded-xl p-4 hover:border-primary/50 transition-all group min-w-0"}>
                                     {/* Info section — full width */}
                                     <div className="min-w-0">
                                         <div className="flex items-start flex-wrap gap-x-3 gap-y-1 mb-1">
@@ -1000,9 +1006,10 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                         </div>
                                     </div>
 
-                                    {/* Action bar — admin buttons left, download/burn right */}
-                                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-200 dark:border-zinc-700/50">
-                                        <div className="flex items-center gap-2">
+                                    {/* Action bar — comments + admin buttons left, download/burn right */}
+                                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-200 dark:border-zinc-700/50 gap-2">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <CommentsActions />
                                             {isAdmin && adminMode && fw.sha256 && (
                                               <>
                                                 <button
@@ -1162,13 +1169,10 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                       </div>
                                     )}
 
-                                    {/* Comments section */}
-                                    <CommentsPanel
-                                      firmwareSha256={fw.sha256}
-                                      firmwareName={fw.name}
-                                      currentUser={currentUser}
-                                    />
+                                    {/* Top comment preview (only renders if a top comment exists) */}
+                                    <CommentsPreview />
                                 </div>
+                                </CommentsProvider>
                             );
                         })}
                     </div>

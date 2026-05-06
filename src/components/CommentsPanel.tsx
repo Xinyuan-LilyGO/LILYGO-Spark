@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MessageCircle, Send, Trash2, X, Loader2, ThumbsUp, PencilLine, ChevronRight } from 'lucide-react';
 
@@ -86,32 +86,48 @@ function formatRelativeTime(iso: string, locale: string): string {
 
 // ---- Icons (pinky finger like) -------------------------------------------
 
-/** 小拇指点赞图标 */
 const PinkyLikeIcon: React.FC<{ size?: number; filled?: boolean; className?: string }> = ({
   size = 16,
   filled = false,
   className,
-}) => {
-  // 用 emoji 直接表达小拇指，保持跨平台可见
-  return (
-    <span
-      aria-hidden
-      className={className}
-      style={{
-        fontSize: size,
-        lineHeight: 1,
-        display: 'inline-block',
-        filter: filled ? 'saturate(1.2)' : 'grayscale(0.4) opacity(0.85)',
-        transform: filled ? 'scale(1.05)' : undefined,
-        transition: 'transform 120ms ease',
-      }}
-    >
-      🤙
-    </span>
-  );
-};
+}) => (
+  <span
+    aria-hidden
+    className={className}
+    style={{
+      fontSize: size,
+      lineHeight: 1,
+      display: 'inline-block',
+      filter: filled ? 'saturate(1.2)' : 'grayscale(0.4) opacity(0.85)',
+      transform: filled ? 'scale(1.05)' : undefined,
+      transition: 'transform 120ms ease',
+    }}
+  >
+    🤙
+  </span>
+);
 
 // ---- Hook -----------------------------------------------------------------
+
+interface CommentsCtxValue {
+  firmwareId: string | null;
+  firmwareName?: string;
+  currentUser?: CurrentUser | null;
+  count: number;
+  top: ServerComment | null;
+  loadingSummary: boolean;
+  openModal: () => void;
+  handleWrite: () => void;
+  loginTipVisible: boolean;
+  toggleLike: (commentId: string) => Promise<void>;
+  isLiked: (commentId: string) => boolean;
+}
+
+const CommentsCtx = createContext<CommentsCtxValue | null>(null);
+
+function useCommentsCtx(): CommentsCtxValue | null {
+  return useContext(CommentsCtx);
+}
 
 interface UseCommentsResult {
   count: number;
@@ -132,14 +148,13 @@ function useComments(firmwareId: string | null): UseCommentsResult {
   const [comments, setComments] = useState<ServerComment[]>([]);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [loadingAll, setLoadingAll] = useState(false);
-  const [likedTick, setLikedTick] = useState(0); // force re-render after localStorage change
+  const [likedTick, setLikedTick] = useState(0);
 
   const fetchSummary = useCallback(async () => {
     if (!firmwareId) return;
     setLoadingSummary(true);
     try {
       const api = await getApiBase();
-      // 新接口：summary（服务端已排序，只返回 count + top）
       const data = await fetchJson<{ success?: boolean; count?: number; top?: ServerComment | null }>(
         `${api}/comments/${firmwareId}/summary`
       );
@@ -148,7 +163,6 @@ function useComments(firmwareId: string | null): UseCommentsResult {
         setTop(data.top || null);
         return;
       }
-      // 旧服务器没有 summary 路由：回退到 list 接口自行计算
       const list = await fetchJson<{ success?: boolean; comments?: ServerComment[] }>(
         `${api}/comments/${firmwareId}`
       );
@@ -177,7 +191,6 @@ function useComments(firmwareId: string | null): UseCommentsResult {
       );
       if (data?.success) {
         const visible = (data.comments || []).filter(c => !c.deleted);
-        // 如果后端是旧版（没按 likes 排序），前端再排一次
         const sorted = visible.sort((a, b) => {
           const la = a.likes || 0, lb = b.likes || 0;
           if (la !== lb) return lb - la;
@@ -207,7 +220,7 @@ function useComments(firmwareId: string | null): UseCommentsResult {
         },
         body: JSON.stringify({ content }),
       });
-      const data = await resp.json();
+      const data = await resp.json().catch(() => ({}));
       if (!resp.ok || !data?.success) {
         const err = new Error(data?.error || 'post_failed');
         (err as any).status = resp.status;
@@ -243,7 +256,7 @@ function useComments(firmwareId: string | null): UseCommentsResult {
     (commentId: string): boolean => {
       if (!firmwareId) return false;
       // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-      likedTick; // access to subscribe to re-renders
+      likedTick;
       return localStorage.getItem(likeStorageKey(firmwareId, commentId)) === '1';
     },
     [firmwareId, likedTick]
@@ -255,7 +268,6 @@ function useComments(firmwareId: string | null): UseCommentsResult {
       const api = await getApiBase();
       const liked = localStorage.getItem(likeStorageKey(firmwareId, commentId)) === '1';
       const method = liked ? 'DELETE' : 'POST';
-      // 乐观更新
       setComments(prev =>
         prev.map(c =>
           c.id === commentId ? { ...c, likes: Math.max(0, (c.likes || 0) + (liked ? -1 : 1)) } : c
@@ -272,14 +284,16 @@ function useComments(firmwareId: string | null): UseCommentsResult {
 
       try {
         const resp = await fetch(`${api}/comments/${firmwareId}/${commentId}/like`, { method });
-        const data = await resp.json();
-        if (data?.success && typeof data.likes === 'number') {
-          // 以服务端数字为准
-          setComments(prev => prev.map(c => (c.id === commentId ? { ...c, likes: data.likes } : c)));
-          setTop(prev => (prev && prev.id === commentId ? { ...prev, likes: data.likes } : prev));
+        const ct = resp.headers.get('content-type') || '';
+        if (resp.ok && ct.includes('application/json')) {
+          const data = await resp.json();
+          if (data?.success && typeof data.likes === 'number') {
+            setComments(prev => prev.map(c => (c.id === commentId ? { ...c, likes: data.likes } : c)));
+            setTop(prev => (prev && prev.id === commentId ? { ...prev, likes: data.likes } : prev));
+          }
         }
-      } catch (e) {
-        console.error('Failed to toggle like:', e);
+      } catch {
+        /* ignore */
       }
     },
     [firmwareId]
@@ -298,7 +312,7 @@ function useComments(firmwareId: string | null): UseCommentsResult {
   return { count, top, comments, loadingSummary, loadingAll, fetchAll, post, remove, toggleLike, isLiked };
 }
 
-// ---- Components -----------------------------------------------------------
+// ---- Avatar ---------------------------------------------------------------
 
 const CommentAvatar: React.FC<{ user: CommentUser; size?: number }> = ({ user, size = 32 }) => {
   if (user.avatar_url) {
@@ -323,8 +337,9 @@ const CommentAvatar: React.FC<{ user: CommentUser; size?: number }> = ({ user, s
   );
 };
 
+// ---- Modal row ------------------------------------------------------------
+
 interface CommentRowProps {
-  firmwareId: string;
   comment: ServerComment;
   currentUser?: CurrentUser | null;
   liked: boolean;
@@ -392,15 +407,16 @@ const CommentRow: React.FC<CommentRowProps> = ({ comment, currentUser, liked, on
   );
 };
 
+// ---- Modal ----------------------------------------------------------------
+
 interface CommentsModalProps {
   firmwareId: string;
   firmwareName?: string;
   currentUser?: CurrentUser | null;
   onClose: () => void;
-  onChange?: () => void;
 }
 
-const CommentsModal: React.FC<CommentsModalProps> = ({ firmwareId, firmwareName, currentUser, onClose, onChange }) => {
+const CommentsModal: React.FC<CommentsModalProps> = ({ firmwareId, firmwareName, currentUser, onClose }) => {
   const { t } = useTranslation();
   const { comments, loadingAll, fetchAll, post, remove, toggleLike, isLiked } = useComments(firmwareId);
   const [draft, setDraft] = useState('');
@@ -423,7 +439,6 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ firmwareId, firmwareName,
     try {
       await post(content);
       setDraft('');
-      onChange?.();
     } catch (e: any) {
       const reason = e?.reason || (typeof e?.message === 'string' ? e.message : '');
       if (e?.status === 400 && (reason === 'anti-spam' || reason === 'spam')) {
@@ -439,7 +454,6 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ firmwareId, firmwareName,
   const handleDelete = async (commentId: string) => {
     try {
       await remove(commentId);
-      onChange?.();
     } catch {
       setErrorMsg(t('comments.error_delete'));
     }
@@ -478,7 +492,6 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ firmwareId, firmwareName,
           </button>
         </div>
 
-        {/* Scrollable comments list */}
         <div className="flex-1 overflow-y-auto px-5 custom-scrollbar">
           {loadingAll ? (
             <div className="flex items-center justify-center gap-2 py-12 text-slate-500">
@@ -494,7 +507,6 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ firmwareId, firmwareName,
               {comments.map(c => (
                 <CommentRow
                   key={c.id}
-                  firmwareId={firmwareId}
                   comment={c}
                   currentUser={currentUser}
                   liked={isLiked(c.id)}
@@ -506,7 +518,6 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ firmwareId, firmwareName,
           )}
         </div>
 
-        {/* Composer */}
         <div className="border-t border-slate-200 dark:border-zinc-700 p-4 bg-slate-50 dark:bg-zinc-900/80">
           {!currentUser ? (
             <div className="text-sm text-center text-slate-500 dark:text-slate-400 py-2">
@@ -556,148 +567,61 @@ const CommentsModal: React.FC<CommentsModalProps> = ({ firmwareId, firmwareName,
   );
 };
 
-interface CommentsPanelProps {
-  /** Firmware sha256（完整或前缀都行，组件内部会截 16 位） */
+// ---- Public surface -------------------------------------------------------
+
+interface CommentsProviderProps {
   firmwareSha256?: string | null;
   firmwareName?: string;
   currentUser?: CurrentUser | null;
+  children: React.ReactNode;
 }
 
 /**
- * 固件卡片右下角内嵌的评论区：
- *   - 左侧：💬 N 条评论 + 最热评论预览
- *   - 右侧：写评论按钮（未登录会弹提示）
+ * Wrap each firmware card with this Provider so the inline action
+ * (count + write button) and the preview card share the same fetch state.
  */
-const CommentsPanel: React.FC<CommentsPanelProps> = ({ firmwareSha256, firmwareName, currentUser }) => {
-  const { t, i18n } = useTranslation();
+export const CommentsProvider: React.FC<CommentsProviderProps> = ({
+  firmwareSha256,
+  firmwareName,
+  currentUser,
+  children,
+}) => {
   const firmwareId = useMemo(() => firmwareIdFromSha256(firmwareSha256 || null), [firmwareSha256]);
   const { count, top, loadingSummary, toggleLike, isLiked } = useComments(firmwareId);
   const [modalOpen, setModalOpen] = useState(false);
   const [loginTipVisible, setLoginTipVisible] = useState(false);
 
-  if (!firmwareId) return null;
-
-  const countLabel =
-    count === 0 ? t('comments.count_zero') : count === 1 ? t('comments.count_one') : t('comments.count_other', { count });
-
-  const openModal = () => setModalOpen(true);
-  const handleWrite = () => {
+  const openModal = useCallback(() => setModalOpen(true), []);
+  const handleWrite = useCallback(() => {
     if (!currentUser) {
       setLoginTipVisible(true);
       setTimeout(() => setLoginTipVisible(false), 2400);
       return;
     }
     setModalOpen(true);
-  };
+  }, [currentUser]);
 
-  const hasTop = !loadingSummary && !!top;
-
-  const writeButton = (
-    <div className="relative">
-      {loginTipVisible && (
-        <div className="absolute bottom-full mb-1.5 right-0 px-2.5 py-1 rounded-md bg-zinc-800 dark:bg-zinc-700 text-white text-xs shadow-lg whitespace-nowrap animate-fade-in z-10">
-          {t('comments.login_required')}
-        </div>
-      )}
-      <button
-        onClick={handleWrite}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full text-slate-500 dark:text-slate-400 hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/15 transition-colors"
-      >
-        <PencilLine size={12} />
-        {t('comments.write')}
-      </button>
-    </div>
+  const value = useMemo<CommentsCtxValue>(
+    () => ({
+      firmwareId,
+      firmwareName,
+      currentUser,
+      count,
+      top,
+      loadingSummary,
+      openModal,
+      handleWrite,
+      loginTipVisible,
+      toggleLike,
+      isLiked,
+    }),
+    [firmwareId, firmwareName, currentUser, count, top, loadingSummary, openModal, handleWrite, loginTipVisible, toggleLike, isLiked]
   );
 
-  // 空状态：极简 inline 行，没评论时不制造视觉噪音
-  if (!hasTop) {
-    return (
-      <>
-        <div className="mt-2 flex items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-500">
-          <span className="inline-flex items-center gap-1.5">
-            <MessageCircle size={12} className="opacity-60" />
-            <span>{t('comments.count_zero')}</span>
-          </span>
-          {writeButton}
-        </div>
-        {modalOpen && (
-          <CommentsModal
-            firmwareId={firmwareId}
-            firmwareName={firmwareName}
-            currentUser={currentUser}
-            onClose={() => setModalOpen(false)}
-          />
-        )}
-      </>
-    );
-  }
-
-  // 有评论：一张精致卡片
-  const liked = isLiked(top.id);
-
   return (
-    <div className="mt-3">
-      <div className="group relative rounded-xl border border-slate-200/70 dark:border-zinc-700/60 bg-gradient-to-br from-slate-50/60 to-slate-50/30 dark:from-zinc-800/40 dark:to-zinc-800/20 hover:border-primary/40 hover:shadow-sm transition-all">
-        {/* 顶部迷你 header */}
-        <div className="flex items-center justify-between px-3 pt-2.5 pb-1.5">
-          <button
-            onClick={openModal}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-primary transition-colors"
-            title={t('comments.view_all')}
-          >
-            <MessageCircle size={13} className="text-primary" />
-            <span>{countLabel}</span>
-            {count > 1 && <ChevronRight size={12} className="opacity-60 group-hover:opacity-100 transition-opacity" />}
-          </button>
-          {writeButton}
-        </div>
-
-        {/* 顶评内容 */}
-        <button
-          onClick={openModal}
-          className="w-full text-left px-3 pb-3 flex items-start gap-2.5"
-          title={t('comments.view_all')}
-        >
-          <CommentAvatar user={top.user} size={26} />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-500">
-              <span className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[140px]">
-                {top.user.name || top.user.login}
-              </span>
-              {top.user.isAdmin && (
-                <span className="text-[9px] px-1 py-px rounded-sm bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-300/60 dark:border-amber-700/60 leading-none">
-                  {t('comments.admin_badge')}
-                </span>
-              )}
-              <span className="opacity-60">·</span>
-              <span>{formatRelativeTime(top.created_at, i18n.language || 'en')}</span>
-            </div>
-            <div className="text-sm text-slate-700 dark:text-slate-200 line-clamp-2 mt-0.5 break-words leading-snug">
-              {top.content}
-            </div>
-          </div>
-          <button
-            onClick={e => {
-              e.stopPropagation();
-              e.preventDefault();
-              toggleLike(top.id);
-            }}
-            aria-label={liked ? t('comments.unlike_aria') : t('comments.like_aria')}
-            className={`shrink-0 inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full transition-all ${
-              liked
-                ? 'text-primary bg-primary/10 ring-1 ring-primary/30'
-                : 'text-slate-500 dark:text-slate-400 hover:text-primary hover:bg-primary/5'
-            }`}
-          >
-            {liked ? <PinkyLikeIcon size={13} filled /> : <ThumbsUp size={12} />}
-            {!!(top.likes && top.likes > 0) && (
-              <span className="font-mono tabular-nums text-[11px]">{top.likes}</span>
-            )}
-          </button>
-        </button>
-      </div>
-
-      {modalOpen && (
+    <CommentsCtx.Provider value={value}>
+      {children}
+      {modalOpen && firmwareId && (
         <CommentsModal
           firmwareId={firmwareId}
           firmwareName={firmwareName}
@@ -705,8 +629,145 @@ const CommentsPanel: React.FC<CommentsPanelProps> = ({ firmwareSha256, firmwareN
           onClose={() => setModalOpen(false)}
         />
       )}
+    </CommentsCtx.Provider>
+  );
+};
+
+/**
+ * 内联到固件卡片的 action bar 里：一个 count 徽章 + 一个写评论按钮。
+ * 没有评论时 count 徽章变灰（提示"暂无评论"），保持紧凑。
+ */
+export const CommentsActions: React.FC = () => {
+  const { t } = useTranslation();
+  const ctx = useCommentsCtx();
+  if (!ctx || !ctx.firmwareId) return null;
+
+  const { count, top, openModal, handleWrite, loginTipVisible } = ctx;
+  const hasAny = count > 0;
+  const countLabel =
+    count === 0 ? t('comments.count_zero') : count === 1 ? t('comments.count_one') : t('comments.count_other', { count });
+
+  return (
+    <div className="inline-flex items-center gap-1">
+      <button
+        onClick={hasAny ? openModal : handleWrite}
+        title={hasAny ? t('comments.view_all') : t('comments.write')}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full transition-all ${
+          hasAny
+            ? 'text-primary bg-primary/10 hover:bg-primary/15 ring-1 ring-primary/20'
+            : 'text-slate-500 dark:text-slate-400 hover:text-primary hover:bg-primary/5'
+        }`}
+      >
+        <MessageCircle size={12} />
+        <span>{countLabel}</span>
+        {hasAny && top && !!(top.likes && top.likes > 0) && (
+          <span className="inline-flex items-center gap-0.5 opacity-70">
+            <span className="opacity-50">·</span>
+            <ThumbsUp size={10} />
+            <span className="font-mono tabular-nums">{top.likes}</span>
+          </span>
+        )}
+      </button>
+
+      <div className="relative">
+        {loginTipVisible && (
+          <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-md bg-zinc-800 dark:bg-zinc-700 text-white text-xs shadow-lg whitespace-nowrap animate-fade-in z-10">
+            {t('comments.login_required')}
+          </div>
+        )}
+        <button
+          onClick={handleWrite}
+          title={t('comments.write')}
+          aria-label={t('comments.write')}
+          className="inline-flex items-center justify-center w-7 h-7 rounded-full text-slate-400 dark:text-slate-500 hover:text-primary hover:bg-primary/10 transition-colors"
+        >
+          <PencilLine size={13} />
+        </button>
+      </div>
     </div>
   );
 };
+
+/**
+ * 有顶评时渲染一张预览卡片；无评论时返回 null（卡片区域不占空间）。
+ */
+export const CommentsPreview: React.FC = () => {
+  const { t, i18n } = useTranslation();
+  const ctx = useCommentsCtx();
+  if (!ctx || !ctx.firmwareId) return null;
+  const { top, loadingSummary, openModal, toggleLike, isLiked } = ctx;
+  if (loadingSummary || !top) return null;
+
+  const liked = isLiked(top.id);
+
+  return (
+    <div
+      className="mt-3 rounded-xl border border-slate-200/70 dark:border-zinc-700/60 bg-slate-50/60 dark:bg-zinc-800/40 hover:border-primary/40 transition-colors overflow-hidden"
+    >
+      <button
+        onClick={openModal}
+        className="w-full text-left px-3 py-2.5 flex items-start gap-2.5 group"
+        title={t('comments.view_all')}
+      >
+        <CommentAvatar user={top.user} size={24} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-500">
+            <span className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[160px]">
+              {top.user.name || top.user.login}
+            </span>
+            {top.user.isAdmin && (
+              <span className="text-[9px] px-1 py-px rounded-sm bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-300/60 dark:border-amber-700/60 leading-none">
+                {t('comments.admin_badge')}
+              </span>
+            )}
+            <span className="opacity-60">·</span>
+            <span>{formatRelativeTime(top.created_at, i18n.language || 'en')}</span>
+            <ChevronRight size={11} className="ml-auto opacity-40 group-hover:opacity-80 transition-opacity" />
+          </div>
+          <div className="text-sm text-slate-700 dark:text-slate-200 line-clamp-1 mt-0.5 break-words leading-snug">
+            {top.content}
+          </div>
+        </div>
+        <button
+          onClick={e => {
+            e.stopPropagation();
+            e.preventDefault();
+            toggleLike(top.id);
+          }}
+          aria-label={liked ? t('comments.unlike_aria') : t('comments.like_aria')}
+          className={`shrink-0 inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full transition-all self-center ${
+            liked
+              ? 'text-primary bg-primary/10 ring-1 ring-primary/30'
+              : 'text-slate-500 dark:text-slate-400 hover:text-primary hover:bg-primary/5'
+          }`}
+        >
+          {liked ? <PinkyLikeIcon size={13} filled /> : <ThumbsUp size={12} />}
+          {!!(top.likes && top.likes > 0) && (
+            <span className="font-mono tabular-nums text-[11px]">{top.likes}</span>
+          )}
+        </button>
+      </button>
+    </div>
+  );
+};
+
+// Default export keeps backward compat (wraps Preview in its own provider
+// for any callers that imported the old <CommentsPanel/> component).
+interface CommentsPanelProps {
+  firmwareSha256?: string | null;
+  firmwareName?: string;
+  currentUser?: CurrentUser | null;
+}
+
+const CommentsPanel: React.FC<CommentsPanelProps> = props => (
+  <CommentsProvider {...props}>
+    <div className="mt-3">
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <CommentsActions />
+      </div>
+      <CommentsPreview />
+    </div>
+  </CommentsProvider>
+);
 
 export default CommentsPanel;
