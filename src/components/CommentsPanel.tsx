@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MessageCircle, Send, Trash2, X, Loader2, ThumbsUp, PencilLine, ChevronRight } from 'lucide-react';
+import { MessageCircle, Send, Trash2, X, Loader2, PencilLine, ChevronRight } from 'lucide-react';
 
 // ---- Types ----------------------------------------------------------------
 
@@ -63,30 +63,16 @@ function likeStorageKey(firmwareId: string, commentId: string): string {
   return `lilygo_cmt_like:${firmwareId}:${commentId}`;
 }
 
-function formatRelativeTime(iso: string, locale: string): string {
-  const then = new Date(iso).getTime();
-  const now = Date.now();
-  if (Number.isNaN(then)) return iso;
-  const diff = Math.max(0, Math.floor((now - then) / 1000));
-  if (diff < 60) return locale.startsWith('zh') ? '刚刚' : locale.startsWith('ja') ? 'たった今' : 'just now';
-  if (diff < 3600) {
-    const m = Math.floor(diff / 60);
-    return locale.startsWith('zh') ? `${m} 分钟前` : locale.startsWith('ja') ? `${m} 分前` : `${m}m ago`;
-  }
-  if (diff < 86400) {
-    const h = Math.floor(diff / 3600);
-    return locale.startsWith('zh') ? `${h} 小时前` : locale.startsWith('ja') ? `${h} 時間前` : `${h}h ago`;
-  }
-  if (diff < 86400 * 30) {
-    const d = Math.floor(diff / 86400);
-    return locale.startsWith('zh') ? `${d} 天前` : locale.startsWith('ja') ? `${d} 日前` : `${d}d ago`;
-  }
-  return new Date(iso).toLocaleDateString();
+function formatTime(iso: string, _locale: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-// ---- Icons (pinky finger like) -------------------------------------------
+// ---- Star icon for likes --------------------------------------------------
 
-const PinkyLikeIcon: React.FC<{ size?: number; filled?: boolean; className?: string }> = ({
+const StarLikeIcon: React.FC<{ size?: number; filled?: boolean; className?: string }> = ({
   size = 16,
   filled = false,
   className,
@@ -98,12 +84,12 @@ const PinkyLikeIcon: React.FC<{ size?: number; filled?: boolean; className?: str
       fontSize: size,
       lineHeight: 1,
       display: 'inline-block',
-      filter: filled ? 'saturate(1.2)' : 'grayscale(0.4) opacity(0.85)',
-      transform: filled ? 'scale(1.05)' : undefined,
+      filter: filled ? 'saturate(1.3) brightness(1.1)' : 'grayscale(0.5) opacity(0.75)',
+      transform: filled ? 'scale(1.1)' : undefined,
       transition: 'transform 120ms ease',
     }}
   >
-    🤙
+    ⭐
   </span>
 );
 
@@ -371,7 +357,7 @@ const CommentRow: React.FC<CommentRowProps> = ({ comment, currentUser, liked, on
             </span>
           )}
           <span className="text-xs text-slate-500 dark:text-slate-500">
-            {formatRelativeTime(comment.created_at, i18n.language || 'en')}
+            {formatTime(comment.created_at, i18n.language || 'en')}
           </span>
         </div>
         <div className="mt-1 text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap break-words">
@@ -387,7 +373,7 @@ const CommentRow: React.FC<CommentRowProps> = ({ comment, currentUser, liked, on
                 : 'text-slate-500 dark:text-slate-400 hover:text-primary hover:bg-primary/5'
             }`}
           >
-            {liked ? <PinkyLikeIcon size={14} filled /> : <ThumbsUp size={13} />}
+            <StarLikeIcon size={14} filled={liked} />
             <span className="font-mono tabular-nums">{comment.likes || 0}</span>
           </button>
           {canDelete && onDelete && (
@@ -660,7 +646,7 @@ export const CommentsActions: React.FC = () => {
         {hasAny && top && !!(top.likes && top.likes > 0) && (
           <span className="inline-flex items-center gap-0.5 opacity-70">
             <span className="opacity-50">·</span>
-            <ThumbsUp size={10} />
+            <StarLikeIcon size={10} />
             <span className="font-mono tabular-nums">{top.likes}</span>
           </span>
         )}
@@ -724,7 +710,7 @@ export const CommentsPreview: React.FC = () => {
               </span>
             )}
             <span className="opacity-60">·</span>
-            <span>{formatRelativeTime(top.created_at, i18n.language || 'en')}</span>
+            <span>{formatTime(top.created_at, i18n.language || 'en')}</span>
             <ChevronRight size={11} className="ml-auto opacity-40 group-hover:opacity-80 transition-opacity" />
           </div>
           <div className="text-sm text-slate-700 dark:text-slate-200 line-clamp-1 mt-0.5 break-words leading-snug">
@@ -744,7 +730,7 @@ export const CommentsPreview: React.FC = () => {
               : 'text-slate-500 dark:text-slate-400 hover:text-primary hover:bg-primary/5'
           }`}
         >
-          {liked ? <PinkyLikeIcon size={13} filled /> : <ThumbsUp size={12} />}
+          <StarLikeIcon size={13} filled={liked} />
           {!!(top.likes && top.likes > 0) && (
             <span className="font-mono tabular-nums text-[11px]">{top.likes}</span>
           )}

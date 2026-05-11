@@ -134,6 +134,9 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
   // Download counts state
   const [downloadCounts, setDownloadCounts] = useState<Record<string, number>>({});
 
+  // Firmware likes state
+  const [firmwareLikes, setFirmwareLikes] = useState<Record<string, number>>({});
+
   // Product manager modal state
   const [showProductManager, setShowProductManager] = useState(false);
 
@@ -200,9 +203,58 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
     }
   };
 
+  const loadFirmwareLikes = async () => {
+    try {
+      const apiUrl = await getApiUrl();
+      const resp = await fetch(`${apiUrl}/stats/likes`);
+      const ct = resp.headers.get('content-type') || '';
+      if (resp.ok && ct.includes('application/json')) {
+        const data = await resp.json();
+        if (data.success && data.likes) {
+          setFirmwareLikes(data.likes);
+        }
+      }
+    } catch {
+      // ignore — old server may not have this endpoint
+    }
+  };
+
+  const toggleFirmwareLike = async (sha256: string) => {
+    const key = `lilygo_fw_like:${sha256}`;
+    const liked = localStorage.getItem(key) === '1';
+    // 乐观更新
+    setFirmwareLikes(prev => ({
+      ...prev,
+      [sha256]: Math.max(0, (prev[sha256] || 0) + (liked ? -1 : 1))
+    }));
+    if (liked) localStorage.removeItem(key);
+    else localStorage.setItem(key, '1');
+
+    try {
+      const apiUrl = await getApiUrl();
+      const resp = await fetch(`${apiUrl}/stats/like/${sha256}`, { method: liked ? 'DELETE' : 'POST' });
+      const ct = resp.headers.get('content-type') || '';
+      if (resp.ok && ct.includes('application/json')) {
+        const data = await resp.json();
+        if (data.success && typeof data.count === 'number') {
+          setFirmwareLikes(prev => ({ ...prev, [sha256]: data.count }));
+        }
+      }
+    } catch {
+      // revert on failure
+      setFirmwareLikes(prev => ({
+        ...prev,
+        [sha256]: Math.max(0, (prev[sha256] || 0) + (liked ? 1 : -1))
+      }));
+      if (liked) localStorage.setItem(key, '1');
+      else localStorage.removeItem(key);
+    }
+  };
+
   useEffect(() => {
     loadManifest();
     loadDownloadCounts();
+    loadFirmwareLikes();
     loadSeries();
   }, []);
 
@@ -278,6 +330,26 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
     if (!currentUser?.email) return false;
     return seriesList.some(s => s.admin_emails.includes(currentUser.email!));
   }, [currentUser, seriesList]);
+
+  const renderFirmwareLikeButton = (sha256?: string) => {
+    if (!sha256) return null;
+    const liked = localStorage.getItem(`lilygo_fw_like:${sha256}`) === '1';
+    const count = firmwareLikes[sha256] || 0;
+    return (
+      <button
+        onClick={(e) => { e.stopPropagation(); toggleFirmwareLike(sha256); }}
+        className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full transition-all ${
+          liked
+            ? 'text-amber-600 dark:text-amber-400 bg-amber-100/60 dark:bg-amber-900/30 ring-1 ring-amber-300/50 dark:ring-amber-700/50'
+            : 'text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+        }`}
+        title={t('comments.like_aria')}
+      >
+        <span style={{ fontSize: 13, lineHeight: 1, filter: liked ? 'saturate(1.3) brightness(1.1)' : 'grayscale(0.5) opacity(0.75)' }}>⭐</span>
+        {count > 0 && <span className="font-mono tabular-nums">{count}</span>}
+      </button>
+    );
+  };
 
   const handleOnlyWithFirmwareChange = (checked: boolean) => {
     setOnlyWithFirmware(checked);
@@ -1053,6 +1125,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                             </div>
                             <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-200 dark:border-zinc-700/50 gap-2">
                               <div className="flex items-center gap-2 flex-wrap">
+                                {renderFirmwareLikeButton(fw.sha256)}
                                 <CommentsActions />
                               </div>
                               <div className="flex items-center gap-2">
@@ -1311,9 +1384,10 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                         </div>
                                     </div>
 
-                                    {/* Action bar — comments + admin buttons left, download/burn right */}
+                                    {/* Action bar — likes + comments + admin buttons left, download/burn right */}
                                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-200 dark:border-zinc-700/50 gap-2">
                                         <div className="flex items-center gap-2 flex-wrap">
+                                            {renderFirmwareLikeButton(fw.sha256)}
                                             <CommentsActions />
                                             {canManageFirmware(fw) && adminMode && fw.sha256 && (
                                               <>
