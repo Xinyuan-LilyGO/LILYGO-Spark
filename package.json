@@ -141,6 +141,7 @@
       }
     ],
     "afterPack": "./scripts/afterPack.js",
+    "afterSign": "./scripts/afterSign.js",
     "asar": true,
     "asarUnpack": [
       "node_modules/@serialport/**",
