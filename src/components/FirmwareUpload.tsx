@@ -82,6 +82,10 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin, userEma
   const [allSeries, setAllSeries] = useState<FirmwareSeries[]>([]);
   const [seriesIds, setSeriesIds] = useState<string[]>([]);
 
+  // Duplicate check
+  const [duplicateWarning, setDuplicateWarning] = useState<{ name: string; supported_product_ids: string[] } | null>(null);
+  const [checkingDuplicate, setCheckingDuplicate] = useState(false);
+
   // Product search
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [productSearch, setProductSearch] = useState('');
@@ -185,7 +189,7 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin, userEma
     if (e.target.files && e.target.files[0]) applyFile(e.target.files[0]);
   };
 
-  const applyFile = (selectedFile: File) => {
+  const applyFile = async (selectedFile: File) => {
     if (!selectedFile.name.toLowerCase().endsWith('.bin')) {
       setUploadStatus('error');
       setUploadMessage('Only .bin files are allowed');
@@ -195,10 +199,43 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin, userEma
     setFile(selectedFile);
     setUploadStatus('idle');
     setUploadMessage('');
+    setDuplicateWarning(null);
     // Auto-fill name from filename if empty
     if (!name) {
       const baseName = selectedFile.name.replace(/\.bin$/i, '').replace(/[_-]/g, ' ');
       setName(baseName);
+    }
+
+    // Compute SHA256 and check for duplicate
+    if (token) {
+      setCheckingDuplicate(true);
+      try {
+        const buffer = await selectedFile.arrayBuffer();
+        const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const sha256 = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+        const apiUrl = await getApiUrl();
+        const resp = await fetch(`${apiUrl}/upload/check-duplicate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ sha256 }),
+        });
+        const data = await resp.json();
+        if (data.success && data.duplicate) {
+          setDuplicateWarning({
+            name: data.existing.name,
+            supported_product_ids: data.existing.supported_product_ids || [],
+          });
+        }
+      } catch (e) {
+        console.error('[Upload] Duplicate check failed:', e);
+      } finally {
+        setCheckingDuplicate(false);
+      }
     }
   };
 
@@ -507,6 +544,27 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin, userEma
                   )}
                 </div>
               </div>
+              {/* Duplicate check status */}
+              {checkingDuplicate && (
+                <p className="mt-2 text-xs text-slate-500 flex items-center gap-1.5">
+                  <Loader2 size={12} className="animate-spin" />
+                  {t('upload.checking_duplicate', 'Checking for duplicates...')}
+                </p>
+              )}
+              {duplicateWarning && (
+                <div className="mt-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
+                  <p className="text-sm font-medium text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+                    <AlertCircle size={14} />
+                    {t('upload.duplicate_title', 'Firmware already exists')}
+                  </p>
+                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                    {t('upload.duplicate_detail', 'This firmware file already exists in the system as "{{name}}" (Products: {{products}}). If you need to modify its information, please ask an admin to edit the existing firmware entry.', {
+                      name: duplicateWarning.name,
+                      products: duplicateWarning.supported_product_ids.join(', '),
+                    })}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Two columns for basic info */}
@@ -773,9 +831,9 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin, userEma
             {/* Submit */}
             <button
               onClick={handleUpload}
-              disabled={!file || !name || productIds.length === 0 || uploading}
+              disabled={!file || !name || productIds.length === 0 || uploading || !!duplicateWarning}
               className={`w-full py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-all ${
-                !file || !name || productIds.length === 0 || uploading
+                !file || !name || productIds.length === 0 || uploading || !!duplicateWarning
                   ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed'
                   : 'bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/20'
               }`}
