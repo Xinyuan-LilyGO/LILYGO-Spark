@@ -491,6 +491,8 @@
     "version_tag": "版本號",
     "release_name": "發布名稱",
     "flash_address": "燒錄地址",
+    "image_label": "介紹圖片（可選）",
+    "image_hint": "PNG/JPG，最大 2MB",
     "source_code_url": "原始碼連結",
     "github_repo": "GitHub 倉庫",
     "author_name": "作者名稱",

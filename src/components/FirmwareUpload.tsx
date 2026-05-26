@@ -96,6 +96,10 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin, userEma
   const [allSeries, setAllSeries] = useState<FirmwareSeries[]>([]);
   const [seriesIds, setSeriesIds] = useState<string[]>([]);
 
+  // Image upload (multiple)
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+
   // Duplicate check
   const [duplicateWarning, setDuplicateWarning] = useState<{ name: string; supported_product_ids: string[] } | null>(null);
   const [checkingDuplicate, setCheckingDuplicate] = useState(false);
@@ -300,6 +304,9 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin, userEma
     if (seriesIds.length > 0) {
       formData.append('series_ids', seriesIds.join(','));
     }
+    for (const img of imageFiles) {
+      formData.append('images', img);
+    }
 
     try {
       const apiUrl = await getApiUrl();
@@ -315,6 +322,8 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin, userEma
         setUploadMessage(data.message || 'Upload successful!');
         // Reset form
         setFile(null);
+        setImageFiles([]);
+        setImagePreviews([]);
         setName('');
         setProductIds([]);
         setDescription('');
@@ -811,6 +820,51 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin, userEma
                 <label className="block text-slate-600 dark:text-slate-400 mb-1.5 text-sm font-medium">{t('upload.flash_address')}</label>
                 <input type="text" value={flashPath} onChange={e => setFlashPath(e.target.value)} placeholder="0x0"
                   className="w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50" />
+              </div>
+            </div>
+
+            {/* Cover Images (optional, multiple) */}
+            <div>
+              <label className="block text-slate-600 dark:text-slate-400 mb-1.5 text-sm font-medium">{t('upload.image_label')}</label>
+              <div className="flex items-center gap-3 flex-wrap">
+                {imageFiles.length < 5 && (
+                  <label className="cursor-pointer px-4 py-2 rounded-lg border border-dashed border-slate-300 dark:border-zinc-600 hover:border-primary/50 text-sm text-slate-500 dark:text-slate-400 hover:text-primary transition-colors">
+                    {t('upload.image_hint')}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        const newFiles = Array.from(e.target.files || []);
+                        const valid = newFiles.filter(f => {
+                          if (f.size > 2 * 1024 * 1024) { alert(`${f.name}: max 2MB`); return false; }
+                          return true;
+                        });
+                        const total = [...imageFiles, ...valid].slice(0, 5);
+                        setImageFiles(total);
+                        setImagePreviews(total.map(f => URL.createObjectURL(f)));
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                )}
+                {imagePreviews.map((preview, i) => (
+                  <div key={i} className="relative">
+                    <img src={preview} alt="" className="w-16 h-10 object-contain rounded border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newFiles = imageFiles.filter((_, idx) => idx !== i);
+                        setImageFiles(newFiles);
+                        setImagePreviews(newFiles.map(f => URL.createObjectURL(f)));
+                      }}
+                      className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-[8px] hover:bg-red-600"
+                    >
+                      <X size={8} />
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
 

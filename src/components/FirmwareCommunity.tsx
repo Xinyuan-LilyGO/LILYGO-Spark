@@ -54,6 +54,8 @@ interface Firmware {
   author_name?: string;
   author_link?: string;
   author_email?: string;
+  image_url?: string;
+  image_urls?: string[];
 }
 
 interface Manifest {
@@ -1453,6 +1455,36 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                     currentUser={currentUser}
                                 >
                                 <div className={"bg-slate-100 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 rounded-xl p-4 hover:border-primary/50 transition-all group min-w-0"}>
+                                    {/* Firmware images gallery (from all versions in group) */}
+                                    {(() => {
+                                      const images: { url: string; label: string }[] = [];
+                                      for (const v of group.versions) {
+                                        const urls = v.image_urls || (v.image_url ? [v.image_url] : []);
+                                        for (const url of urls) {
+                                          images.push({ url, label: v.version || v.filename });
+                                        }
+                                      }
+                                      if (images.length === 0) return null;
+                                      return (
+                                        <div className="mt-2 mb-1">
+                                          <div className="flex gap-2 overflow-x-auto pb-1.5 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-zinc-600">
+                                            {images.slice(0, 6).map((img, i) => (
+                                              <div key={i} className="relative shrink-0 w-[128px] h-[80px] rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900 overflow-hidden">
+                                                <img
+                                                  src={img.url}
+                                                  alt=""
+                                                  className="w-full h-full object-contain"
+                                                  onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = 'none'; }}
+                                                />
+                                                <span className="absolute bottom-0 left-0 right-0 text-[9px] text-center text-white bg-black/50 px-1 py-0.5 truncate">
+                                                  {img.label}
+                                                </span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
                                     {/* Header: name + type badge + version selector (right) */}
                                     <div className="flex items-start justify-between gap-3 mb-2">
                                       <div className="flex items-start flex-wrap gap-x-2 gap-y-1 min-w-0 flex-1">

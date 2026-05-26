@@ -703,6 +703,8 @@
         "version_tag": "Version Tag",
         "release_name": "Release Name",
         "flash_address": "Flash Address",
+        "image_label": "Cover Image (optional)",
+        "image_hint": "PNG/JPG, max 2MB",
         "source_code_url": "Source Code URL",
         "github_repo": "GitHub Repository",
         "author_name": "Author Name",

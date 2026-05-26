@@ -702,6 +702,8 @@
     "version_tag": "版本号",
     "release_name": "发布名称",
     "flash_address": "烧录地址",
+    "image_label": "介绍图片（可选）",
+    "image_hint": "PNG/JPG，最大 2MB",
     "source_code_url": "源码链接",
     "github_repo": "GitHub 仓库",
     "author_name": "作者名称",
