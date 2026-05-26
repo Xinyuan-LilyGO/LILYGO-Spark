@@ -1295,8 +1295,18 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                   {fw.type === 'bin' ? 'REPO' : fw.type.toUpperCase()}
                                 </span>
                               </div>
+                              {/* Images */}
+                              {(fw.image_urls || (fw.image_url ? [fw.image_url] : [])).length > 0 && (
+                                <div className="flex gap-2 overflow-x-auto pb-1.5 mt-1 mb-1">
+                                  {(fw.image_urls || [fw.image_url!]).map((url, i) => (
+                                    <div key={i} className="relative shrink-0 w-[128px] h-[80px] rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900 overflow-hidden">
+                                      <img src={url} alt="" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = 'none'; }} />
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                               <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 font-mono">
-                                <span>{t('firmwareCenter.version')}: {fw.version}</span>
+                                {fw.version && <span>{t('firmwareCenter.version')}: {fw.version}</span>}
                                 {fw.filename && <span className="break-all">{t('firmwareCenter.file')}: {fw.filename}</span>}
                                 {fw.size && <span>{formatFileSize(fw.size)}</span>}
                               </div>
