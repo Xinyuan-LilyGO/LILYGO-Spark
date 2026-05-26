@@ -208,7 +208,11 @@
     "share": "分享",
     "share_code_label": "韌體分享碼",
     "share_code_modal_title": "韌體分享碼",
-    "supported_products": "支援的產品"
+    "supported_products": "支援的產品",
+    "versions_count": "{{count}} 個版本",
+    "latest": "最新",
+    "upload_new_version": "上傳新版本",
+    "all_versions": "所有版本"
   },
   "community": {
     "title": "LILYGO 相關",

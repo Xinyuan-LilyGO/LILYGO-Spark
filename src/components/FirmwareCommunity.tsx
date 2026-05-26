@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, ChevronRight, Layers, Github, Save, Trash2, Zap, Microscope, User, Pencil, X, ServerCrash, Share2, Check, Hash } from 'lucide-react';
+import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, ChevronRight, Layers, Github, Save, Trash2, Zap, Microscope, User, Pencil, X, ServerCrash, Share2, Check, Hash, Upload } from 'lucide-react';
 import BurnerModal from './BurnerModal';
 import ProductManager from './ProductManager';
 import ShareCodeRedeemModal from './ShareCodeRedeemModal';
@@ -62,12 +62,32 @@ interface Manifest {
   series_list?: FirmwareSeries[];
 }
 
+interface FirmwareGroup {
+  groupName: string;
+  versions: Firmware[];
+  hasMultipleVersions: boolean;
+}
+
+export interface UploadPrefillData {
+  name: string;
+  productIds: string[];
+  description: string;
+  source?: string;
+  sourceCodeUrl?: string;
+  authorName?: string;
+  authorLink?: string;
+  authorEmail?: string;
+  firmwareTypes?: string[];
+  seriesIds?: string[];
+}
+
 interface FirmwareCommunityProps {
   isAdmin?: boolean;
   token?: string | null;
   currentUser?: CurrentUser | null;
   onSelectFirmware?: (url: string) => void;
   onNavigateToAnalyzer?: (filePath: string, fileName: string) => void;
+  onUpdateFirmware?: (data: UploadPrefillData) => void;
 }
 
 async function getApiUrl(): Promise<string> {
@@ -106,7 +126,7 @@ function productHasFirmware(manifest: Manifest, productId: string): boolean {
   return manifest.firmware_list.some(f => f.supported_product_ids.includes(productId));
 }
 
-const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, currentUser, onSelectFirmware: _onSelectFirmware, onNavigateToAnalyzer }) => {
+const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, currentUser, onSelectFirmware: _onSelectFirmware, onNavigateToAnalyzer, onUpdateFirmware }) => {
   const { t } = useTranslation();
   const [manifest, setManifest] = useState<Manifest>({ product_list: [], firmware_list: [] });
   const [loading, setLoading] = useState(true);
@@ -308,6 +328,51 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
       selectedProductId && f.supported_product_ids.includes(selectedProductId)
     );
   }, [manifest.firmware_list, selectedProductId, view, selectedSeriesId, seriesList]);
+
+  // Version grouping: group firmware by name
+  const [selectedVersions, setSelectedVersions] = useState<Record<string, string>>({});
+
+  const groupedFirmwares = React.useMemo((): FirmwareGroup[] | null => {
+    if (view !== 'products') return null;
+    const groups = new Map<string, Firmware[]>();
+    for (const fw of relatedFirmwares) {
+      const key = fw.name;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(fw);
+    }
+    const tsRegex = /[_-](\d{8,12})/;
+    const sortVersions = (a: Firmware, b: Firmware): number => {
+      if (a.published_at && b.published_at) return b.published_at.localeCompare(a.published_at);
+      if (a.published_at) return -1;
+      if (b.published_at) return 1;
+      const aTs = a.filename.match(tsRegex);
+      const bTs = b.filename.match(tsRegex);
+      if (aTs && bTs) return bTs[1].localeCompare(aTs[1]);
+      if (aTs) return -1;
+      if (bTs) return 1;
+      if (a.version && b.version) return b.version.localeCompare(a.version);
+      return 0;
+    };
+    const result: FirmwareGroup[] = [];
+    for (const [key, firmwares] of groups) {
+      firmwares.sort(sortVersions);
+      result.push({
+        groupName: key,
+        versions: firmwares,
+        hasMultipleVersions: firmwares.length > 1,
+      });
+    }
+    return result;
+  }, [relatedFirmwares, view]);
+
+  const getActiveFirmware = (group: FirmwareGroup): Firmware => {
+    const selectedSha = selectedVersions[group.groupName];
+    if (selectedSha) {
+      const found = group.versions.find(v => v.sha256 === selectedSha);
+      if (found) return found;
+    }
+    return group.versions[0];
+  };
 
   const selectedSeries = view === 'series' && selectedSeriesId
     ? seriesList.find(s => s.id === selectedSeriesId) || null
@@ -631,6 +696,76 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
           }}
         />
       )}
+      {/* Firmware Edit Modal */}
+      {editingFirmware && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setEditingFirmware(null)} />
+          <div className="relative bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto p-6 border border-slate-200 dark:border-zinc-700">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-blue-600 dark:text-blue-400">
+                {t('firmwareCenter.editing')}
+              </h3>
+              <button onClick={() => setEditingFirmware(null)} className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {([
+                ['name', 'field_name'],
+                ['release_tag', 'field_version'],
+                ['source', 'field_source'],
+                ['source_code_url', 'field_source_code_url'],
+                ['author_name', 'field_author_name'],
+                ['author_link', 'field_author_link'],
+                ['author_email', 'field_author_email'],
+                ['firmware_type', 'field_firmware_type'],
+                ['path', 'field_path'],
+              ] as [string, string][]).map(([field, labelKey]) => (
+                <div key={field}>
+                  <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">{t(`firmwareCenter.${labelKey}`)}</label>
+                  <input
+                    type="text"
+                    value={editingFirmware.fields[field] || ''}
+                    onChange={(e) => setEditingFirmware(prev => prev ? {
+                      ...prev,
+                      fields: { ...prev.fields, [field]: e.target.value }
+                    } : null)}
+                    className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
+                  />
+                </div>
+              ))}
+              <div className="sm:col-span-2">
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">{t('firmwareCenter.field_description')}</label>
+                <textarea
+                  value={editingFirmware.fields.description || ''}
+                  onChange={(e) => setEditingFirmware(prev => prev ? {
+                    ...prev,
+                    fields: { ...prev.fields, description: e.target.value }
+                  } : null)}
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-5 pt-4 border-t border-slate-200 dark:border-zinc-700">
+              <button
+                onClick={() => setEditingFirmware(null)}
+                className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+              >
+                {t('firmwareCenter.cancel')}
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={adminBusy}
+                className="px-5 py-2 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors disabled:opacity-50 font-medium"
+              >
+                {adminBusy ? '...' : t('firmwareCenter.save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Burner Modal */}
       {burnerModalOpen && fileToBurn && (
           <BurnerModal
@@ -1227,7 +1362,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                     <FileCode className="mr-2 text-primary" />
                     Available Firmware
                     <span className="ml-3 text-sm font-normal text-slate-500 dark:text-slate-500 bg-slate-200 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
-                        {relatedFirmwares.length}
+                        {groupedFirmwares ? groupedFirmwares.length : relatedFirmwares.length}
                     </span>
                   </h3>
                   {(isAdmin || isAnySeriesAdmin) && (
@@ -1256,13 +1391,14 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                   )}
                 </div>
 
-                {relatedFirmwares.length === 0 ? (
+                {(!groupedFirmwares || groupedFirmwares.length === 0) && relatedFirmwares.length === 0 ? (
                     <div className="p-6 sm:p-8 border border-dashed border-slate-300 dark:border-zinc-700 rounded-xl text-center text-slate-500 text-sm sm:text-base min-w-0">
                         {t('firmwareCenter.no_firmware_found')}
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 gap-4">
-                        {relatedFirmwares.map((fw, idx) => {
+                        {(groupedFirmwares || relatedFirmwares.map(fw => ({ groupName: fw.sha256 || fw.filename, versions: [fw], hasMultipleVersions: false } as FirmwareGroup))).map((group) => {
+                            const fw = getActiveFirmware(group);
                             const task = tasks[fw.download_url];
                             const isDownloaded = !!task?.file;
                             const isDownloading = task?.downloading ?? false;
@@ -1270,126 +1406,116 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
 
                             return (
                                 <CommentsProvider
-                                    key={idx}
+                                    key={group.groupName}
                                     firmwareSha256={fw.sha256}
                                     firmwareName={fw.name}
                                     currentUser={currentUser}
                                 >
                                 <div className={"bg-slate-100 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 rounded-xl p-4 hover:border-primary/50 transition-all group min-w-0"}>
-                                    {/* Info section — full width */}
-                                    <div className="min-w-0">
-                                        <div className="flex items-start flex-wrap gap-x-3 gap-y-1 mb-1">
-                                            <h4 className="text-lg font-medium text-slate-800 dark:text-slate-200 break-all">{fw.name}</h4>
-                                            <span className={`text-xs px-2 py-0.5 rounded-full border font-medium shrink-0 mt-1 ${
-                                                fw.type === 'factory' ? 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/40 dark:text-green-300 dark:border-green-700' :
-                                                fw.type === 'micropython' ? 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-700' :
-                                                fw.type === 'lora' ? 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-700' :
-                                                fw.type === 'bin' ? 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-zinc-700 dark:text-zinc-300 dark:border-zinc-600' :
-                                                'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-700'
-                                            }`}>
-                                                {fw.type === 'bin' ? 'REPO' : fw.type.toUpperCase()}
-                                            </span>
-                                            {fw.sha256 && (
-                                              <button
-                                                onClick={() => handleCopyShareCode(fw)}
-                                                className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border border-slate-300 dark:border-zinc-600 text-slate-400 dark:text-zinc-500 hover:text-primary hover:border-primary/50 transition-colors mt-1"
-                                                title={`${t('firmwareCenter.share_code_label')}: ${generateShareCode(fw)}`}
-                                              >
-                                                {copiedShareCode === generateShareCode(fw) ? <Check size={10} className="text-green-500" /> : <Share2 size={10} />}
-                                                <span className="text-slate-500 dark:text-zinc-400">{t('firmwareCenter.share_code_label')}:</span>
-                                                <span className="font-mono">{generateShareCode(fw)}</span>
-                                              </button>
-                                            )}
+                                    {/* Header: name + type badge + version selector (right) */}
+                                    <div className="flex items-start justify-between gap-3 mb-2">
+                                      <div className="flex items-start flex-wrap gap-x-2 gap-y-1 min-w-0 flex-1">
+                                        <h4 className="text-lg font-medium text-slate-800 dark:text-slate-200 break-all">{fw.name}</h4>
+                                        <span className={`text-xs px-2 py-0.5 rounded-full border font-medium shrink-0 mt-1 ${
+                                            fw.type === 'factory' ? 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/40 dark:text-green-300 dark:border-green-700' :
+                                            fw.type === 'micropython' ? 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-700' :
+                                            fw.type === 'lora' ? 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-700' :
+                                            fw.type === 'bin' ? 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-zinc-700 dark:text-zinc-300 dark:border-zinc-600' :
+                                            'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-700'
+                                        }`}>
+                                            {fw.type === 'bin' ? 'REPO' : fw.type.toUpperCase()}
+                                        </span>
+                                        {fw.sha256 && (
+                                          <button
+                                            onClick={() => handleCopyShareCode(fw)}
+                                            className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border border-slate-300 dark:border-zinc-600 text-slate-400 dark:text-zinc-500 hover:text-primary hover:border-primary/50 transition-colors mt-1"
+                                            title={`${t('firmwareCenter.share_code_label')}: ${generateShareCode(fw)}`}
+                                          >
+                                            {copiedShareCode === generateShareCode(fw) ? <Check size={10} className="text-green-500" /> : <Share2 size={10} />}
+                                            <span className="text-slate-500 dark:text-zinc-400">{t('firmwareCenter.share_code_label')}:</span>
+                                            <span className="font-mono">{generateShareCode(fw)}</span>
+                                          </button>
+                                        )}
+                                      </div>
+                                      {/* Version selector — top right like M5Burner */}
+                                      {group.hasMultipleVersions && (
+                                        <div className="flex flex-col items-end gap-1 shrink-0">
+                                          <select
+                                            value={fw.sha256 || ''}
+                                            onChange={(e) => setSelectedVersions(prev => ({ ...prev, [group.groupName]: e.target.value }))}
+                                            className="text-xs px-2 py-1.5 rounded-lg border border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-primary cursor-pointer min-w-[140px] max-w-[220px]"
+                                          >
+                                            {group.versions.map((v, vi) => (
+                                              <option key={v.sha256 || vi} value={v.sha256 || ''}>
+                                                {v.version || v.filename}{vi === 0 ? ` (${t('firmwareCenter.latest')})` : ''}
+                                              </option>
+                                            ))}
+                                          </select>
+                                          <span className="text-[10px] text-slate-400 dark:text-zinc-500">
+                                            {t('firmwareCenter.versions_count', { count: group.versions.length })}
+                                          </span>
                                         </div>
-                                        <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 font-mono">
-                                            <span>{t('firmwareCenter.version')}: {fw.version}</span>
-                                            {fw.sha256 && downloadCounts[fw.sha256] > 0 && (
-                                                <span className="inline-flex items-center gap-0.5 text-slate-500 dark:text-slate-400" title={t('firmwareCenter.download_count')}>
-                                                    <Download size={11} /> {formatDownloadCount(downloadCounts[fw.sha256])}
-                                                </span>
-                                            )}
-                                            {fw.filename && <span className="break-all">{t('firmwareCenter.file')}: {fw.filename}</span>}
-                                            {(fw.size || task?.file?.fileSize) && (
-                                                <span title="Original size">{formatFileSize(fw.size || task?.file?.fileSize || 0)}</span>
-                                            )}
-                                            {fw.compressed_size && fw.size && (
-                                                <span className="text-green-600 dark:text-green-400" title={`ZIP compressed: ${formatFileSize(fw.compressed_size)} / Original: ${formatFileSize(fw.size)}`}>
-                                                    ZIP ↓ {formatFileSize(fw.compressed_size)} ({Math.round((1 - fw.compressed_size / fw.size) * 100)}% compression)
-                                                </span>
-                                            )}
-                                            {fw.oss_url && (
-                                                <a
-                                                    href={fw.oss_url}
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        if (window.ipcRenderer) {
-                                                            const mode = localStorage.getItem('lilygo_link_open_mode') || 'internal';
-                                                            window.ipcRenderer.invoke('open-url', fw.oss_url, mode);
-                                                        }
-                                                    }}
-                                                    className="inline-flex items-center gap-0.5 text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors cursor-pointer"
-                                                    title={fw.oss_url}
-                                                >
-                                                    <ExternalLink size={12} /> OSS ⚡
-                                                </a>
-                                            )}
-                                            {fw.download_url && (
-                                            <a
-                                                href={fw.download_url}
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    if (window.ipcRenderer) {
-                                                        const mode = localStorage.getItem('lilygo_link_open_mode') || 'internal';
-                                                        window.ipcRenderer.invoke('open-url', fw.download_url, mode);
-                                                    }
-                                                }}
-                                                className="inline-flex items-center gap-0.5 text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-primary transition-colors cursor-pointer"
-                                                title={fw.download_url}
-                                            >
+                                      )}
+                                    </div>
+
+                                    {/* Metadata row */}
+                                    <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 font-mono">
+                                        {fw.version && <span>{t('firmwareCenter.version')}: {fw.version}</span>}
+                                        {fw.sha256 && downloadCounts[fw.sha256] > 0 && (
+                                            <span className="inline-flex items-center gap-0.5 text-slate-500 dark:text-slate-400" title={t('firmwareCenter.download_count')}>
+                                                <Download size={11} /> {formatDownloadCount(downloadCounts[fw.sha256])}
+                                            </span>
+                                        )}
+                                        {fw.filename && <span className="break-all">{t('firmwareCenter.file')}: {fw.filename}</span>}
+                                        {(fw.size || task?.file?.fileSize) && (
+                                            <span title="Original size">{formatFileSize(fw.size || task?.file?.fileSize || 0)}</span>
+                                        )}
+                                    </div>
+                                    {/* Links row */}
+                                    <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs mt-1">
+                                        {fw.compressed_size && fw.size && (
+                                            <span className="text-green-600 dark:text-green-400" title={`ZIP compressed: ${formatFileSize(fw.compressed_size)} / Original: ${formatFileSize(fw.size)}`}>
+                                                ZIP ↓ {formatFileSize(fw.compressed_size)} ({Math.round((1 - fw.compressed_size / fw.size) * 100)}%)
+                                            </span>
+                                        )}
+                                        {fw.oss_url && (
+                                            <a href={fw.oss_url} onClick={(e) => { e.preventDefault(); if (window.ipcRenderer) { const mode = localStorage.getItem('lilygo_link_open_mode') || 'internal'; window.ipcRenderer.invoke('open-url', fw.oss_url, mode); } }}
+                                                className="inline-flex items-center gap-0.5 text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors cursor-pointer" title={fw.oss_url}>
+                                                <ExternalLink size={12} /> OSS ⚡
+                                            </a>
+                                        )}
+                                        {fw.download_url && (
+                                            <a href={fw.download_url} onClick={(e) => { e.preventDefault(); if (window.ipcRenderer) { const mode = localStorage.getItem('lilygo_link_open_mode') || 'internal'; window.ipcRenderer.invoke('open-url', fw.download_url, mode); } }}
+                                                className="inline-flex items-center gap-0.5 text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-primary transition-colors cursor-pointer" title={fw.download_url}>
                                                 <ExternalLink size={12} /> {t('firmwareCenter.origin')}
                                             </a>
-                                            )}
-                                            {fw.source_code_url && (
-                                                <a
-                                                    href={fw.source_code_url}
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        if (window.ipcRenderer) {
-                                                            const mode = localStorage.getItem('lilygo_link_open_mode') || 'internal';
-                                                            window.ipcRenderer.invoke('open-url', fw.source_code_url!, mode);
-                                                        }
-                                                    }}
-                                                    className="inline-flex items-center gap-0.5 text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-primary transition-colors cursor-pointer"
-                                                    title={fw.source_code_url}
-                                                >
-                                                    <Github size={12} /> {t('firmwareCenter.source_code')}
-                                                </a>
-                                            )}
-                                            {fw.author_name && (
-                                                <a
-                                                    href={fw.author_link || '#'}
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        if (fw.author_link && window.ipcRenderer) {
-                                                            const mode = localStorage.getItem('lilygo_link_open_mode') || 'internal';
-                                                            window.ipcRenderer.invoke('open-url', fw.author_link, mode);
-                                                        }
-                                                    }}
-                                                    className="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400 hover:text-amber-500 dark:hover:text-amber-300 transition-colors cursor-pointer"
-                                                    title={[fw.author_email, fw.author_link].filter(Boolean).join(' · ')}
-                                                >
-                                                    <User size={12} /> {fw.author_name}
-                                                </a>
-                                            )}
-                                        </div>
+                                        )}
+                                        {fw.source_code_url && (
+                                            <a href={fw.source_code_url} onClick={(e) => { e.preventDefault(); if (window.ipcRenderer) { const mode = localStorage.getItem('lilygo_link_open_mode') || 'internal'; window.ipcRenderer.invoke('open-url', fw.source_code_url!, mode); } }}
+                                                className="inline-flex items-center gap-0.5 text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-primary transition-colors cursor-pointer" title={fw.source_code_url}>
+                                                <Github size={12} /> {t('firmwareCenter.source_code')}
+                                            </a>
+                                        )}
+                                        {fw.author_name && (
+                                            <a href={fw.author_link || '#'} onClick={(e) => { e.preventDefault(); if (fw.author_link && window.ipcRenderer) { const mode = localStorage.getItem('lilygo_link_open_mode') || 'internal'; window.ipcRenderer.invoke('open-url', fw.author_link, mode); } }}
+                                                className="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400 hover:text-amber-500 dark:hover:text-amber-300 transition-colors cursor-pointer"
+                                                title={[fw.author_email, fw.author_link].filter(Boolean).join(' · ')}>
+                                                <User size={12} /> {fw.author_name}
+                                            </a>
+                                        )}
                                     </div>
+
+                                    {/* Description */}
+                                    {fw.description && (
+                                      <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 line-clamp-2">{fw.description}</p>
+                                    )}
 
                                     {/* Action bar — likes + comments + admin buttons left, download/burn right */}
                                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-200 dark:border-zinc-700/50 gap-2">
                                         <div className="flex items-center gap-2 flex-wrap">
                                             {renderFirmwareLikeButton(fw.sha256)}
                                             <CommentsActions />
-                                            {canManageFirmware(fw) && adminMode && fw.sha256 && (
+                                            {canManageFirmware(fw) && adminMode && fw.sha256 && !group.hasMultipleVersions && (
                                               <>
                                                 <button
                                                   onClick={() => handleDeleteFirmware(fw)}
@@ -1483,68 +1609,65 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                         </div>
                                     )}
 
-                                    {/* Admin: Inline Edit Form */}
-                                    {canManageFirmware(fw) && adminMode && editingFirmware?.sha256 === fw.sha256 && (
-                                      <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-800/50">
-                                        <div className="flex items-center justify-between mb-3">
-                                          <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">{t('firmwareCenter.editing')}</span>
-                                          <button onClick={() => setEditingFirmware(null)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
-                                            <X size={16} />
-                                          </button>
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                          {([
-                                            ['name', 'field_name'],
-                                            ['release_tag', 'field_version'],
-                                            ['source', 'field_source'],
-                                            ['source_code_url', 'field_source_code_url'],
-                                            ['author_name', 'field_author_name'],
-                                            ['author_link', 'field_author_link'],
-                                            ['author_email', 'field_author_email'],
-                                            ['firmware_type', 'field_firmware_type'],
-                                            ['path', 'field_path'],
-                                          ] as [string, string][]).map(([field, labelKey]) => (
-                                            <div key={field}>
-                                              <label className="text-xs text-slate-500 dark:text-slate-400">{t(`firmwareCenter.${labelKey}`)}</label>
-                                              <input
-                                                type="text"
-                                                value={editingFirmware!.fields[field] || ''}
-                                                onChange={(e) => setEditingFirmware(prev => prev ? {
-                                                  ...prev,
-                                                  fields: { ...prev.fields, [field]: e.target.value }
-                                                } : null)}
-                                                className="w-full px-2 py-1 text-sm border border-slate-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                                              />
-                                            </div>
-                                          ))}
-                                          <div className="sm:col-span-2">
-                                            <label className="text-xs text-slate-500 dark:text-slate-400">{t('firmwareCenter.field_description')}</label>
-                                            <textarea
-                                              value={editingFirmware!.fields.description || ''}
-                                              onChange={(e) => setEditingFirmware(prev => prev ? {
-                                                ...prev,
-                                                fields: { ...prev.fields, description: e.target.value }
-                                              } : null)}
-                                              rows={2}
-                                              className="w-full px-2 py-1 text-sm border border-slate-300 dark:border-zinc-600 rounded bg-white dark:bg-zinc-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                                            />
+                                    {/* Upload new version button */}
+                                    {group.hasMultipleVersions && currentUser && onUpdateFirmware && (
+                                      <div className="mt-2 pt-2 border-t border-slate-200 dark:border-zinc-700/50">
+                                        <button
+                                          onClick={() => onUpdateFirmware({
+                                            name: fw.name,
+                                            productIds: fw.supported_product_ids,
+                                            description: fw.description || '',
+                                            source: fw.source,
+                                            sourceCodeUrl: fw.source_code_url,
+                                            authorName: fw.author_name,
+                                            authorLink: fw.author_link,
+                                            authorEmail: fw.author_email,
+                                            firmwareTypes: fw.type ? [fw.type] : undefined,
+                                          })}
+                                          className="text-xs text-primary hover:text-primary-hover font-medium flex items-center gap-1 transition-colors"
+                                        >
+                                          <Upload size={12} />
+                                          {t('firmwareCenter.upload_new_version')}
+                                        </button>
+                                      </div>
+                                    )}
+
+                                    {/* Admin: all versions list */}
+                                    {adminMode && group.hasMultipleVersions && (
+                                      <div className="mt-2 pt-2 border-t border-slate-200 dark:border-zinc-700/50">
+                                        <details className="text-xs">
+                                          <summary className="cursor-pointer text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-medium">
+                                            {t('firmwareCenter.all_versions')} ({group.versions.length})
+                                          </summary>
+                                          <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto">
+                                            {group.versions.map((v, vi) => (
+                                              <div key={v.sha256 || vi} className="flex items-center justify-between gap-2 py-1 px-2 rounded bg-slate-50 dark:bg-zinc-900/50">
+                                                <span className="truncate text-slate-600 dark:text-slate-400 flex-1">
+                                                  {v.version || v.filename}
+                                                  {v.published_at && <span className="ml-2 text-slate-400">({v.published_at})</span>}
+                                                </span>
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                  <button
+                                                    onClick={() => handleStartEdit(v)}
+                                                    disabled={adminBusy}
+                                                    className="p-1 text-blue-500 hover:text-blue-700 transition-colors disabled:opacity-50"
+                                                    title={t('firmwareCenter.edit_firmware')}
+                                                  >
+                                                    <Pencil size={12} />
+                                                  </button>
+                                                  <button
+                                                    onClick={() => handleDeleteFirmware(v)}
+                                                    disabled={adminBusy}
+                                                    className="p-1 text-red-500 hover:text-red-700 transition-colors disabled:opacity-50"
+                                                    title={t('firmwareCenter.delete_firmware')}
+                                                  >
+                                                    <ServerCrash size={12} />
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            ))}
                                           </div>
-                                        </div>
-                                        <div className="flex justify-end gap-2 mt-3">
-                                          <button
-                                            onClick={() => setEditingFirmware(null)}
-                                            className="px-3 py-1.5 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-zinc-700 rounded-lg transition-colors"
-                                          >
-                                            {t('firmwareCenter.cancel')}
-                                          </button>
-                                          <button
-                                            onClick={handleSaveEdit}
-                                            disabled={adminBusy}
-                                            className="px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors disabled:opacity-50"
-                                          >
-                                            {adminBusy ? '...' : t('firmwareCenter.save')}
-                                          </button>
-                                        </div>
+                                        </details>
                                       </div>
                                     )}
 

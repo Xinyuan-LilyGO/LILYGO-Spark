@@ -180,7 +180,11 @@
         "share": "Share",
         "share_code_label": "Firmware Share Code",
         "share_code_modal_title": "Firmware Share Code",
-        "supported_products": "Supported Products"
+        "supported_products": "Supported Products",
+        "versions_count": "{{count}} versions",
+        "latest": "Latest",
+        "upload_new_version": "Upload New Version",
+        "all_versions": "All Versions"
     },
     "guide": {
         "title": "User Guide",

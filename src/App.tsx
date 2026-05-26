@@ -8,7 +8,7 @@ import Discovery from './components/Discovery'
 import DeviceToast from './components/DeviceToast'
 import SettingsPage from './components/SettingsPage'
 import Sidebar from './components/Sidebar'
-import FirmwareCommunity from './components/FirmwareCommunity'
+import FirmwareCommunity, { type UploadPrefillData } from './components/FirmwareCommunity'
 import SerialMonitorTool from './components/SerialMonitorTool'
 import ToolboxPage from './components/ToolboxPage'
 import FirmwareUpload from './components/FirmwareUpload'
@@ -34,6 +34,7 @@ function App() {
   const [pendingAnalysisFile, setPendingAnalysisFile] = useState<{ path: string; fileName: string } | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [uploadPrefill, setUploadPrefill] = useState<UploadPrefillData | null>(null);
 
   // Check admin role from server
   const checkRole = async (t: string, u: AuthUser) => {
@@ -172,7 +173,7 @@ function App() {
         
         {activeTab === 'upload' && (
             <div className="h-full overflow-auto">
-                <FirmwareUpload token={token} isAdmin={user?.isAdmin || false} userEmail={user?.email} />
+                <FirmwareUpload token={token} isAdmin={user?.isAdmin || false} userEmail={user?.email} prefillFrom={uploadPrefill} />
             </div>
         )}
         
@@ -185,7 +186,12 @@ function App() {
                  setPendingAnalysisFile({ path: filePath, fileName });
                  setToolsDefaultTab('analyzer');
                  setActiveTab('tools');
-             }} />
+               }}
+               onUpdateFirmware={(data) => {
+                 setUploadPrefill(data);
+                 setActiveTab('upload');
+               }}
+             />
         )}
         
         {activeTab === 'settings' && (

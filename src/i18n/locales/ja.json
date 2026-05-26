@@ -208,7 +208,11 @@
     "share": "共有",
     "share_code_label": "FW共有コード",
     "share_code_modal_title": "FW共有コード",
-    "supported_products": "対応製品"
+    "supported_products": "対応製品",
+    "versions_count": "{{count}} バージョン",
+    "latest": "最新",
+    "upload_new_version": "新バージョンをアップロード",
+    "all_versions": "全バージョン"
   },
   "community": {
     "title": "LILYGO 関連",

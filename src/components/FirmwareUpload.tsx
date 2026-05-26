@@ -6,10 +6,24 @@ import ShareCodeModal from './ShareCodeModal';
 import { SeriesApi } from './series/api';
 import type { FirmwareSeries } from './series/types';
 
+interface UploadPrefillData {
+  name: string;
+  productIds: string[];
+  description: string;
+  source?: string;
+  sourceCodeUrl?: string;
+  authorName?: string;
+  authorLink?: string;
+  authorEmail?: string;
+  firmwareTypes?: string[];
+  seriesIds?: string[];
+}
+
 interface FirmwareUploadProps {
   token: string | null;
   isAdmin: boolean;
   userEmail?: string;
+  prefillFrom?: UploadPrefillData | null;
 }
 
 interface ProductOption {
@@ -55,7 +69,7 @@ async function getApiUrl(): Promise<string> {
   throw new Error('Not in Electron environment');
 }
 
-const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin, userEmail }) => {
+const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin, userEmail, prefillFrom }) => {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'upload' | 'my_uploads' | 'review'>('upload');
 
@@ -152,6 +166,23 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin, userEma
       }
     })();
   }, []);
+
+  // Apply prefill data when navigating from "Upload New Version"
+  useEffect(() => {
+    if (prefillFrom) {
+      setName(prefillFrom.name);
+      setProductIds(prefillFrom.productIds);
+      setDescription(prefillFrom.description);
+      if (prefillFrom.source) setSource(prefillFrom.source);
+      if (prefillFrom.sourceCodeUrl) setSourceCodeUrl(prefillFrom.sourceCodeUrl);
+      if (prefillFrom.authorName) setAuthorName(prefillFrom.authorName);
+      if (prefillFrom.authorLink) setAuthorLink(prefillFrom.authorLink);
+      if (prefillFrom.authorEmail) setAuthorEmail(prefillFrom.authorEmail);
+      if (prefillFrom.firmwareTypes) setFirmwareTypes(prefillFrom.firmwareTypes);
+      if (prefillFrom.seriesIds) setSeriesIds(prefillFrom.seriesIds);
+      setActiveTab('upload');
+    }
+  }, [prefillFrom]);
 
   const eligibleSeries = useMemo(() => {
     if (isAdmin) return allSeries;
