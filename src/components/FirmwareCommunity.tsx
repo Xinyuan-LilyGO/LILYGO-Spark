@@ -580,6 +580,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
         author_email: fw.author_email || '',
         firmware_type: fw.type || '',
         path: '',
+        image_urls: JSON.stringify(fw.image_urls || []),
       },
     });
   };
@@ -590,13 +591,17 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
     setAdminBusy(true);
     try {
       const apiUrl = await getApiUrl();
+      const updates: Record<string, any> = { ...editingFirmware.fields };
+      if (updates.image_urls) {
+        try { updates.image_urls = JSON.parse(updates.image_urls); } catch { delete updates.image_urls; }
+      }
       const resp = await fetch(`${apiUrl}/manifest/firmware`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           product_id: selectedProductId,
           sha256: editingFirmware.sha256,
-          updates: editingFirmware.fields,
+          updates,
         }),
       });
       const data = await resp.json();
@@ -788,6 +793,92 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                   rows={3}
                   className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500"
                 />
+              </div>
+              {/* Image URLs management */}
+              <div className="sm:col-span-2">
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">{t('upload.image_label')}</label>
+                {(() => {
+                  let urls: string[] = [];
+                  try { urls = JSON.parse(editingFirmware.fields.image_urls || '[]'); } catch { /* */ }
+                  return (
+                    <div className="space-y-2">
+                      {urls.length > 0 && (
+                        <div className="flex gap-2 flex-wrap">
+                          {urls.map((url, i) => (
+                            <div key={i} className="relative">
+                              <img src={url} alt="" className="w-16 h-10 object-contain rounded border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900" />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newUrls = urls.filter((_, idx) => idx !== i);
+                                  setEditingFirmware(prev => prev ? { ...prev, fields: { ...prev.fields, image_urls: JSON.stringify(newUrls) } } : null);
+                                }}
+                                className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-[8px]"
+                              >
+                                <X size={8} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <input
+                          type="url"
+                          placeholder="https://...image.png"
+                          className="flex-1 px-3 py-1.5 text-xs border border-slate-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              const input = e.target as HTMLInputElement;
+                              const val = input.value.trim();
+                              if (val && val.startsWith('http')) {
+                                const newUrls = [...urls, val];
+                                setEditingFirmware(prev => prev ? { ...prev, fields: { ...prev.fields, image_urls: JSON.stringify(newUrls) } } : null);
+                                input.value = '';
+                              }
+                            }
+                          }}
+                        />
+                        <span className="text-[10px] text-slate-400 self-center whitespace-nowrap">Enter to add</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+              {/* Series management */}
+              <div className="sm:col-span-2">
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">{t('firmwareCenter.supported_products')}/{t('series.title')}</label>
+                <div className="flex gap-1.5 flex-wrap">
+                  {seriesList.map(s => {
+                    const fwId16 = editingFirmware.sha256.slice(0, 16);
+                    const inSeries = s.firmware_ids.includes(fwId16);
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const apiUrl = await getApiUrl();
+                            if (inSeries) {
+                              await fetch(`${apiUrl}/series/${s.id}/firmware/${fwId16}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+                            } else {
+                              await fetch(`${apiUrl}/series/${s.id}/firmware`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ firmware_id: fwId16 }) });
+                            }
+                            const updated = await SeriesApi.list();
+                            setSeriesList(updated);
+                          } catch { /* */ }
+                        }}
+                        className={`text-xs px-2 py-1 rounded-md border transition-colors ${
+                          inSeries
+                            ? 'bg-primary/10 text-primary border-primary/30'
+                            : 'bg-slate-50 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-zinc-700 hover:border-primary/50'
+                        }`}
+                      >
+                        {inSeries ? '✓ ' : ''}{s.name}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-5 pt-4 border-t border-slate-200 dark:border-zinc-700">
