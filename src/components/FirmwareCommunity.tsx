@@ -1513,10 +1513,13 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
 
                                     {/* Firmware images gallery (below title) */}
                                     {(() => {
+                                      const seen = new Set<string>();
                                       const images: { url: string; label: string }[] = [];
                                       for (const v of group.versions) {
                                         const urls = v.image_urls || (v.image_url ? [v.image_url] : []);
                                         for (const url of urls) {
+                                          if (seen.has(url)) continue;
+                                          seen.add(url);
                                           images.push({ url, label: v.version || v.filename });
                                         }
                                       }
