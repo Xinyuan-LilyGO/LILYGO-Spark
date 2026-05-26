@@ -705,6 +705,7 @@
         "flash_address": "Flash Address",
         "image_label": "Cover Image (optional)",
         "image_hint": "PNG/JPG, max 2MB",
+        "checking_duplicate": "Checking for duplicates...",
         "source_code_url": "Source Code URL",
         "github_repo": "GitHub Repository",
         "author_name": "Author Name",

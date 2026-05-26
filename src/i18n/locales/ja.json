@@ -493,6 +493,7 @@
     "flash_address": "フラッシュアドレス",
     "image_label": "カバー画像（任意）",
     "image_hint": "PNG/JPG、最大2MB",
+    "checking_duplicate": "重複チェック中...",
     "source_code_url": "ソースコードURL",
     "github_repo": "GitHubリポジトリ",
     "author_name": "作者名",
