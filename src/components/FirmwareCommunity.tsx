@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, ChevronRight, Layers, Github, Save, Trash2, Zap, Microscope, User, Pencil, X, ServerCrash, Share2, Check, Hash, Upload } from 'lucide-react';
+import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, ChevronRight, Layers, Github, Save, Trash2, Zap, Microscope, User, Pencil, X, Share2, Check, Hash, Upload } from 'lucide-react';
 import BurnerModal from './BurnerModal';
 import ProductManager from './ProductManager';
 import ShareCodeRedeemModal from './ShareCodeRedeemModal';
@@ -331,6 +331,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
 
   // Version grouping: group firmware by name
   const [selectedVersions, setSelectedVersions] = useState<Record<string, string>>({});
+  const [managingGroup, setManagingGroup] = useState<FirmwareGroup | null>(null);
 
   const groupedFirmwares = React.useMemo((): FirmwareGroup[] | null => {
     if (view !== 'products') return null;
@@ -340,22 +341,8 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(fw);
     }
-    const tsRegex = /[_-](\d{8,12})/;
-    const sortVersions = (a: Firmware, b: Firmware): number => {
-      if (a.published_at && b.published_at) return b.published_at.localeCompare(a.published_at);
-      if (a.published_at) return -1;
-      if (b.published_at) return 1;
-      const aTs = a.filename.match(tsRegex);
-      const bTs = b.filename.match(tsRegex);
-      if (aTs && bTs) return bTs[1].localeCompare(aTs[1]);
-      if (aTs) return -1;
-      if (bTs) return 1;
-      if (a.version && b.version) return b.version.localeCompare(a.version);
-      return 0;
-    };
     const result: FirmwareGroup[] = [];
     for (const [key, firmwares] of groups) {
-      firmwares.sort(sortVersions);
       result.push({
         groupName: key,
         versions: firmwares,
@@ -696,6 +683,60 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
           }}
         />
       )}
+      {/* Versions Management Modal */}
+      {managingGroup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setManagingGroup(null)} />
+          <div className="relative bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-xl max-h-[75vh] flex flex-col border border-slate-200 dark:border-zinc-700">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-zinc-700 shrink-0">
+              <div>
+                <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">{managingGroup.groupName}</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{t('firmwareCenter.versions_count', { count: managingGroup.versions.length })}</p>
+              </div>
+              <button onClick={() => setManagingGroup(null)} className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-3">
+              <div className="space-y-1">
+                {managingGroup.versions.map((v, vi) => (
+                  <div key={v.sha256 || vi} className="flex items-center justify-between gap-3 py-2.5 px-3 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm text-slate-700 dark:text-slate-300 truncate font-medium">
+                        {v.filename}
+                      </div>
+                      <div className="text-xs text-slate-400 dark:text-zinc-500 mt-0.5 flex items-center gap-3">
+                        {v.version && <span>{v.version}</span>}
+                        {v.size && <span>{formatFileSize(v.size)}</span>}
+                        {v.published_at && <span>{v.published_at}</span>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => { setManagingGroup(null); handleStartEdit(v); }}
+                        disabled={adminBusy}
+                        className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-md transition-colors disabled:opacity-50"
+                        title={t('firmwareCenter.edit_firmware')}
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteFirmware(v)}
+                        disabled={adminBusy}
+                        className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md transition-colors disabled:opacity-50"
+                        title={t('firmwareCenter.delete_firmware')}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Firmware Edit Modal */}
       {editingFirmware && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1447,7 +1488,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                           >
                                             {group.versions.map((v, vi) => (
                                               <option key={v.sha256 || vi} value={v.sha256 || ''}>
-                                                {v.version || v.filename}{vi === 0 ? ` (${t('firmwareCenter.latest')})` : ''}
+                                                {v.version || v.filename}
                                               </option>
                                             ))}
                                           </select>
@@ -1515,7 +1556,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                         <div className="flex items-center gap-2 flex-wrap">
                                             {renderFirmwareLikeButton(fw.sha256)}
                                             <CommentsActions />
-                                            {canManageFirmware(fw) && adminMode && fw.sha256 && !group.hasMultipleVersions && (
+                                            {canManageFirmware(fw) && adminMode && fw.sha256 && (
                                               <>
                                                 <button
                                                   onClick={() => handleDeleteFirmware(fw)}
@@ -1523,11 +1564,11 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                                   className="px-2 py-1 text-xs font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md transition-colors disabled:opacity-50 flex items-center gap-1"
                                                   title={t('firmwareCenter.confirm_delete', { name: fw.name })}
                                                 >
-                                                  <ServerCrash size={14} />
+                                                  <Trash2 size={14} />
                                                   {t('firmwareCenter.delete_firmware')}
                                                 </button>
                                                 <button
-                                                  onClick={() => handleStartEdit(fw)}
+                                                  onClick={() => group.hasMultipleVersions ? setManagingGroup(group) : handleStartEdit(fw)}
                                                   disabled={adminBusy}
                                                   className="px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 border border-blue-300 dark:border-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-md transition-colors disabled:opacity-50 flex items-center gap-1"
                                                   title={t('firmwareCenter.edit_firmware')}
@@ -1632,44 +1673,6 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                       </div>
                                     )}
 
-                                    {/* Admin: all versions list */}
-                                    {adminMode && group.hasMultipleVersions && (
-                                      <div className="mt-2 pt-2 border-t border-slate-200 dark:border-zinc-700/50">
-                                        <details className="text-xs">
-                                          <summary className="cursor-pointer text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 font-medium">
-                                            {t('firmwareCenter.all_versions')} ({group.versions.length})
-                                          </summary>
-                                          <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto">
-                                            {group.versions.map((v, vi) => (
-                                              <div key={v.sha256 || vi} className="flex items-center justify-between gap-2 py-1 px-2 rounded bg-slate-50 dark:bg-zinc-900/50">
-                                                <span className="truncate text-slate-600 dark:text-slate-400 flex-1">
-                                                  {v.version || v.filename}
-                                                  {v.published_at && <span className="ml-2 text-slate-400">({v.published_at})</span>}
-                                                </span>
-                                                <div className="flex items-center gap-1 shrink-0">
-                                                  <button
-                                                    onClick={() => handleStartEdit(v)}
-                                                    disabled={adminBusy}
-                                                    className="p-1 text-blue-500 hover:text-blue-700 transition-colors disabled:opacity-50"
-                                                    title={t('firmwareCenter.edit_firmware')}
-                                                  >
-                                                    <Pencil size={12} />
-                                                  </button>
-                                                  <button
-                                                    onClick={() => handleDeleteFirmware(v)}
-                                                    disabled={adminBusy}
-                                                    className="p-1 text-red-500 hover:text-red-700 transition-colors disabled:opacity-50"
-                                                    title={t('firmwareCenter.delete_firmware')}
-                                                  >
-                                                    <ServerCrash size={12} />
-                                                  </button>
-                                                </div>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        </details>
-                                      </div>
-                                    )}
 
                                     {/* Top comment preview (only renders if a top comment exists) */}
                                     <CommentsPreview />
