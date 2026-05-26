@@ -581,6 +581,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
         firmware_type: fw.type || '',
         path: '',
         image_urls: JSON.stringify(fw.image_urls || []),
+        supported_product_ids: JSON.stringify(fw.supported_product_ids || []),
       },
     });
   };
@@ -594,6 +595,9 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
       const updates: Record<string, any> = { ...editingFirmware.fields };
       if (updates.image_urls) {
         try { updates.image_urls = JSON.parse(updates.image_urls); } catch { delete updates.image_urls; }
+      }
+      if (updates.supported_product_ids) {
+        try { updates.supported_product_ids = JSON.parse(updates.supported_product_ids); } catch { delete updates.supported_product_ids; }
       }
       const resp = await fetch(`${apiUrl}/manifest/firmware`, {
         method: 'PATCH',
@@ -802,52 +806,113 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                   try { urls = JSON.parse(editingFirmware.fields.image_urls || '[]'); } catch { /* */ }
                   return (
                     <div className="space-y-2">
-                      {urls.length > 0 && (
-                        <div className="flex gap-2 flex-wrap">
-                          {urls.map((url, i) => (
-                            <div key={i} className="relative">
-                              <img src={url} alt="" className="w-16 h-10 object-contain rounded border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900" />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newUrls = urls.filter((_, idx) => idx !== i);
-                                  setEditingFirmware(prev => prev ? { ...prev, fields: { ...prev.fields, image_urls: JSON.stringify(newUrls) } } : null);
-                                }}
-                                className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-[8px]"
-                              >
-                                <X size={8} />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      <div className="flex gap-2">
-                        <input
-                          type="url"
-                          placeholder="https://...image.png"
-                          className="flex-1 px-3 py-1.5 text-xs border border-slate-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              const input = e.target as HTMLInputElement;
-                              const val = input.value.trim();
-                              if (val && val.startsWith('http')) {
-                                const newUrls = [...urls, val];
+                      <div className="flex gap-2 flex-wrap items-center">
+                        {urls.map((url, i) => (
+                          <div key={i} className="relative">
+                            <img src={url} alt="" className="w-16 h-10 object-contain rounded border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900" />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newUrls = urls.filter((_, idx) => idx !== i);
                                 setEditingFirmware(prev => prev ? { ...prev, fields: { ...prev.fields, image_urls: JSON.stringify(newUrls) } } : null);
-                                input.value = '';
-                              }
-                            }
-                          }}
-                        />
-                        <span className="text-[10px] text-slate-400 self-center whitespace-nowrap">Enter to add</span>
+                              }}
+                              className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-[8px]"
+                            >
+                              <X size={8} />
+                            </button>
+                          </div>
+                        ))}
+                        {urls.length < 5 && (
+                          <label className="w-16 h-10 rounded border-2 border-dashed border-slate-300 dark:border-zinc-600 flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors">
+                            <span className="text-xl text-slate-400 dark:text-zinc-500">+</span>
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const f = e.target.files?.[0];
+                                if (!f) return;
+                                if (f.size > 2 * 1024 * 1024) { alert('Image must be ≤ 2MB'); return; }
+                                try {
+                                  const apiUrl = await getApiUrl();
+                                  const formData = new FormData();
+                                  formData.append('image', f);
+                                  const resp = await fetch(`${apiUrl}/upload/image`, {
+                                    method: 'POST',
+                                    headers: { Authorization: `Bearer ${token}` },
+                                    body: formData,
+                                  });
+                                  const data = await resp.json();
+                                  if (data.success && data.image_url) {
+                                    const newUrls = [...urls, data.image_url];
+                                    setEditingFirmware(prev => prev ? { ...prev, fields: { ...prev.fields, image_urls: JSON.stringify(newUrls) } } : null);
+                                  } else {
+                                    alert(data.error || 'Upload failed');
+                                  }
+                                } catch (err: any) { alert(err.message); }
+                                e.target.value = '';
+                              }}
+                            />
+                          </label>
+                        )}
                       </div>
+                    </div>
+                  );
+                })()}
+              </div>
+              {/* Supported hardware (product IDs) */}
+              <div className="sm:col-span-2">
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">{t('firmwareCenter.supported_products')}</label>
+                {(() => {
+                  let pids: string[] = [];
+                  try { pids = JSON.parse(editingFirmware.fields.supported_product_ids || '[]'); } catch { /* */ }
+                  const allProducts: { id: string; name: string }[] = [];
+                  for (const g of manifest.product_list) {
+                    if (g.products) {
+                      for (const p of g.products) allProducts.push({ id: p.product_id, name: p.name });
+                    } else if (g.product_id) {
+                      allProducts.push({ id: g.product_id, name: g.name });
+                    }
+                  }
+                  return (
+                    <div className="space-y-2">
+                      <div className="flex gap-1.5 flex-wrap">
+                        {pids.map(pid => {
+                          const prod = allProducts.find(p => p.id === pid);
+                          return (
+                            <span key={pid} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-primary/10 text-primary border border-primary/30">
+                              {prod?.name || pid}
+                              <button type="button" onClick={() => {
+                                const newPids = pids.filter(p => p !== pid);
+                                setEditingFirmware(prev => prev ? { ...prev, fields: { ...prev.fields, supported_product_ids: JSON.stringify(newPids) } } : null);
+                              }} className="hover:text-red-500"><X size={10} /></button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                      <select
+                        className="text-xs px-2 py-1.5 rounded-lg border border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-300 w-full"
+                        value=""
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val && !pids.includes(val)) {
+                            const newPids = [...pids, val];
+                            setEditingFirmware(prev => prev ? { ...prev, fields: { ...prev.fields, supported_product_ids: JSON.stringify(newPids) } } : null);
+                          }
+                        }}
+                      >
+                        <option value="">+ {t('firmwareCenter.supported_products')}...</option>
+                        {allProducts.filter(p => !pids.includes(p.id)).map(p => (
+                          <option key={p.id} value={p.id}>{p.name} ({p.id})</option>
+                        ))}
+                      </select>
                     </div>
                   );
                 })()}
               </div>
               {/* Series management */}
               <div className="sm:col-span-2">
-                <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">{t('firmwareCenter.supported_products')}/{t('series.title')}</label>
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">{t('series.title')}</label>
                 <div className="flex gap-1.5 flex-wrap">
                   {seriesList.map(s => {
                     const fwId16 = editingFirmware.sha256.slice(0, 16);
