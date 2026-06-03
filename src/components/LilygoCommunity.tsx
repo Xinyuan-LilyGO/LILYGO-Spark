@@ -6,8 +6,8 @@ const LINKS = [
   { id: 'official', url: 'https://lilygo.cc/', icon: Globe, accent: 'from-emerald-500 to-teal-600' },
   { id: 'github', url: 'https://github.com/Xinyuan-LilyGO', icon: Github, accent: 'from-slate-700 to-slate-900 dark:from-slate-600 dark:to-slate-800' },
   { id: 'wiki', url: 'https://wiki.lilygo.cc/', icon: BookOpen, accent: 'from-amber-500 to-orange-600' },
-  { id: 'taobao', url: 'https://shop140839766.taobao.com/', icon: ShoppingBag, accent: 'from-orange-400 to-rose-500' },
-  { id: 'aliexpress', url: 'https://lilygo.aliexpress.com/', icon: Store, accent: 'from-red-500 to-rose-600' },
+  { id: 'taobao', url: 'https://shop140839766.taobao.com/category.htm', icon: ShoppingBag, accent: 'from-orange-400 to-rose-500' },
+  { id: 'aliexpress', url: 'https://www.aliexpress.com/store/1101195566', icon: Store, accent: 'from-red-500 to-rose-600' },
   { id: 'community', url: 'https://community.lilygo.cc/', icon: Users, accent: 'from-violet-500 to-purple-600' },
 ];
 
