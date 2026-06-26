@@ -34,6 +34,22 @@ exports.default = async function afterSign(context) {
     return;
   }
 
+  // On builds without real code signing — notably PR builds, where
+  // electron-builder falls back to ad-hoc signing and notarization is skipped —
+  // the configured Developer ID identity may not be usable on every runner, and
+  // re-signing is pointless. Only re-sign esptool when electron-builder actually
+  // applied a real Developer ID signature to the app.
+  let appSignature = '';
+  try {
+    appSignature = execSync(`codesign -dv "${appPath}" 2>&1`, { encoding: 'utf-8' });
+  } catch (e) {
+    appSignature = `${e.stdout || ''}${e.stderr || ''}`;
+  }
+  if (!/Authority=Developer ID/.test(appSignature)) {
+    console.log('[afterSign] App is not Developer ID signed (ad-hoc / PR build) — skipping esptool re-sign');
+    return;
+  }
+
   // Check if esptool is already properly signed (not adhoc)
   try {
     const info = execSync(`codesign -dv "${esptoolPath}" 2>&1`, { encoding: 'utf-8' });
