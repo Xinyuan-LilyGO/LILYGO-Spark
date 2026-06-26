@@ -4,6 +4,12 @@
 
 /* Theme CSS variables - defaults (blue), overridden by ThemeContext */
 :root {
+  /* Typography + shape tokens — overridden per theme pack by ThemeContext. */
+  --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", "Microsoft JhengHei UI", "Yu Gothic UI", "Malgun Gothic", "Helvetica Neue", sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", "Microsoft JhengHei UI", "Yu Gothic UI", "Malgun Gothic", "Helvetica Neue", sans-serif;
+  --font-mono: "SF Mono", "SFMono-Regular", "Menlo", "Consolas", "Cascadia Code", "JetBrains Mono", "DejaVu Sans Mono", "Courier New", monospace;
+  --radius: 0.75rem;
+
   /* Light Mode - Clean Slate */
   --color-primary: 99 102 241; /* Indigo 500 */
   --color-primary-hover: 79 70 229; /* Indigo 600 */
@@ -38,22 +44,83 @@
 html, body, #root {
   height: 100%;
   margin: 0;
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    "Microsoft YaHei UI",
-    "Microsoft JhengHei UI",
-    "Yu Gothic UI",
-    "Malgun Gothic",
-    "Helvetica Neue",
-    sans-serif;
+  font-family: var(--font-body);
   background-color: rgb(var(--color-bg-base));
   color: rgb(var(--color-text-base));
   transition: background-color 0.2s, color 0.2s;
   user-select: none;
   -webkit-user-select: none;
   -webkit-user-drag: none;
+}
+
+/* Display font utility for headings/branding in themed packs. */
+.font-display { font-family: var(--font-display); }
+.font-body { font-family: var(--font-body); }
+.font-mono-theme { font-family: var(--font-mono); }
+
+/* ===== Theme pack ambient textures (base layer behind app surfaces) ===== */
+[data-theme="terminal"] body {
+  background-image:
+    linear-gradient(rgba(74, 222, 128, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(74, 222, 128, 0.055) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-position: -1px -1px;
+}
+[data-theme="editorial"] body {
+  background-image: radial-gradient(rgba(28, 25, 23, 0.03) 1px, transparent 1px);
+  background-size: 5px 5px;
+}
+[data-theme="brutalist"] body {
+  background-image: radial-gradient(rgba(0, 0, 0, 0.13) 1.5px, transparent 1.5px);
+  background-size: 22px 22px;
+}
+[data-theme="brutalist"].dark body,
+[data-theme="brutalist"] .dark body {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1.5px, transparent 1.5px);
+}
+
+/* ===== Firmware card — themed surface with per-pack personality ===== */
+.fw-card {
+  background-color: rgb(var(--color-bg-surface));
+  border: 1px solid rgb(var(--color-text-base) / 0.10);
+  border-radius: var(--radius);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+.fw-card:hover {
+  border-color: rgb(var(--color-primary) / 0.45);
+  box-shadow: 0 10px 30px -12px rgb(var(--color-text-base) / 0.18);
+}
+
+/* Terminal: phosphor glow + hard edge */
+[data-theme="terminal"] .fw-card {
+  border-color: rgb(var(--color-primary) / 0.22);
+}
+[data-theme="terminal"] .fw-card:hover {
+  border-color: rgb(var(--color-primary) / 0.7);
+  box-shadow: 0 0 0 1px rgb(var(--color-primary) / 0.25), 0 0 22px -4px rgb(var(--color-primary) / 0.35);
+}
+
+/* Editorial: hairline ink rule, no lift, refined shadow */
+[data-theme="editorial"] .fw-card {
+  border-color: rgb(var(--color-text-base) / 0.14);
+  box-shadow: 0 1px 0 rgb(var(--color-text-base) / 0.04);
+}
+[data-theme="editorial"] .fw-card:hover {
+  border-color: rgb(var(--color-text-base) / 0.28);
+  box-shadow: 0 8px 24px -16px rgb(var(--color-text-base) / 0.4);
+  transform: none;
+}
+
+/* Neo-Brutalist: fat border + hard offset shadow, no rounding */
+[data-theme="brutalist"] .fw-card {
+  border-width: 2px;
+  border-color: rgb(var(--color-text-base));
+  box-shadow: 4px 4px 0 0 rgb(var(--color-text-base));
+}
+[data-theme="brutalist"] .fw-card:hover {
+  border-color: rgb(var(--color-text-base));
+  box-shadow: 6px 6px 0 0 rgb(var(--color-primary));
+  transform: translate(-1px, -1px);
 }
 
 /* Settings page: unified style for each setting block */

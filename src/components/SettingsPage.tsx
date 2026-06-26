@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Globe, Moon, Palette, ExternalLink, Sparkles, Zap, Volume2, CheckCircle, ChevronDown, ChevronRight, FileJson, FolderOpen, X, SlidersHorizontal, RefreshCw, HardDrive, Trash2, MessageSquare, Settings, Wifi, WifiOff, Shield, Activity, Download, Terminal } from 'lucide-react';
 import { useTheme, type AccentColor, type AccentMode, type FlashCelebrationStyle } from '../contexts/ThemeContext';
+import { THEME_PACK_IDS, THEME_PACKS } from '../theme/themePacks';
 import { useDownload } from '../contexts/DownloadContext';
 import FeedbackPage, { type FeedbackData } from './FeedbackPage';
 
@@ -28,7 +29,7 @@ function formatCacheSize(bytes: number): string {
 
 const SettingsPage: React.FC = () => {
   const { t, i18n } = useTranslation();
-  const { preference: themePreference, setPreference: setThemePreference, accent, accentMode, setAccent, setAccentMode, glassEnabled, setGlassEnabled, soundEnabled, setSoundEnabled, flashCelebrationStyle, setFlashCelebrationStyle } = useTheme();
+  const { preference: themePreference, setPreference: setThemePreference, themePack, setThemePack, accent, accentMode, setAccent, setAccentMode, glassEnabled, setGlassEnabled, soundEnabled, setSoundEnabled, flashCelebrationStyle, setFlashCelebrationStyle } = useTheme();
   const { getCacheStats, clearAll, tasks } = useDownload();
 
   const [cacheClearing, setCacheClearing] = React.useState(false);
@@ -429,6 +430,59 @@ const SettingsPage: React.FC = () => {
             <div className="text-xs text-slate-500 dark:text-zinc-400 mt-2">
                 {themePreference === 'system' ? t('settings.theme_options.system') : themePreference === 'light' ? t('settings.theme_options.light') : t('settings.theme_options.dark')}
             </div>
+            </div>
+
+            {/* Theme pack gallery — pluggable aesthetics (palette + typography + texture) */}
+            <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
+                <div className="flex items-center space-x-3 mb-3">
+                    <Sparkles className="text-primary" />
+                    <span className="font-medium text-slate-800 dark:text-slate-200">{t('settings.theme_pack', 'Theme pack')}</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {THEME_PACK_IDS.map((id) => {
+                        const p = THEME_PACKS[id];
+                        const selected = themePack === id;
+                        return (
+                            <button
+                                key={id}
+                                onClick={() => setThemePack(id)}
+                                className={`group text-left rounded-xl border overflow-hidden transition-all ${
+                                    selected
+                                        ? 'border-primary ring-2 ring-primary/40 shadow-lg'
+                                        : 'border-slate-200 dark:border-zinc-700 hover:border-primary/50 hover:shadow-md'
+                                }`}
+                            >
+                                {/* Live preview strip rendered with the pack's own colors + display font */}
+                                <div className="relative h-20 px-3 flex flex-col justify-center gap-1.5" style={{ backgroundColor: p.preview.bg }}>
+                                    <div
+                                        className="text-sm font-semibold leading-tight truncate"
+                                        style={{ color: p.preview.text, fontFamily: p.fonts.display }}
+                                    >
+                                        {p.name}
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="h-3.5 w-3.5 rounded-full ring-1 ring-black/10" style={{ backgroundColor: p.preview.primary }} />
+                                        <span className="h-3.5 w-3.5 rounded-full ring-1 ring-black/10" style={{ backgroundColor: p.preview.accent }} />
+                                        <span className="h-3.5 flex-1 rounded" style={{ backgroundColor: p.preview.surface, opacity: 0.9 }} />
+                                    </div>
+                                    {selected && (
+                                        <span className="absolute top-2 right-2 inline-flex items-center justify-center h-5 w-5 rounded-full bg-primary text-white">
+                                            <CheckCircle size={14} />
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="px-3 py-2 bg-white dark:bg-zinc-800">
+                                    <div className="text-xs text-slate-500 dark:text-zinc-400 leading-snug">
+                                        {t(`settings.theme_packs.${id}`, p.description)}
+                                    </div>
+                                </div>
+                            </button>
+                        );
+                    })}
+                </div>
+                <div className="text-xs text-slate-500 dark:text-zinc-400 mt-2">
+                    {t('settings.theme_pack_hint', 'Theme packs bundle a color palette, typography and texture. Classic follows your light/dark and accent settings below.')}
+                </div>
             </div>
 
             <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
