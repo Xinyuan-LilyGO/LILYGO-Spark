@@ -8,11 +8,12 @@
     "postinstall": "electron-builder install-app-deps",
     "build": "npm run clean && npm run prebuild && npm run build:compile && node scripts/build-wrapper.js",
     "clean": "rimraf dist dist-electron release",
-    "prebuild": "node scripts/check-lilygo-config.js && shx mkdir -p build && shx cp public/LILYGO.png build/icon.png",
+    "prebuild": "node scripts/check-lilygo-config.js && npm run generate-v2-manifest && shx mkdir -p build && shx cp public/LILYGO.png build/icon.png",
     "fetch-products": "node scripts/fetch-lilygo-products.js && node scripts/filter-flashable-products.js",
     "fetch-github-bins": "node scripts/fetch-github-firmware-bins.js",
     "filter-products": "node scripts/filter-flashable-products.js",
     "restructure-manifest": "node scripts/restructure-manifest-by-series.js",
+    "generate-v2-manifest": "node scripts/generate-v2-manifest.ts",
     "prebuild:mac:all": "npm run prebuild",
     "prebuild:mac": "npm run prebuild",
     "build:compile": "tsc && vite build",
@@ -138,6 +139,10 @@
       {
         "from": "firmware_manifest.json",
         "to": "firmware_manifest.json"
+      },
+      {
+        "from": "firmware_manifest_v2.json",
+        "to": "firmware_manifest_v2.json"
       }
     ],
     "afterPack": "./scripts/afterPack.js",

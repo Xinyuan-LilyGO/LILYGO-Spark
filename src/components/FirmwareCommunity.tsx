@@ -8,6 +8,9 @@ import { CommentsProvider, CommentsActions, CommentsPreview, type CurrentUser } 
 import SeriesManager from './series/SeriesManager';
 import { SeriesApi } from './series/api';
 import { fwIdFromSha256, type FirmwareSeries } from './series/types';
+import { type FirmwareGroupOf } from '../utils/manifestSchema';
+import { groupsForProduct, flattenV2, type FlatFirmware } from '../utils/manifestV2View';
+import type { ManifestV2 } from '../utils/manifestV2';
 import { useDownload } from '../contexts/DownloadContext';
 import type { DownloadedFile } from '../contexts/DownloadContext';
 
@@ -34,29 +37,11 @@ interface ProductGroup {
   product_page?: string;
 }
 
-interface Firmware {
-  supported_product_ids: string[];
-  name: string;
-  version: string;
-  type: string;
-  filename: string;
-  download_url: string;
-  description: string;
-  release_note?: string;
-  size?: number;
-  compressed_size?: number;
-  oss_url?: string;
-  md5?: string;
-  sha256?: string;
-  source?: string;
-  source_code_url?: string;
-  published_at?: string;
-  author_name?: string;
-  author_link?: string;
-  author_email?: string;
-  image_url?: string;
-  image_urls?: string[];
-}
+/**
+ * Flat per-version firmware record consumed by this screen and all of its
+ * handlers. Sourced from the v2 view adapter so the shape lives in one place.
+ */
+type Firmware = FlatFirmware;
 
 interface Manifest {
   product_list: ProductGroup[];
@@ -64,11 +49,12 @@ interface Manifest {
   series_list?: FirmwareSeries[];
 }
 
-interface FirmwareGroup {
-  groupName: string;
-  versions: Firmware[];
-  hasMultipleVersions: boolean;
-}
+/**
+ * Nested firmware view used by the UI. Sourced from the shared, unit-tested
+ * `manifestSchema` module so grouping logic lives in one place. Kept generic
+ * over the local `Firmware` type so downstream rendering code is unchanged.
+ */
+type FirmwareGroup = FirmwareGroupOf<Firmware>;
 
 export interface UploadPrefillData {
   name: string;
@@ -125,12 +111,83 @@ function formatDownloadCount(count: number): string {
 }
 
 function productHasFirmware(manifest: Manifest, productId: string): boolean {
-  return manifest.firmware_list.some(f => f.supported_product_ids.includes(productId));
+  return (manifest.firmware_list ?? []).some(f => f.supported_product_ids.includes(productId));
+}
+
+/**
+ * Themed version picker. Replaces the native <select> (whose popup is OS-styled,
+ * ignores the theme tokens, and anchors its menu inconsistently / too far right)
+ * with a token-driven popover that anchors under and right-aligns to its
+ * trigger, so it looks consistent across every theme pack.
+ */
+function VersionDropdown({ versions, value, onChange, countLabel }: {
+  versions: { sha256?: string; version?: string; filename?: string }[];
+  value: string;
+  onChange: (sha: string) => void;
+  countLabel: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDocMouseDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocMouseDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const current = versions.find(v => (v.sha256 || '') === value) || versions[0];
+  const currentLabel = current?.version || current?.filename || '';
+
+  return (
+    <div className="flex flex-col items-end gap-1 shrink-0" ref={ref}>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen(o => !o)}
+          className="inline-flex items-center justify-between gap-1.5 text-xs px-2.5 py-1.5 rounded-theme border border-ink/15 bg-background text-ink font-mono-theme hover:border-primary/50 focus:outline-none focus:border-primary transition-colors min-w-[140px] max-w-[240px] cursor-pointer"
+        >
+          <span className="truncate">{currentLabel}</span>
+          <ChevronDown size={13} className={`shrink-0 text-ink/50 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        </button>
+        {open && (
+          <div className="absolute right-0 top-full mt-1.5 z-30 min-w-[180px] max-w-[280px] max-h-64 overflow-y-auto rounded-theme border border-ink/15 bg-surface shadow-xl shadow-ink/10 py-1 animate-fade-in">
+            {versions.map((v, vi) => {
+              const sha = v.sha256 || '';
+              const selected = sha === (current?.sha256 || '');
+              return (
+                <button
+                  key={sha || vi}
+                  type="button"
+                  onClick={() => { onChange(sha); setOpen(false); }}
+                  className={`w-full text-left px-3 py-1.5 text-xs font-mono-theme flex items-center justify-between gap-2 transition-colors cursor-pointer ${
+                    selected ? 'text-primary bg-primary/5' : 'text-ink/80 hover:bg-ink/5 hover:text-ink'
+                  }`}
+                >
+                  <span className="truncate">{v.version || v.filename}</span>
+                  {selected && <Check size={12} className="shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <span className="text-[10px] text-ink/50">{countLabel}</span>
+    </div>
+  );
 }
 
 const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, currentUser, onSelectFirmware: _onSelectFirmware, onNavigateToAnalyzer, onUpdateFirmware }) => {
   const { t } = useTranslation();
   const [manifest, setManifest] = useState<Manifest>({ product_list: [], firmware_list: [] });
+  const [v2Manifest, setV2Manifest] = useState<ManifestV2 | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -176,18 +233,28 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
   const loadManifest = async () => {
     setLoading(true);
     try {
+      // New client reads the clean nested v2 manifest directly — no v1<->v2
+      // compatibility logic. Product grouping uses v2's per-firmware identities
+      // (so generically-named firmwares are never merged into one giant card).
       // @ts-ignore - ipcRenderer is exposed via contextBridge
-      const data = await window.ipcRenderer.invoke('get-firmware-manifest');
-      setManifest(data);
+      const raw = (await window.ipcRenderer.invoke('get-firmware-manifest-v2')) as ManifestV2;
+      const v2: ManifestV2 = {
+        schema_version: 2,
+        generated_at: raw?.generated_at ?? '',
+        product_list: Array.isArray(raw?.product_list) ? raw.product_list : [],
+        firmwares: Array.isArray(raw?.firmwares) ? raw.firmwares : [],
+        collections: Array.isArray(raw?.collections) ? raw.collections : [],
+      };
+      setV2Manifest(v2);
 
-      // Seed series list from manifest; then refresh from /series API for freshest state
-      if (Array.isArray(data.series_list)) {
-        setSeriesList(data.series_list);
-      }
+      const productList = v2.product_list as Manifest['product_list'];
+      // A flat per-version list backs the series view (sha256 membership) and counts.
+      const firmwareList = flattenV2(v2);
+      setManifest({ product_list: productList, firmware_list: firmwareList, series_list: [] });
 
       // Select first available product
-      if (data.product_list.length > 0 && !selectedProductId) {
-        const first = data.product_list[0];
+      if (productList.length > 0 && !selectedProductId) {
+        const first = productList[0];
         const v0 = first.products?.[0];
         const productId = v0 && 'product_id' in v0 ? v0.product_id : null;
         if (productId) {
@@ -197,7 +264,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
         }
       }
     } catch (error) {
-      console.error('Failed to load manifest:', error);
+      console.error('Failed to load v2 manifest:', error);
     } finally {
       setLoading(false);
     }
@@ -321,12 +388,12 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
       const s = seriesList.find(x => x.id === selectedSeriesId);
       if (!s) return [];
       const ids = new Set(s.firmware_ids);
-      return manifest.firmware_list.filter(f => {
+      return (manifest.firmware_list ?? []).filter(f => {
         const id16 = fwIdFromSha256(f.sha256);
         return id16 ? ids.has(id16) : false;
       });
     }
-    return manifest.firmware_list.filter(f =>
+    return (manifest.firmware_list ?? []).filter(f =>
       selectedProductId && f.supported_product_ids.includes(selectedProductId)
     );
   }, [manifest.firmware_list, selectedProductId, view, selectedSeriesId, seriesList]);
@@ -335,27 +402,26 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
   const [selectedVersions, setSelectedVersions] = useState<Record<string, string>>({});
   const [managingGroup, setManagingGroup] = useState<FirmwareGroup | null>(null);
 
+  // When a search is active, the right panel ("Available Firmware") only shows
+  // firmware matching the query, so the count never misleads. The user can
+  // expand to the full list via a toggle, which resets when the query or the
+  // selected device/series changes.
+  const [showAllFirmwares, setShowAllFirmwares] = useState(false);
+
   const groupedFirmwares = React.useMemo((): FirmwareGroup[] | null => {
     if (view !== 'products') return null;
-    const groups = new Map<string, Firmware[]>();
-    for (const fw of relatedFirmwares) {
-      const key = fw.name;
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(fw);
-    }
-    const result: FirmwareGroup[] = [];
-    for (const [key, firmwares] of groups) {
-      result.push({
-        groupName: key,
-        versions: firmwares,
-        hasMultipleVersions: firmwares.length > 1,
-      });
-    }
-    return result;
-  }, [relatedFirmwares, view]);
+    // Each v2 firmware is already a clean "firmware + versions" unit, keyed by a
+    // stable per-firmware identity, so we map straight to groups (no re-grouping
+    // by display name, which previously merged unrelated firmwares).
+    return groupsForProduct(v2Manifest, selectedProductId);
+  }, [v2Manifest, selectedProductId, view]);
+
+  /** Stable key for a group: v2 firmware id (names can repeat), else name. */
+  const groupKey = (group: FirmwareGroup): string =>
+    group.groupKey || group.versions[0]?.firmware_id || group.groupName;
 
   const getActiveFirmware = (group: FirmwareGroup): Firmware => {
-    const selectedSha = selectedVersions[group.groupName];
+    const selectedSha = selectedVersions[groupKey(group)];
     if (selectedSha) {
       const found = group.versions.find(v => v.sha256 === selectedSha);
       if (found) return found;
@@ -434,7 +500,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
   // Open firmware detail modal by share code (sha256 prefix match)
   // First try local manifest, then fall back to server API for pending/unapproved firmware
   const handleShareCodeGo = (code: string) => {
-    const fw = manifest.firmware_list.find(f => f.sha256?.toLowerCase().startsWith(code));
+    const fw = (manifest.firmware_list ?? []).find(f => f.sha256?.toLowerCase().startsWith(code));
     if (fw) {
       setShareCodeFirmware(fw);
       setSearchQuery('');
@@ -448,12 +514,67 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
   // Filter logic: search + optionally only products with firmware
   // If input is a share code, don't filter devices
   const q = isShareCode(searchQuery) ? '' : (searchQuery?.toLowerCase() ?? '');
+
+  // Global firmware search: a product also matches if ANY firmware targeting it
+  // matches the query across all of its searchable text (name, filename,
+  // version, description, author, type, source, sha256). We precompute the set
+  // of product IDs reachable that way so the per-product filter stays O(1).
+  // True if a single firmware matches the active query across its searchable
+  // text. With no query, everything matches.
+  const firmwareMatchesQuery = React.useCallback(
+    (f: Firmware): boolean => {
+      if (!q) return true;
+      const hay = [
+        f.name, f.filename, f.version, f.description, f.author_name,
+        f.author_email, f.type, f.source, f.source_code_url, f.sha256,
+      ].filter(Boolean).join(' ').toLowerCase();
+      return hay.includes(q);
+    },
+    [q]
+  );
+
+  const firmwareMatchedProductIds = React.useMemo(() => {
+    if (!q) return null;
+    const set = new Set<string>();
+    for (const f of manifest.firmware_list ?? []) {
+      if (firmwareMatchesQuery(f)) {
+        for (const pid of f.supported_product_ids ?? []) set.add(pid);
+      }
+    }
+    return set;
+  }, [q, manifest.firmware_list, firmwareMatchesQuery]);
+
+  // Reset the "show all" override whenever the query / selection changes so a
+  // fresh search always starts focused on the matches.
+  useEffect(() => {
+    setShowAllFirmwares(false);
+  }, [q, selectedProductId, selectedSeriesId]);
+
+  // Products view: groups whose any version matches the active query.
+  const matchingGroups = React.useMemo<FirmwareGroup[] | null>(() => {
+    if (!q || !groupedFirmwares) return null;
+    return groupedFirmwares.filter(g => g.versions.some(firmwareMatchesQuery));
+  }, [q, groupedFirmwares, firmwareMatchesQuery]);
+
+  // Series view: related firmware matching the active query.
+  const matchingRelated = React.useMemo<Firmware[] | null>(() => {
+    if (!q) return null;
+    return relatedFirmwares.filter(firmwareMatchesQuery);
+  }, [q, relatedFirmwares, firmwareMatchesQuery]);
+
+  // What the right panel actually renders: matches-only while searching (unless
+  // the user expanded to "show all"), otherwise the full list.
+  const focusOnMatches = !!q && !showAllFirmwares;
+  const displayedRelated = focusOnMatches && matchingRelated ? matchingRelated : relatedFirmwares;
+  const displayedGroups = focusOnMatches && matchingGroups ? matchingGroups : groupedFirmwares;
+
   const filteredGroups = manifest.product_list.map(group => {
     const groupName = group.name ?? '';
     // If it's a single product (no products array), check match
     if (!group.products || !group.products.some((v: any) => 'product_id' in v)) {
       const matches = groupName.toLowerCase().includes(q) || 
-                      (group.mcu ?? '').toLowerCase().includes(q);
+                      (group.mcu ?? '').toLowerCase().includes(q) ||
+                      (firmwareMatchedProductIds?.has(group.product_id ?? '') ?? false);
       if (!matches) return null;
       if (onlyWithFirmware && !productHasFirmware(manifest, group.product_id ?? '')) return null;
       return group;
@@ -464,7 +585,8 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
     let matchingProducts = group.products.filter((v: any) => {
       const vName = (v.name ?? v.title ?? '').toLowerCase();
       const vMcu = (v.mcu ?? '').toLowerCase();
-      return vName.includes(q) || vMcu.includes(q);
+      return vName.includes(q) || vMcu.includes(q) ||
+             (firmwareMatchedProductIds?.has(v.product_id) ?? false);
     });
     if (onlyWithFirmware) {
       matchingProducts = matchingProducts.filter((v: Product) =>
@@ -624,15 +746,15 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 text-slate-900 dark:bg-zinc-900 dark:text-slate-100 overflow-hidden relative transition-colors">
+    <div className="flex flex-col h-full bg-background text-ink overflow-hidden relative transition-colors">
       {/* View tabs (Products / Series) */}
-      <div className="shrink-0 flex items-center gap-1 px-4 pt-3 pb-2 border-b border-slate-200 dark:border-zinc-800">
+      <div className="shrink-0 flex items-center gap-1 px-4 pt-3 pb-2 border-b border-ink/10">
         <button
           onClick={() => setView('products')}
-          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+          className={`px-3 py-1.5 text-sm font-medium rounded-theme transition-colors ${
             view === 'products'
               ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-zinc-800'
+              : 'text-ink/55 hover:text-ink hover:bg-ink/5'
           }`}
         >
           {t('series.tab_products')}
@@ -644,10 +766,10 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
               setSelectedSeriesId(seriesList[0].id);
             }
           }}
-          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+          className={`px-3 py-1.5 text-sm font-medium rounded-theme transition-colors ${
             view === 'series'
               ? 'bg-primary/10 text-primary ring-1 ring-primary/30'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-zinc-800'
+              : 'text-ink/55 hover:text-ink hover:bg-ink/5'
           }`}
         >
           {t('series.tab_series')}
@@ -658,7 +780,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
         {isAdmin && view === 'series' && token && (
           <button
             onClick={() => setShowSeriesManager(true)}
-            className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md text-slate-500 dark:text-slate-400 hover:text-primary hover:bg-primary/5 transition-colors"
+            className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-theme text-ink/55 hover:text-primary hover:bg-primary/5 transition-colors"
           >
             <Layers size={12} />
             {t('series.manage_series')}
@@ -1174,13 +1296,13 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
 
       {/* Left Column: Device List */}
       {view === 'products' && (
-      <div className="w-[36%] min-w-[260px] max-w-[500px] shrink-0 border-r border-slate-200 dark:border-zinc-700 flex flex-col bg-slate-100/80 dark:bg-zinc-800/50">
-        <div className="p-4 border-b border-slate-200 dark:border-zinc-700 space-y-3">
+      <div className="w-[36%] min-w-[260px] max-w-[500px] shrink-0 border-r border-ink/10 flex flex-col bg-surface">
+        <div className="p-4 border-b border-ink/10 space-y-3">
           <div className="relative">
             {isShareCode(searchQuery) ? (
               <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 text-primary" size={18} />
             ) : (
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 dark:text-slate-400" size={18} />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-ink/45" size={18} />
             )}
             <input
               type="text"
@@ -1193,30 +1315,30 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                   if (code) handleShareCodeGo(code);
                 }
               }}
-              className={`w-full bg-white dark:bg-zinc-900 border rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none text-slate-800 dark:text-slate-200 placeholder-slate-500 ${
-                isShareCode(searchQuery) ? 'border-primary font-mono' : 'border-slate-300 dark:border-zinc-700 focus:border-primary'
+              className={`w-full bg-background border rounded-theme pl-10 pr-4 py-2 text-sm focus:outline-none text-ink placeholder-ink/40 ${
+                isShareCode(searchQuery) ? 'border-primary font-mono-theme' : 'border-ink/15 focus:border-primary'
               }`}
             />
             {isShareCode(searchQuery) && (
               <button
                 onClick={() => { const code = isShareCode(searchQuery); if (code) handleShareCodeGo(code); }}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-xs bg-primary text-white rounded-md hover:bg-primary-hover transition-colors"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-xs bg-primary text-white rounded-theme hover:bg-primary-hover transition-colors"
               >
                 {t('firmwareCenter.share_code_go')}
               </button>
             )}
           </div>
 
-          <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors">
+          <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-ink/60 hover:text-ink transition-colors">
             <input
               type="checkbox"
               checked={onlyWithFirmware}
               onChange={(e) => handleOnlyWithFirmwareChange(e.target.checked)}
-              className="rounded border-slate-300 dark:border-zinc-600 text-primary focus:ring-primary"
+              className="rounded border-ink/30 text-primary focus:ring-primary"
             />
             <span>
               {t('firmwareCenter.only_with_firmware')}
-              <span className="text-slate-500 dark:text-zinc-500 ml-1">{t('firmwareCenter.product_count', { count: filteredProductCount })}</span>
+              <span className="text-ink/45 ml-1">{t('firmwareCenter.product_count', { count: filteredProductCount })}</span>
             </span>
           </label>
         </div>
@@ -1225,17 +1347,17 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
           {loading ? (
              <div className="space-y-2 p-1">
                {[1, 2, 3, 4, 5, 6].map(i => (
-                 <div key={i} className="p-3 rounded-xl border border-transparent bg-slate-100 dark:bg-zinc-800/50 animate-pulse flex items-center">
-                   <div className="w-16 h-16 bg-slate-200 dark:bg-zinc-700/50 rounded-lg shrink-0 mr-3"></div>
+                 <div key={i} className="p-3 rounded-theme border border-transparent bg-ink/5 animate-pulse flex items-center">
+                   <div className="w-16 h-16 bg-ink/10 rounded-theme shrink-0 mr-3"></div>
                    <div className="flex-1 min-w-0 space-y-2">
-                     <div className="h-4 bg-slate-200 dark:bg-zinc-700/50 rounded w-3/4"></div>
-                     <div className="h-3 bg-slate-200 dark:bg-zinc-700/50 rounded w-1/2"></div>
+                     <div className="h-4 bg-ink/10 rounded w-3/4"></div>
+                     <div className="h-3 bg-ink/10 rounded w-1/2"></div>
                    </div>
                  </div>
                ))}
              </div>
           ) : filteredGroups.length === 0 ? (
-             <div className="text-center py-10 text-slate-500 dark:text-slate-500">{t('firmwareCenter.no_devices_found')}</div>
+             <div className="text-center py-10 text-ink/50">{t('firmwareCenter.no_devices_found')}</div>
           ) : (
             filteredGroups.map(group => {
               const hasProducts = !!group.products?.length && group.products.some((v: any) => 'product_id' in v);
@@ -1248,9 +1370,9 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                     {/* Series Header */}
                     <div 
                       onClick={() => group.id && toggleSeries(group.id)}
-                      className="flex items-center p-3 rounded-xl cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors select-none group/header"
+                      className="flex items-center p-3 rounded-theme cursor-pointer hover:bg-ink/5 transition-colors select-none group/header"
                     >
-                      <div className="h-16 flex items-center justify-center mr-2 text-slate-500 dark:text-slate-500 group-hover/header:text-slate-700 dark:group-hover/header:text-slate-300 transition-colors">
+                      <div className="h-16 flex items-center justify-center mr-2 text-ink/45 group-hover/header:text-ink/70 transition-colors">
                         {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                       </div>
                       <div className="w-16 h-16 bg-white rounded-lg p-1 flex items-center justify-center shrink-0 overflow-hidden mr-3 shadow-sm">
@@ -1268,25 +1390,25 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                          </div>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-slate-800 dark:text-slate-200">{group.name}</h3>
-                        <div className="flex items-center text-xs text-slate-500 mt-1">
-                           <span className="bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-300 mr-2">{group.products?.length} {t('firmwareCenter.products')}</span>
+                        <h3 className="font-display font-semibold text-ink">{group.name}</h3>
+                        <div className="flex items-center text-xs text-ink/50 mt-1">
+                           <span className="bg-ink/10 px-1.5 py-0.5 rounded text-ink/70 mr-2">{group.products?.length} {t('firmwareCenter.products')}</span>
                         </div>
-                        <p className="text-xs text-slate-500 mt-1 truncate">{group.description}</p>
+                        <p className="text-xs text-ink/50 mt-1 truncate">{group.description}</p>
                       </div>
                     </div>
 
                     {/* Products List */}
                     {isExpanded && (
-                      <div className="ml-[20px] pl-6 border-l-2 border-slate-700/50 mt-1 space-y-1">
+                      <div className="ml-[20px] pl-6 border-l-2 border-ink/15 mt-1 space-y-1">
                         {group.products?.map(product => (
                           <div 
                             key={product.product_id}
                             onClick={() => setSelectedProductId(product.product_id)}
-                            className={`p-2 rounded-lg cursor-pointer transition-all duration-200 flex items-center ${
+                            className={`p-2 rounded-theme cursor-pointer transition-all duration-200 flex items-center ${
                               selectedProductId === product.product_id 
                                 ? 'bg-primary/10 text-primary border border-primary/30' 
-                                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700/50 hover:text-slate-800 dark:hover:text-slate-200'
+                                : 'text-ink/60 hover:bg-ink/5 hover:text-ink'
                             }`}
                           >
                              <div className="w-12 h-12 bg-white rounded-md p-1 flex items-center justify-center shrink-0 mr-3 overflow-hidden shadow-sm">
@@ -1320,10 +1442,10 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                 <div 
                   key={group.product_id}
                   onClick={() => setSelectedProductId(group.product_id!)}
-                  className={`p-3 rounded-xl cursor-pointer transition-all duration-200 border flex items-center ${
+                  className={`p-3 rounded-theme cursor-pointer transition-all duration-200 border flex items-center ${
                     selectedProductId === group.product_id 
                       ? 'bg-primary/10 border-primary/50 shadow-lg shadow-primary/10' 
-                      : 'bg-slate-100 dark:bg-zinc-800 border-transparent hover:bg-slate-200 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                      : 'bg-ink/[0.03] border-transparent hover:bg-ink/5 hover:border-ink/15'
                   }`}
                 >
                   {/* Invisible spacer to match Series chevron width (18px icon + mr-2) roughly 26px */}
@@ -1345,13 +1467,13 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                        </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className={`font-semibold truncate ${selectedProductId === group.product_id ? 'text-primary' : 'text-slate-800 dark:text-slate-200'}`}>
+                      <h3 className={`font-display font-semibold truncate ${selectedProductId === group.product_id ? 'text-primary' : 'text-ink'}`}>
                         {group.name}
                       </h3>
-                      <div className="flex items-center text-xs text-slate-500 mt-1">
-                        <span className="bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-300 mr-2">{group.mcu}</span>
+                      <div className="flex items-center text-xs text-ink/50 mt-1">
+                        <span className="bg-ink/10 px-1.5 py-0.5 rounded text-ink/70 mr-2">{group.mcu}</span>
                       </div>
-                      <p className="text-xs text-slate-500 mt-1 truncate">{group.description}</p>
+                      <p className="text-xs text-ink/50 mt-1 truncate">{group.description}</p>
                     </div>
                   </div>
                 </div>
@@ -1363,17 +1485,17 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
       )}
 
       {/* Right Column: Firmware Details */}
-      <div className="flex-1 min-w-[320px] flex flex-col overflow-hidden bg-white dark:bg-zinc-900">
+      <div className="flex-1 min-w-[320px] flex flex-col overflow-hidden bg-background">
         {view === 'series' ? (
           selectedSeries ? (
             <>
               {/* Header Series Info */}
-              <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+              <div className="p-4 sm:p-6 border-b border-ink/10 bg-gradient-to-r from-surface to-background">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div className="min-w-0 flex-1">
-                    <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white mb-2 truncate">{selectedSeries.name}</h2>
+                    <h2 className="font-display text-xl sm:text-3xl font-bold text-ink mb-2 truncate">{selectedSeries.name}</h2>
                     {selectedSeries.description && (
-                      <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-[1.5] line-clamp-3">{selectedSeries.description}</p>
+                      <p className="text-xs sm:text-sm text-ink/60 leading-[1.5] line-clamp-3">{selectedSeries.description}</p>
                     )}
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-3 sm:mt-4 text-xs sm:text-sm">
                       {selectedSeries.homepage && (
@@ -1385,7 +1507,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                               window.ipcRenderer.invoke('open-url', selectedSeries.homepage, mode);
                             }
                           }}
-                          className="flex items-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors bg-transparent border-none cursor-pointer p-0"
+                          className="flex items-center text-ink/60 hover:text-primary transition-colors bg-transparent border-none cursor-pointer p-0"
                         >
                           <ExternalLink size={16} className="mr-1.5" /> {t('firmwareCenter.origin')}
                         </button>
@@ -1398,7 +1520,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                       {selectedSeries.tags && selectedSeries.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1">
                           {selectedSeries.tags.map(tag => (
-                            <span key={tag} className="px-1.5 py-0.5 text-[10px] rounded-md bg-slate-200 dark:bg-zinc-700 text-slate-600 dark:text-slate-300">
+                            <span key={tag} className="px-1.5 py-0.5 text-[10px] rounded-theme bg-ink/10 text-ink/70">
                               {tag}
                             </span>
                           ))}
@@ -1416,22 +1538,31 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
 
               {/* Firmware List for Series */}
               <div className="flex-1 overflow-y-auto p-4 sm:p-6 min-h-0">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-semibold flex items-center text-slate-900 dark:text-white">
+                <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+                  <h3 className="font-display text-xl font-semibold flex items-center text-ink">
                     <FileCode className="mr-2 text-primary" />
                     {t('firmwareCenter.available_firmware')}
-                    <span className="ml-3 text-sm font-normal text-slate-500 dark:text-slate-500 bg-slate-200 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
-                      {relatedFirmwares.length}
+                    <span className={`ml-3 text-sm font-normal font-mono-theme px-2 py-0.5 rounded-theme ${q ? 'text-primary bg-primary/10' : 'text-ink/60 bg-ink/5'}`}>
+                      {q ? t('firmwareCenter.matched_count', { count: matchingRelated?.length ?? 0 }) : relatedFirmwares.length}
                     </span>
                   </h3>
+                  {q && relatedFirmwares.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllFirmwares(v => !v)}
+                      className="px-2.5 py-1 text-xs font-medium rounded-theme border border-ink/15 text-ink/60 hover:text-primary hover:border-primary/50 transition-colors"
+                    >
+                      {showAllFirmwares ? t('firmwareCenter.show_matched_only') : t('firmwareCenter.show_all_count', { count: relatedFirmwares.length })}
+                    </button>
+                  )}
                 </div>
-                {relatedFirmwares.length === 0 ? (
-                  <div className="p-6 sm:p-8 border border-dashed border-slate-300 dark:border-zinc-700 rounded-xl text-center text-slate-500 text-sm sm:text-base">
-                    {t('series.no_firmware')}
+                {displayedRelated.length === 0 ? (
+                  <div className="p-6 sm:p-8 border border-dashed border-ink/15 rounded-theme text-center text-ink/50 text-sm sm:text-base">
+                    {q && relatedFirmwares.length > 0 ? t('firmwareCenter.no_match_in_panel', { query: searchQuery.trim() }) : t('series.no_firmware')}
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-4">
-                    {relatedFirmwares.map((fw, idx) => {
+                    {displayedRelated.map((fw, idx) => {
                       const task = tasks[fw.download_url];
                       const isDownloaded = !!task?.file;
                       const isDownloading = task?.downloading ?? false;
@@ -1443,11 +1574,11 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                           firmwareName={fw.name}
                           currentUser={currentUser}
                         >
-                          <div className="bg-slate-100 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 rounded-xl p-4 hover:border-primary/50 transition-all group min-w-0">
+                          <div className="fw-card p-4 group min-w-0">
                             <div className="min-w-0">
                               <div className="flex items-start flex-wrap gap-x-3 gap-y-1 mb-1">
-                                <h4 className="text-lg font-medium text-slate-800 dark:text-slate-200 break-all">{fw.name}</h4>
-                                <span className="text-xs px-2 py-0.5 rounded-full border font-medium shrink-0 mt-1 bg-slate-100 text-slate-700 border-slate-300 dark:bg-zinc-700 dark:text-zinc-300 dark:border-zinc-600">
+                                <h4 className="font-display text-lg font-semibold text-ink break-all">{fw.name}</h4>
+                                <span className="text-xs px-2 py-0.5 rounded-theme border font-medium shrink-0 mt-1 bg-ink/5 text-ink/70 border-ink/15">
                                   {fw.type === 'bin' ? 'REPO' : fw.type.toUpperCase()}
                                 </span>
                               </div>
@@ -1455,19 +1586,19 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                               {(fw.image_urls || (fw.image_url ? [fw.image_url] : [])).length > 0 && (
                                 <div className="flex gap-2 overflow-x-auto pb-1.5 mt-1 mb-1">
                                   {(fw.image_urls || [fw.image_url!]).map((url, i) => (
-                                    <div key={i} className="relative shrink-0 w-[128px] h-[80px] rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900 overflow-hidden">
+                                    <div key={i} className="relative shrink-0 w-[128px] h-[80px] rounded-theme border border-ink/10 bg-background overflow-hidden">
                                       <img src={url} alt="" className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = 'none'; }} />
                                     </div>
                                   ))}
                                 </div>
                               )}
-                              <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 font-mono">
+                              <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs text-ink/50 font-mono-theme">
                                 {fw.version && <span>{t('firmwareCenter.version')}: {fw.version}</span>}
                                 {fw.filename && <span className="break-all">{t('firmwareCenter.file')}: {fw.filename}</span>}
                                 {fw.size && <span>{formatFileSize(fw.size)}</span>}
                               </div>
                             </div>
-                            <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-200 dark:border-zinc-700/50 gap-2">
+                            <div className="flex items-center justify-between mt-3 pt-3 border-t border-ink/10 gap-2">
                               <div className="flex items-center gap-2 flex-wrap">
                                 {renderFirmwareLikeButton(fw.sha256)}
                                 <CommentsActions />
@@ -1475,22 +1606,22 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                               <div className="flex items-center gap-2">
                                 {isDownloading ? (
                                   <div className="flex flex-col items-center min-w-[120px]">
-                                    <div className="text-xs text-primary mb-1">{t('firmwareCenter.downloading')} {progress}%</div>
-                                    <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                    <div className="text-xs text-primary mb-1 font-mono-theme">{t('firmwareCenter.downloading')} {progress}%</div>
+                                    <div className="w-full h-1.5 bg-ink/10 rounded-full overflow-hidden">
                                       <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
                                     </div>
                                   </div>
                                 ) : isDownloaded ? (
                                   <button
                                     onClick={() => handleBurnClick(fw.download_url)}
-                                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg flex items-center shadow-lg shadow-emerald-900/20 transition-all active:scale-95"
+                                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-theme flex items-center shadow-lg shadow-emerald-900/20 transition-all active:scale-95"
                                   >
                                     <Zap size={18} className="mr-2" />
                                     {t('firmwareCenter.burn')}
                                   </button>
                                 ) : (
                                   <button
-                                    className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg flex items-center shadow-lg shadow-primary/20 transition-all active:scale-95"
+                                    className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-theme flex items-center shadow-lg shadow-primary/20 transition-all active:scale-95"
                                     onClick={() => handleDownload(fw)}
                                   >
                                     <Download size={18} className="mr-2" />
@@ -1509,7 +1640,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-500 dark:text-slate-500">
+            <div className="flex-1 flex flex-col items-center justify-center text-ink/50">
               <Layers size={48} className="mb-4 opacity-20" />
               <p>{t('series.empty')}</p>
             </div>
@@ -1517,11 +1648,11 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
         ) : selectedProduct ? (
           <>
             {/* Header Product Info */}
-            <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+            <div className="p-4 sm:p-6 border-b border-ink/10 bg-gradient-to-r from-surface to-background">
                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                  <div className="min-w-0 flex-1">
-                    <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white mb-2 truncate">{selectedProduct.name}</h2>
-                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-[1.5] line-clamp-3" title={selectedProduct.description}>{selectedProduct.description}</p>
+                    <h2 className="font-display text-xl sm:text-3xl font-bold text-ink mb-2 truncate">{selectedProduct.name}</h2>
+                    <p className="text-xs sm:text-sm text-ink/60 leading-[1.5] line-clamp-3" title={selectedProduct.description}>{selectedProduct.description}</p>
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-3 sm:mt-4">
                         {selectedProduct.github_repo && (
                           <button
@@ -1534,7 +1665,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                 window.open(selectedProduct.github_repo, '_blank');
                               }
                             }}
-                            className="flex items-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors text-sm shrink-0 bg-transparent border-none cursor-pointer p-0"
+                            className="flex items-center text-ink/60 hover:text-primary transition-colors text-sm shrink-0 bg-transparent border-none cursor-pointer p-0"
                           >
                               <Github size={16} className="mr-1.5" /> GitHub Repo
                           </button>
@@ -1550,7 +1681,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                 window.open(selectedProduct.product_page, '_blank');
                               }
                             }}
-                            className="flex items-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors text-sm shrink-0 bg-transparent border-none cursor-pointer p-0"
+                            className="flex items-center text-ink/60 hover:text-primary transition-colors text-sm shrink-0 bg-transparent border-none cursor-pointer p-0"
                           >
                               <ExternalLink size={16} className="mr-1.5" /> Product Page
                           </button>
@@ -1566,20 +1697,31 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
 
             {/* Firmware List */}
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 min-h-0">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-semibold flex items-center text-slate-900 dark:text-white">
+                <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+                  <div className="flex items-center gap-3 flex-wrap">
+                  <h3 className="font-display text-xl font-semibold flex items-center text-ink">
                     <FileCode className="mr-2 text-primary" />
-                    Available Firmware
-                    <span className="ml-3 text-sm font-normal text-slate-500 dark:text-slate-500 bg-slate-200 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
-                        {groupedFirmwares ? groupedFirmwares.length : relatedFirmwares.length}
+                    {t('firmwareCenter.available_firmware')}
+                    <span className={`ml-3 text-sm font-normal font-mono-theme px-2 py-0.5 rounded-theme ${q ? 'text-primary bg-primary/10' : 'text-ink/60 bg-ink/5'}`}>
+                        {q ? t('firmwareCenter.matched_count', { count: matchingGroups?.length ?? 0 }) : (groupedFirmwares ? groupedFirmwares.length : relatedFirmwares.length)}
                     </span>
                   </h3>
+                  {q && (groupedFirmwares?.length ?? 0) > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllFirmwares(v => !v)}
+                      className="px-2.5 py-1 text-xs font-medium rounded-theme border border-ink/15 text-ink/60 hover:text-primary hover:border-primary/50 transition-colors"
+                    >
+                      {showAllFirmwares ? t('firmwareCenter.show_matched_only') : t('firmwareCenter.show_all_count', { count: groupedFirmwares?.length ?? 0 })}
+                    </button>
+                  )}
+                  </div>
                   {(isAdmin || isAnySeriesAdmin) && (
                     <div className="flex items-center gap-2">
                       {isAdmin && (
                         <button
                           onClick={() => setShowProductManager(true)}
-                          className="px-3 py-1.5 text-xs font-medium rounded-md border transition-colors flex items-center gap-1.5 bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-zinc-600 hover:text-primary hover:border-primary/50"
+                          className="px-3 py-1.5 text-xs font-medium rounded-theme border transition-colors flex items-center gap-1.5 bg-ink/5 text-ink/60 border-ink/15 hover:text-primary hover:border-primary/50"
                         >
                           <Layers size={12} />
                           {t('productManager.title')}
@@ -1587,10 +1729,10 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                       )}
                       <button
                         onClick={() => { setAdminMode(prev => !prev); setEditingFirmware(null); }}
-                        className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors flex items-center gap-1.5 ${
+                        className={`px-3 py-1.5 text-xs font-medium rounded-theme border transition-colors flex items-center gap-1.5 ${
                           adminMode
                             ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-300 dark:border-red-700'
-                            : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-zinc-600 hover:text-slate-700 dark:hover:text-slate-300'
+                            : 'bg-ink/5 text-ink/60 border-ink/15 hover:text-ink'
                         }`}
                       >
                         <Pencil size={12} />
@@ -1600,13 +1742,19 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                   )}
                 </div>
 
-                {(!groupedFirmwares || groupedFirmwares.length === 0) && relatedFirmwares.length === 0 ? (
-                    <div className="p-6 sm:p-8 border border-dashed border-slate-300 dark:border-zinc-700 rounded-xl text-center text-slate-500 text-sm sm:text-base min-w-0">
-                        {t('firmwareCenter.no_firmware_found')}
-                    </div>
-                ) : (
+                {(() => {
+                  const baseGroups = displayedGroups || relatedFirmwares.map(fw => ({ groupName: fw.sha256 || fw.filename, versions: [fw], hasMultipleVersions: false } as FirmwareGroup));
+                  const totalGroups = (groupedFirmwares ? groupedFirmwares.length : relatedFirmwares.length);
+                  if (baseGroups.length === 0) {
+                    return (
+                      <div className="p-6 sm:p-8 border border-dashed border-ink/15 rounded-theme text-center text-ink/50 text-sm sm:text-base min-w-0">
+                        {q && totalGroups > 0 ? t('firmwareCenter.no_match_in_panel', { query: searchQuery.trim() }) : t('firmwareCenter.no_firmware_found')}
+                      </div>
+                    );
+                  }
+                  return (
                     <div className="grid grid-cols-1 gap-4">
-                        {(groupedFirmwares || relatedFirmwares.map(fw => ({ groupName: fw.sha256 || fw.filename, versions: [fw], hasMultipleVersions: false } as FirmwareGroup))).map((group) => {
+                        {baseGroups.map((group) => {
                             const fw = getActiveFirmware(group);
                             const task = tasks[fw.download_url];
                             const isDownloaded = !!task?.file;
@@ -1615,16 +1763,16 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
 
                             return (
                                 <CommentsProvider
-                                    key={group.groupName}
+                                    key={groupKey(group)}
                                     firmwareSha256={fw.sha256}
                                     firmwareName={fw.name}
                                     currentUser={currentUser}
                                 >
-                                <div className={"bg-slate-100 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 rounded-xl p-4 hover:border-primary/50 transition-all group min-w-0"}>
+                                <div className="fw-card p-4 group min-w-0">
                                     {/* Header: name + type badge + version selector (right) */}
                                     <div className="flex items-start justify-between gap-3 mb-2">
                                       <div className="flex items-start flex-wrap gap-x-2 gap-y-1 min-w-0 flex-1">
-                                        <h4 className="text-lg font-medium text-slate-800 dark:text-slate-200 break-all">{fw.name}</h4>
+                                        <h4 className="font-display text-lg font-semibold text-ink break-all">{fw.name}</h4>
                                         <span className={`text-xs px-2 py-0.5 rounded-full border font-medium shrink-0 mt-1 ${
                                             fw.type === 'factory' ? 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/40 dark:text-green-300 dark:border-green-700' :
                                             fw.type === 'micropython' ? 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-700' :
@@ -1637,33 +1785,23 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                         {fw.sha256 && (
                                           <button
                                             onClick={() => handleCopyShareCode(fw)}
-                                            className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border border-slate-300 dark:border-zinc-600 text-slate-400 dark:text-zinc-500 hover:text-primary hover:border-primary/50 transition-colors mt-1"
+                                            className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-theme border border-ink/15 text-ink/50 hover:text-primary hover:border-primary/50 transition-colors mt-1"
                                             title={`${t('firmwareCenter.share_code_label')}: ${generateShareCode(fw)}`}
                                           >
                                             {copiedShareCode === generateShareCode(fw) ? <Check size={10} className="text-green-500" /> : <Share2 size={10} />}
-                                            <span className="text-slate-500 dark:text-zinc-400">{t('firmwareCenter.share_code_label')}:</span>
-                                            <span className="font-mono">{generateShareCode(fw)}</span>
+                                            <span className="text-ink/50">{t('firmwareCenter.share_code_label')}:</span>
+                                            <span className="font-mono-theme">{generateShareCode(fw)}</span>
                                           </button>
                                         )}
                                       </div>
-                                      {/* Version selector — top right like M5Burner */}
+                                      {/* Version selector — themed popover, top right like M5Burner */}
                                       {group.hasMultipleVersions && (
-                                        <div className="flex flex-col items-end gap-1 shrink-0">
-                                          <select
-                                            value={fw.sha256 || ''}
-                                            onChange={(e) => setSelectedVersions(prev => ({ ...prev, [group.groupName]: e.target.value }))}
-                                            className="text-xs px-2 py-1.5 rounded-lg border border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-primary cursor-pointer min-w-[140px] max-w-[220px]"
-                                          >
-                                            {group.versions.map((v, vi) => (
-                                              <option key={v.sha256 || vi} value={v.sha256 || ''}>
-                                                {v.version || v.filename}
-                                              </option>
-                                            ))}
-                                          </select>
-                                          <span className="text-[10px] text-slate-400 dark:text-zinc-500">
-                                            {t('firmwareCenter.versions_count', { count: group.versions.length })}
-                                          </span>
-                                        </div>
+                                        <VersionDropdown
+                                          versions={group.versions}
+                                          value={fw.sha256 || ''}
+                                          onChange={(sha) => setSelectedVersions(prev => ({ ...prev, [groupKey(group)]: sha }))}
+                                          countLabel={t('firmwareCenter.versions_count', { count: group.versions.length })}
+                                        />
                                       )}
                                     </div>
 
@@ -1684,7 +1822,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                         <div className="mt-2 mb-2">
                                           <div className="flex gap-2 overflow-x-auto pb-1.5 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-zinc-600">
                                             {images.slice(0, 6).map((img, i) => (
-                                              <div key={i} className="relative shrink-0 w-[128px] h-[80px] rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900 overflow-hidden">
+                                              <div key={i} className="relative shrink-0 w-[128px] h-[80px] rounded-theme border border-ink/10 bg-background overflow-hidden">
                                                 <img
                                                   src={img.url}
                                                   alt=""
@@ -1702,10 +1840,10 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                     })()}
 
                                     {/* Metadata row */}
-                                    <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 font-mono">
+                                    <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs text-ink/50 font-mono-theme">
                                         {fw.version && <span>{t('firmwareCenter.version')}: {fw.version}</span>}
                                         {fw.sha256 && downloadCounts[fw.sha256] > 0 && (
-                                            <span className="inline-flex items-center gap-0.5 text-slate-500 dark:text-slate-400" title={t('firmwareCenter.download_count')}>
+                                            <span className="inline-flex items-center gap-0.5 text-ink/50" title={t('firmwareCenter.download_count')}>
                                                 <Download size={11} /> {formatDownloadCount(downloadCounts[fw.sha256])}
                                             </span>
                                         )}
@@ -1729,13 +1867,13 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                         )}
                                         {fw.download_url && (
                                             <a href={fw.download_url} onClick={(e) => { e.preventDefault(); if (window.ipcRenderer) { const mode = localStorage.getItem('lilygo_link_open_mode') || 'internal'; window.ipcRenderer.invoke('open-url', fw.download_url, mode); } }}
-                                                className="inline-flex items-center gap-0.5 text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-primary transition-colors cursor-pointer" title={fw.download_url}>
+                                                className="inline-flex items-center gap-0.5 text-ink/45 hover:text-primary transition-colors cursor-pointer" title={fw.download_url}>
                                                 <ExternalLink size={12} /> {t('firmwareCenter.origin')}
                                             </a>
                                         )}
                                         {fw.source_code_url && (
                                             <a href={fw.source_code_url} onClick={(e) => { e.preventDefault(); if (window.ipcRenderer) { const mode = localStorage.getItem('lilygo_link_open_mode') || 'internal'; window.ipcRenderer.invoke('open-url', fw.source_code_url!, mode); } }}
-                                                className="inline-flex items-center gap-0.5 text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-primary transition-colors cursor-pointer" title={fw.source_code_url}>
+                                                className="inline-flex items-center gap-0.5 text-ink/45 hover:text-primary transition-colors cursor-pointer" title={fw.source_code_url}>
                                                 <Github size={12} /> {t('firmwareCenter.source_code')}
                                             </a>
                                         )}
@@ -1750,11 +1888,11 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
 
                                     {/* Description */}
                                     {fw.description && (
-                                      <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 line-clamp-2">{fw.description}</p>
+                                      <p className="mt-2 text-sm text-ink/65 line-clamp-2">{fw.description}</p>
                                     )}
 
                                     {/* Action bar — likes + comments + admin buttons left, download/burn right */}
-                                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-200 dark:border-zinc-700/50 gap-2">
+                                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-ink/10 gap-2">
                                         <div className="flex items-center gap-2 flex-wrap">
                                             {renderFirmwareLikeButton(fw.sha256)}
                                             <CommentsActions />
@@ -1784,8 +1922,8 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                         <div className="flex items-center gap-2">
                                             {isDownloading ? (
                                                 <div className="flex flex-col items-center min-w-[120px]">
-                                                    <div className="text-xs text-primary mb-1">{t('firmwareCenter.downloading')} {progress}%</div>
-                                                    <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                                    <div className="text-xs text-primary mb-1 font-mono-theme">{t('firmwareCenter.downloading')} {progress}%</div>
+                                                    <div className="w-full h-1.5 bg-ink/10 rounded-full overflow-hidden">
                                                         <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
                                                     </div>
                                                 </div>
@@ -1793,14 +1931,14 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                                 <div className="flex items-center gap-2">
                                                     <button
                                                         onClick={() => handleRemove(fw.download_url)}
-                                                        className="p-2 text-slate-500 dark:text-slate-400 hover:text-red-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                                                        className="p-2 text-ink/55 hover:text-red-400 hover:bg-ink/10 rounded-theme transition-colors"
                                                         title={t('firmwareCenter.remove_download')}
                                                     >
                                                         <Trash2 size={18} />
                                                     </button>
                                                     <button
                                                         onClick={() => handleSaveAs(fw.download_url)}
-                                                        className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                                                        className="p-2 text-ink/55 hover:text-ink hover:bg-ink/10 rounded-theme transition-colors"
                                                         title={t('firmwareCenter.save_as')}
                                                     >
                                                         <Save size={18} />
@@ -1808,7 +1946,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                                     {onNavigateToAnalyzer && task?.file && (
                                                         <button
                                                             onClick={() => onNavigateToAnalyzer(task.file!.path, task.file!.fileName)}
-                                                            className="p-2 text-slate-500 dark:text-slate-400 hover:text-primary hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                                                            className="p-2 text-ink/55 hover:text-primary hover:bg-ink/10 rounded-theme transition-colors"
                                                             title={t('firmwareCenter.analyze')}
                                                         >
                                                             <Microscope size={18} />
@@ -1816,7 +1954,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                                     )}
                                                     <button
                                                         onClick={() => handleBurnClick(fw.download_url)}
-                                                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg flex items-center shadow-lg shadow-emerald-900/20 transition-all active:scale-95"
+                                                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-theme flex items-center shadow-lg shadow-emerald-900/20 transition-all active:scale-95"
                                                     >
                                                         <Zap size={18} className="mr-2" />
                                                         {t('firmwareCenter.burn')}
@@ -1828,7 +1966,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                                         {task.error}
                                                     </span>
                                                     <button
-                                                        className="px-3 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-lg flex items-center text-sm transition-all active:scale-95"
+                                                        className="px-3 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-theme flex items-center text-sm transition-all active:scale-95"
                                                         onClick={() => handleDownload(fw)}
                                                     >
                                                         {t('firmwareCenter.retry')}
@@ -1836,7 +1974,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                                 </div>
                                             ) : (
                                                 <button
-                                                    className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg flex items-center shadow-lg shadow-primary/20 transition-all active:scale-95"
+                                                    className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-theme flex items-center shadow-lg shadow-primary/20 transition-all active:scale-95"
                                                     onClick={() => handleDownload(fw)}
                                                 >
                                                     <Download size={18} className="mr-2" />
@@ -1846,15 +1984,15 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                         </div>
                                     </div>
                                     {fw.release_note && (
-                                        <div className="mt-3 pt-3 border-t border-slate-200 dark:border-zinc-700/50 text-sm text-slate-600 dark:text-slate-400">
-                                            <span className="text-slate-500 font-semibold mr-2">{t('firmwareCenter.note')}</span>
+                                        <div className="mt-3 pt-3 border-t border-ink/10 text-sm text-ink/65">
+                                            <span className="text-ink/50 font-semibold mr-2">{t('firmwareCenter.note')}</span>
                                             {fw.release_note}
                                         </div>
                                     )}
 
                                     {/* Upload new version button */}
                                     {group.hasMultipleVersions && currentUser && onUpdateFirmware && (
-                                      <div className="mt-2 pt-2 border-t border-slate-200 dark:border-zinc-700/50">
+                                      <div className="mt-2 pt-2 border-t border-ink/10">
                                         <button
                                           onClick={() => onUpdateFirmware({
                                             name: fw.name,
@@ -1883,11 +2021,12 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                             );
                         })}
                     </div>
-                )}
+                  );
+                })()}
             </div>
           </>
         ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-500 dark:text-slate-500">
+            <div className="flex-1 flex flex-col items-center justify-center text-ink/50">
                 <RefreshCw size={48} className="mb-4 opacity-20" />
                 <p>{t('firmwareCenter.select_device_hint')}</p>
             </div>

@@ -9,7 +9,21 @@ export interface LilygoConfig {
   firmware_manifest_url: string;
   /** 可选：多地区 OSS 镜像 URL 列表，主地址失败时按序尝试 */
   firmware_manifest_mirrors?: string[];
+  /** 可选：显式指定 v2 manifest 主地址；缺省则由 v1 URL 自动派生（.json -> _v2.json） */
+  firmware_manifest_v2_url?: string;
+  /** 可选：v2 manifest 多地区镜像；缺省则由 v1 镜像自动派生 */
+  firmware_manifest_v2_mirrors?: string[];
   oss_domain_prefix: string;
+}
+
+/** Derive the v2 manifest URL/path from a v1 one: `foo.json` -> `foo_v2.json`. */
+function deriveV2Url(v1Url: string): string {
+  const trimmed = (v1Url || '').trim();
+  if (!trimmed) return '';
+  if (/\.json(\?.*)?$/i.test(trimmed)) {
+    return trimmed.replace(/\.json(\?.*)?$/i, '_v2.json$1');
+  }
+  return `${trimmed.replace(/\/+$/, '')}/firmware_manifest_v2.json`;
 }
 
 function isNonEmptyString(v: unknown): v is string {
@@ -85,6 +99,14 @@ function loadMergedConfig(): LilygoConfig {
   const mirrorsRaw = merged.firmware_manifest_mirrors;
   if (Array.isArray(mirrorsRaw)) {
     result.firmware_manifest_mirrors = mirrorsRaw.filter((u): u is string => typeof u === 'string' && u.trim().length > 0);
+  }
+  // 可选：显式 v2 主地址 / 镜像（缺省自动派生）
+  if (isNonEmptyString(merged.firmware_manifest_v2_url)) {
+    result.firmware_manifest_v2_url = (merged.firmware_manifest_v2_url as string).trim();
+  }
+  const v2MirrorsRaw = merged.firmware_manifest_v2_mirrors;
+  if (Array.isArray(v2MirrorsRaw)) {
+    result.firmware_manifest_v2_mirrors = v2MirrorsRaw.filter((u): u is string => typeof u === 'string' && u.trim().length > 0);
   }
   return result;
 }
@@ -348,6 +370,13 @@ function getBundledManifestPath(): string {
   return path.join(app.getAppPath(), 'firmware_manifest.json');
 }
 
+function getBundledManifestV2Path(): string {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'firmware_manifest_v2.json');
+  }
+  return path.join(app.getAppPath(), 'firmware_manifest_v2.json');
+}
+
 
 let _mainWindow: BrowserWindow | null = null;
 let _onSettingsChanged: (() => void) | null = null;
@@ -412,6 +441,49 @@ export function setupConfigHandler(mainWindow?: BrowserWindow | null, onSettings
 
     console.error('Local manifest not found at any:', [bundledPath, ...localPaths]);
     return { product_list: [], firmware_list: [], series_list: [] };
+  });
+
+  // v2 (nested) manifest for the new firmware center. No compatibility logic:
+  // network (v2 URL + mirrors) > bundled firmware_manifest_v2.json > empty v2.
+  // A custom manifest path (advanced mode) still wins — it is expected to be v2.
+  ipcMain.handle('get-firmware-manifest-v2', async () => {
+    const customPath = getCustomManifestPath();
+    if (customPath) {
+      const data = loadManifestFromFile(customPath);
+      if (data != null) {
+        console.log('[ManifestV2] 使用高级模式自定义清单:', customPath);
+        return data;
+      }
+      console.warn('[ManifestV2] 自定义路径文件无效或不存在，回退到网络');
+    }
+
+    const config = getConfig();
+    const primaryUrl = (config.firmware_manifest_v2_url || deriveV2Url(config.firmware_manifest_url)).trim();
+    const mirrors = config.firmware_manifest_v2_mirrors
+      ?? (config.firmware_manifest_mirrors ?? []).map(deriveV2Url);
+
+    const urlsToTry = [primaryUrl, ...mirrors];
+    for (let i = 0; i < urlsToTry.length; i++) {
+      const url = urlsToTry[i].trim();
+      if (!url) continue;
+      const label = i === 0 ? 'v2主地址' : `v2镜像${i}`;
+      const data = await tryFetchManifest(url, label);
+      if (data != null) {
+        if (i > 0) console.log(`[ManifestV2] 使用 ${label} 成功: ${url}`);
+        return data;
+      }
+    }
+    console.warn('所有 v2 manifest 地址均失败，尝试内置 v2 manifest...');
+
+    const bundledPath = getBundledManifestV2Path();
+    const bundled = loadManifestFromFile(bundledPath);
+    if (bundled != null) {
+      console.log('[ManifestV2] 使用内置清单:', bundledPath);
+      return bundled;
+    }
+
+    console.error('Local v2 manifest not found at:', bundledPath);
+    return { schema_version: 2, generated_at: '', product_list: [], firmwares: [], collections: [] };
   });
 
   ipcMain.handle('get-custom-manifest-path', async () => getCustomManifestPath());
