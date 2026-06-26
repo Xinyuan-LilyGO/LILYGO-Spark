@@ -8,8 +8,8 @@
  * tested `convertV1ToV2`, so there is a single source of truth for the
  * transformation.
  *
- * Run: `npm run generate-v2-manifest` (or `node scripts/generate-v2-manifest.ts`).
- * Requires Node >= 22 (native TypeScript type stripping).
+ * Run: `npm run generate-v2-manifest` (executed via tsx so it works on the
+ * CI Node version, which cannot run .ts files natively).
  */
 
 import fs from 'node:fs';
