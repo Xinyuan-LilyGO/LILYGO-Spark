@@ -203,7 +203,10 @@ jobs:
   build-win:
     needs: setup
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.target == 'win' || inputs.target == 'all' }}
-    runs-on: windows-latest
+    # Pin to windows-2022 (VS 2022). windows-latest moved to windows-2025-vs2026,
+    # whose Visual Studio 2026 is not detected by the node-gyp bundled with Node
+    # 20, breaking the native rebuild of @serialport/bindings-cpp.
+    runs-on: windows-2022
     strategy:
       fail-fast: false
       matrix:
