@@ -155,6 +155,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MAC_CERTS_P12: ${{ secrets.MAC_CERTS_P12 }}
+          # electron-builder skips code signing on PR builds by default (a fork-PR
+          # safety). This repo's PRs are same-repo, so the Developer ID cert is
+          # available — force real signing so PR builds match release builds and
+          # pass the "Verify code signing" TeamIdentifier check below.
+          CSC_FOR_PULL_REQUEST: "true"
 
       - name: Verify code signing
         run: |
