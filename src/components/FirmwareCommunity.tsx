@@ -1990,8 +1990,8 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                         </div>
                                     )}
 
-                                    {/* Upload new version button */}
-                                    {group.hasMultipleVersions && currentUser && onUpdateFirmware && (
+                                    {/* Upload new version button — available regardless of how many versions exist */}
+                                    {currentUser && onUpdateFirmware && (
                                       <div className="mt-2 pt-2 border-t border-ink/10">
                                         <button
                                           onClick={() => onUpdateFirmware({
