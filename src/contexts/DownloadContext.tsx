@@ -10,6 +10,9 @@ export interface DownloadedFile {
 }
 
 export interface DownloadTask {
+  /** Cache key this task is filed under (see `firmwareCacheKey`). */
+  key: string;
+  /** Source URL the binary was fetched from — for display only. */
   url: string;
   downloading: boolean;
   progress: number;
@@ -18,9 +21,27 @@ export interface DownloadTask {
 }
 
 interface DownloadOptions {
+  /** Firmware `download_url`; absent for community uploads served from OSS. */
+  url?: string;
   expectedMd5?: string;
   ossUrl?: string;
   originalFilename?: string;
+}
+
+/**
+ * Stable per-firmware cache key.
+ *
+ * `download_url` is NOT an identity — it is the optional external origin of a
+ * binary. Community-uploaded firmware has none (its binary lives at `oss_url`),
+ * and a few GitHub firmwares share one release zip while extracting different
+ * binaries from it. Keying the cache on it made unrelated firmwares share a
+ * single task, so downloading one made every other one look downloaded and hand
+ * the wrong file to the burner. sha256 is unique per firmware, so prefer it.
+ */
+export function firmwareCacheKey(fw: { sha256?: string; oss_url?: string; download_url?: string }): string {
+  if (fw.sha256) return `sha256:${fw.sha256}`;
+  if (fw.oss_url) return `oss:${fw.oss_url}`;
+  return `url:${fw.download_url ?? ''}`;
 }
 
 interface CacheStats {
@@ -29,16 +50,20 @@ interface CacheStats {
 }
 
 interface DownloadContextType {
+  /** Keyed by `firmwareCacheKey(fw)`. */
   tasks: Record<string, DownloadTask>;
-  startDownload: (url: string, options?: DownloadOptions) => Promise<void>;
-  removeDownload: (url: string) => Promise<void>;
+  startDownload: (key: string, options?: DownloadOptions) => Promise<void>;
+  removeDownload: (key: string) => Promise<void>;
   clearAll: () => Promise<void>;
   getCacheStats: () => CacheStats;
-  saveAs: (url: string) => Promise<boolean>;
-  getTask: (url: string) => DownloadTask | undefined;
+  saveAs: (key: string) => Promise<boolean>;
+  getTask: (key: string) => DownloadTask | undefined;
 }
 
-const STORAGE_KEY = 'lilygo_download_cache';
+// v2: entries cached under the old download_url keys are ambiguous (everything
+// community-uploaded shared the '' key), so they are dropped rather than migrated.
+const STORAGE_KEY = 'lilygo_download_cache_v2';
+const LEGACY_STORAGE_KEY = 'lilygo_download_cache';
 
 const DownloadContext = createContext<DownloadContextType | null>(null);
 
@@ -50,13 +75,15 @@ export const useDownload = () => {
 
 function loadCachedTasks(): Record<string, DownloadTask> {
   try {
+    // Drop the pre-fix index; its temp files are reclaimed by the OS.
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
     const parsed: Record<string, DownloadTask> = JSON.parse(raw);
     const restored: Record<string, DownloadTask> = {};
-    for (const [url, task] of Object.entries(parsed)) {
+    for (const [key, task] of Object.entries(parsed)) {
       if (!task.file) continue;
-      restored[url] = { ...task, downloading: false, progress: 100, error: undefined };
+      restored[key] = { ...task, key, downloading: false, progress: 100, error: undefined };
     }
     return restored;
   } catch {
@@ -67,9 +94,9 @@ function loadCachedTasks(): Record<string, DownloadTask> {
 function persistTasks(tasks: Record<string, DownloadTask>) {
   try {
     const toSave: Record<string, DownloadTask> = {};
-    for (const [url, task] of Object.entries(tasks)) {
+    for (const [key, task] of Object.entries(tasks)) {
       if (task.file) {
-        toSave[url] = { url: task.url, downloading: false, progress: 100, file: task.file };
+        toSave[key] = { key, url: task.url, downloading: false, progress: 100, file: task.file };
       }
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
@@ -93,9 +120,9 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setTasks(prev => {
         let changed = false;
         const next = { ...prev };
-        for (const [url, task] of Object.entries(next)) {
+        for (const [key, task] of Object.entries(next)) {
           if (task.file && result[task.file.path] === false) {
-            delete next[url];
+            delete next[key];
             changed = true;
           }
         }
@@ -131,10 +158,11 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
   }, []);
 
-  const startDownload = useCallback(async (url: string, options?: DownloadOptions) => {
+  const startDownload = useCallback(async (key: string, options?: DownloadOptions) => {
+    const url = options?.url ?? '';
     setTasks(prev => {
-      if (prev[url]?.downloading) return prev;
-      return { ...prev, [url]: { url, downloading: true, progress: 0 } };
+      if (prev[key]?.downloading) return prev;
+      return { ...prev, [key]: { key, url, downloading: true, progress: 0 } };
     });
 
     try {
@@ -142,20 +170,22 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         'download-firmware',
         url,
         options?.ossUrl,
-        options?.originalFilename
+        options?.originalFilename,
+        key
       );
 
       if (result.success) {
         if (options?.expectedMd5 && result.md5.toLowerCase() !== options.expectedMd5.toLowerCase()) {
           setTasks(prev => ({
             ...prev,
-            [url]: { url, downloading: false, progress: 100, error: `Hash mismatch! Expected: ${options.expectedMd5}, Got: ${result.md5}` }
+            [key]: { key, url, downloading: false, progress: 100, error: `Hash mismatch! Expected: ${options.expectedMd5}, Got: ${result.md5}` }
           }));
           return;
         }
         setTasks(prev => ({
           ...prev,
-          [url]: {
+          [key]: {
+            key,
             url,
             downloading: false,
             progress: 100,
@@ -165,25 +195,25 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       } else {
         setTasks(prev => ({
           ...prev,
-          [url]: { url, downloading: false, progress: 0, error: result.error }
+          [key]: { key, url, downloading: false, progress: 0, error: result.error }
         }));
       }
     } catch (e: any) {
       setTasks(prev => ({
         ...prev,
-        [url]: { url, downloading: false, progress: 0, error: e.message }
+        [key]: { key, url, downloading: false, progress: 0, error: e.message }
       }));
     }
   }, []);
 
-  const removeDownload = useCallback(async (url: string) => {
-    const task = tasksRef.current[url];
+  const removeDownload = useCallback(async (key: string) => {
+    const task = tasksRef.current[key];
     if (task?.file) {
       await window.ipcRenderer.invoke('remove-file', task.file.path);
     }
     setTasks(prev => {
       const next = { ...prev };
-      delete next[url];
+      delete next[key];
       return next;
     });
   }, []);
@@ -211,13 +241,13 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return { fileCount, totalBytes };
   }, []);
 
-  const saveAs = useCallback(async (url: string): Promise<boolean> => {
-    const task = tasksRef.current[url];
+  const saveAs = useCallback(async (key: string): Promise<boolean> => {
+    const task = tasksRef.current[key];
     if (!task?.file) return false;
     return await window.ipcRenderer.invoke('save-file', task.file.fileName, task.file.path);
   }, []);
 
-  const getTask = useCallback((url: string) => tasks[url], [tasks]);
+  const getTask = useCallback((key: string) => tasks[key], [tasks]);
 
   return (
     <DownloadContext.Provider value={{ tasks, startDownload, removeDownload, clearAll, getCacheStats, saveAs, getTask }}>

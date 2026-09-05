@@ -23,7 +23,12 @@ export interface LegacyFirmware {
   version: string;
   type: string;
   filename: string;
-  download_url: string;
+  /**
+   * Optional external origin (e.g. a GitHub release asset). Absent for
+   * community uploads, whose binary lives at `oss_url`. Never an identity —
+   * use `sha256`.
+   */
+  download_url?: string;
   description: string;
   release_note?: string;
   size?: number;

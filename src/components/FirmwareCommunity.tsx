@@ -11,7 +11,7 @@ import { fwIdFromSha256, type FirmwareSeries } from './series/types';
 import { type FirmwareGroupOf } from '../utils/manifestSchema';
 import { groupsForProduct, flattenV2, type FlatFirmware } from '../utils/manifestV2View';
 import type { ManifestV2 } from '../utils/manifestV2';
-import { useDownload } from '../contexts/DownloadContext';
+import { useDownload, firmwareCacheKey } from '../contexts/DownloadContext';
 import type { DownloadedFile } from '../contexts/DownloadContext';
 
 interface Product {
@@ -67,6 +67,10 @@ export interface UploadPrefillData {
   authorEmail?: string;
   firmwareTypes?: string[];
   seriesIds?: string[];
+  /** Spark Agent 构建产物：本地 .bin 路径，自动作为上传文件 */
+  filePath?: string;
+  /** 烧录偏移，如 0x0 / 0x1000 */
+  flashPath?: string;
 }
 
 interface FirmwareCommunityProps {
@@ -617,9 +621,10 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
   }, [searchQuery]);
 
   const handleDownload = async (fw: Firmware) => {
-      const task = tasks[fw.download_url];
+      const task = tasks[firmwareCacheKey(fw)];
       if (task?.downloading) return;
-      await startDownload(fw.download_url, {
+      await startDownload(firmwareCacheKey(fw), {
+        url: fw.download_url,
         expectedMd5: fw.md5,
         ossUrl: fw.oss_url,
         originalFilename: fw.filename,
@@ -639,16 +644,16 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
       }
   };
 
-  const handleRemove = async (url: string) => {
-      await removeDownload(url);
+  const handleRemove = async (fw: Firmware) => {
+      await removeDownload(firmwareCacheKey(fw));
   };
 
-  const handleSaveAs = async (url: string) => {
-      await saveDownloadAs(url);
+  const handleSaveAs = async (fw: Firmware) => {
+      await saveDownloadAs(firmwareCacheKey(fw));
   };
 
-  const handleBurnClick = (url: string) => {
-      const task = tasks[url];
+  const handleBurnClick = (fw: Firmware) => {
+      const task = tasks[firmwareCacheKey(fw)];
       if (task?.file) {
           setFileToBurn(task.file);
           setBurnerModalOpen(true);
@@ -1105,7 +1110,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
       {/* Share Code Firmware Modal */}
       {shareCodeFirmware && (() => {
         const fw = shareCodeFirmware;
-        const task = tasks[fw.download_url];
+        const task = tasks[firmwareCacheKey(fw)];
         const isDownloaded = !!task?.file;
         const isDownloading = task?.downloading ?? false;
         const progress = task?.progress ?? 0;
@@ -1208,11 +1213,11 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                   </div>
                 ) : isDownloaded ? (
                   <div className="flex items-center gap-2">
-                    <button onClick={() => { setShareCodeFirmware(null); handleBurnClick(fw.download_url); }} className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg flex items-center shadow-lg shadow-emerald-900/20 transition-all active:scale-95">
+                    <button onClick={() => { setShareCodeFirmware(null); handleBurnClick(fw); }} className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg flex items-center shadow-lg shadow-emerald-900/20 transition-all active:scale-95">
                       <Zap size={18} className="mr-2" />
                       {t('firmwareCenter.burn')}
                     </button>
-                    <button onClick={() => handleSaveAs(fw.download_url)} className="p-2.5 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-lg transition-colors" title={t('firmwareCenter.save_as')}>
+                    <button onClick={() => handleSaveAs(fw)} className="p-2.5 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-lg transition-colors" title={t('firmwareCenter.save_as')}>
                       <Save size={18} />
                     </button>
                   </div>
@@ -1563,7 +1568,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                 ) : (
                   <div className="grid grid-cols-1 gap-4">
                     {displayedRelated.map((fw, idx) => {
-                      const task = tasks[fw.download_url];
+                      const task = tasks[firmwareCacheKey(fw)];
                       const isDownloaded = !!task?.file;
                       const isDownloading = task?.downloading ?? false;
                       const progress = task?.progress ?? 0;
@@ -1613,7 +1618,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                   </div>
                                 ) : isDownloaded ? (
                                   <button
-                                    onClick={() => handleBurnClick(fw.download_url)}
+                                    onClick={() => handleBurnClick(fw)}
                                     className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-theme flex items-center shadow-lg shadow-emerald-900/20 transition-all active:scale-95"
                                   >
                                     <Zap size={18} className="mr-2" />
@@ -1756,7 +1761,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                     <div className="grid grid-cols-1 gap-4">
                         {baseGroups.map((group) => {
                             const fw = getActiveFirmware(group);
-                            const task = tasks[fw.download_url];
+                            const task = tasks[firmwareCacheKey(fw)];
                             const isDownloaded = !!task?.file;
                             const isDownloading = task?.downloading ?? false;
                             const progress = task?.progress ?? 0;
@@ -1930,14 +1935,14 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                             ) : isDownloaded ? (
                                                 <div className="flex items-center gap-2">
                                                     <button
-                                                        onClick={() => handleRemove(fw.download_url)}
+                                                        onClick={() => handleRemove(fw)}
                                                         className="p-2 text-ink/55 hover:text-red-400 hover:bg-ink/10 rounded-theme transition-colors"
                                                         title={t('firmwareCenter.remove_download')}
                                                     >
                                                         <Trash2 size={18} />
                                                     </button>
                                                     <button
-                                                        onClick={() => handleSaveAs(fw.download_url)}
+                                                        onClick={() => handleSaveAs(fw)}
                                                         className="p-2 text-ink/55 hover:text-ink hover:bg-ink/10 rounded-theme transition-colors"
                                                         title={t('firmwareCenter.save_as')}
                                                     >
@@ -1953,7 +1958,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                                         </button>
                                                     )}
                                                     <button
-                                                        onClick={() => handleBurnClick(fw.download_url)}
+                                                        onClick={() => handleBurnClick(fw)}
                                                         className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-theme flex items-center shadow-lg shadow-emerald-900/20 transition-all active:scale-95"
                                                     >
                                                         <Zap size={18} className="mr-2" />

@@ -2,7 +2,7 @@ import { app, shell, dialog, BrowserWindow, IpcMainInvokeEvent, IpcMainEvent, ne
 import { SerialPort } from 'serialport';
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, mkdirSync } from 'node:fs';
 import { execFile } from 'node:child_process';
 import crypto from 'node:crypto';
 import AdmZip from 'adm-zip';
@@ -635,18 +635,22 @@ export async function handleDumpFirmwareNative(
 
 export async function handleDownloadFirmware(
     event: IpcMainInvokeEvent,
-    url: string,
+    url: string | undefined,
     ossUrl?: string,
-    originalFilename?: string
+    originalFilename?: string,
+    cacheKey?: string
 ) {
     const webContents = event.sender;
-    const tempDir = app.getPath('temp');
-    const downloadId = url; // always use the original URL as ID
+    // The renderer's cache key (sha256-based) identifies the firmware; the URL is
+    // not unique — community uploads carry no download_url at all, and some
+    // GitHub firmwares share one release zip while extracting different binaries.
+    const downloadId = cacheKey || ossUrl || url || '';
 
-    const actualUrl = ossUrl || url;
+    const actualUrl = ossUrl || url || '';
     const isZipDownload = !!ossUrl || actualUrl.toLowerCase().endsWith('.zip');
 
     try {
+        if (!actualUrl) throw new Error('Firmware has no oss_url or download_url to fetch from');
         const response = await net.fetch(actualUrl);
         if (!response.ok) throw new Error(`Fetch failed: ${response.statusText}`);
         if (!response.body) throw new Error('No response body');
@@ -686,10 +690,19 @@ export async function handleDownloadFirmware(
             fileName = originalFilename || path.basename(target.entryName);
         } else {
             finalBuffer = downloadedBuffer;
-            fileName = path.basename(new URL(url).pathname) || `firmware_${Date.now()}.bin`;
+            fileName = path.basename(new URL(actualUrl).pathname) || `firmware_${Date.now()}.bin`;
         }
 
-        const downloadPath = path.join(tempDir, fileName);
+        // Cache each firmware in its own directory: filenames repeat across the
+        // manifest (lilygo.bin, target.bin, firmware.bin, ...), so a flat temp
+        // dir would let one firmware overwrite another's cached binary.
+        const cacheDir = path.join(
+            app.getPath('temp'),
+            'lilygo-spark-cache',
+            crypto.createHash('sha256').update(downloadId).digest('hex').slice(0, 16)
+        );
+        mkdirSync(cacheDir, { recursive: true });
+        const downloadPath = path.join(cacheDir, fileName);
         writeFileSync(downloadPath, finalBuffer);
 
         const md5 = crypto.createHash('md5').update(finalBuffer).digest('hex');

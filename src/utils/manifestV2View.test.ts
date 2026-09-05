@@ -70,6 +70,18 @@ describe('v2VersionToFlat', () => {
     const flat = v2VersionToFlat(fw, { version: 'v3', filename: 'x.bin', supported_product_ids: ['only-this'] });
     expect(flat.supported_product_ids).toEqual(['only-this']);
   });
+
+  it('leaves a missing download_url undefined instead of coercing it to ""', () => {
+    // '' reads as a real value to anything treating the field as a key, which is
+    // how unrelated community firmwares once shared one download-cache slot.
+    const flat = v2VersionToFlat(fw, { version: 'v3', filename: 'x.bin', oss_url: 'http://o/x' });
+    expect(flat.download_url).toBeUndefined();
+  });
+
+  it('keeps a real external origin', () => {
+    const flat = v2VersionToFlat(fw, { version: 'v3', filename: 'x.bin', download_url: 'https://github.com/x/y/releases/x.zip' });
+    expect(flat.download_url).toBe('https://github.com/x/y/releases/x.zip');
+  });
 });
 
 describe('v2FirmwareToGroup', () => {

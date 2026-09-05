@@ -25,7 +25,8 @@ export interface FlatFirmware {
   version: string;
   type: string;
   filename: string;
-  download_url: string;
+  /** Optional external origin; absent for community uploads (see LegacyFirmware). */
+  download_url?: string;
   description: string;
   release_note?: string;
   size?: number;
@@ -55,7 +56,7 @@ export function v2VersionToFlat(fw: FirmwareV2, v: FirmwareVersionV2): FlatFirmw
     version: v.version,
     type: (fw.type ?? []).join(','),
     filename: v.filename,
-    download_url: v.download_url ?? '',
+    download_url: v.download_url,
     description: fw.description ?? '',
     release_note: v.release_note,
     size: v.size,
