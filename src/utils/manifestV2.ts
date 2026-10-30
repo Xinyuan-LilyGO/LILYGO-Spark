@@ -13,6 +13,7 @@
  */
 
 import { groupFirmwares, firmwareGroupKeyStrict, type LegacyFirmware } from './manifestSchema.ts';
+import type { Sf32PackageInfo } from './sf32.ts';
 
 /** A single flashable binary (one version of a firmware). */
 export interface FirmwareVersionV2 {
@@ -29,6 +30,10 @@ export interface FirmwareVersionV2 {
   published_at?: string;
   /** Override the firmware-level product list for this specific version only. */
   supported_product_ids?: string[];
+  /** Non-ESP32 target chip, e.g. "SF32LB52". Absent for ESP32 firmware. */
+  chip?: string;
+  /** SF32 release package: the images inside the zip and their flash addresses. */
+  sf32_package?: Sf32PackageInfo;
 }
 
 /** A firmware "program" / series carrying all shared metadata once. */
@@ -113,7 +118,7 @@ interface RawSeriesV1 {
  * token (raw, unformatted) when one was found.
  */
 export function deriveFirmwareIdentity(filename: string): { stem: string; version: string | null } {
-  let stem = (filename || '').replace(/\.bin$/i, '');
+  let stem = (filename || '').replace(/\.(bin|zip)$/i, '');
   let version: string | null = null;
 
   // 1) Build-timestamp version: `_firmware_202509101652`
@@ -253,6 +258,8 @@ export function convertV1ToV2(v1: ManifestV1Input | null | undefined): ManifestV
       if (v.md5) version.md5 = v.md5;
       if (v.sha256) version.sha256 = v.sha256;
       if (v.published_at) version.published_at = v.published_at;
+      if (v.chip) version.chip = v.chip;
+      if (v.sf32_package) version.sf32_package = v.sf32_package;
       return version;
     });
 

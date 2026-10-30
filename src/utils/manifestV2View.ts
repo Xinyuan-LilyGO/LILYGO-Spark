@@ -17,6 +17,7 @@
 
 import type { ManifestV2, FirmwareV2, FirmwareVersionV2 } from './manifestV2';
 import type { FirmwareGroupOf } from './manifestSchema';
+import type { Sf32PackageInfo } from './sf32';
 
 /** Flat per-version firmware record consumed by the UI and its handlers. */
 export interface FlatFirmware {
@@ -44,6 +45,8 @@ export interface FlatFirmware {
   image_urls?: string[];
   /** Firmware-level id from v2 (stable slug), useful for keys/collections. */
   firmware_id?: string;
+  chip?: string;
+  sf32_package?: Sf32PackageInfo;
 }
 
 export type FlatFirmwareGroup = FirmwareGroupOf<FlatFirmware>;
@@ -72,6 +75,8 @@ export function v2VersionToFlat(fw: FirmwareV2, v: FirmwareVersionV2): FlatFirmw
     author_email: fw.author?.email,
     image_urls: fw.image_urls,
     firmware_id: fw.id,
+    chip: v.chip,
+    sf32_package: v.sf32_package,
   };
 }
 

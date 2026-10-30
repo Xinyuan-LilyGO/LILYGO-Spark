@@ -725,11 +725,13 @@ export async function handleDownloadFirmware(
 }
 
 export async function handleSaveFile(_event: IpcMainInvokeEvent, defaultName: string, sourcePath: string) {
+    const binFilter = { name: 'Binary File', extensions: ['bin'] };
+    const zipFilter = { name: 'Zip Archive', extensions: ['zip'] };
     const { canceled, filePath } = await dialog.showSaveDialog({
         defaultPath: defaultName,
+        // Offer the file's own type first (SF32 firmware is a .zip package)
         filters: [
-            { name: 'Binary File', extensions: ['bin'] },
-            { name: 'Zip Archive', extensions: ['zip'] },
+            ...(/\.zip$/i.test(defaultName) ? [zipFilter, binFilter] : [binFilter, zipFilter]),
             { name: 'All Files', extensions: ['*'] }
         ]
     });
