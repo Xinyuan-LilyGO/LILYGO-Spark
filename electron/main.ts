@@ -27,6 +27,7 @@ import {
     cleanupSerialPort,
     handleReadFileAsBuffer
 } from './handlers'
+import { handleInspectSf32Package, handleExtractSf32Package } from './sf32Package'
 
 let win: BrowserWindow | null
 let deviceDetector: DeviceDetector | null = null;
@@ -427,6 +428,10 @@ ipcMain.handle('flash-firmware-native', handleFlashFirmwareNative);
 
 // Handle file save
 ipcMain.handle('save-file', handleSaveFile);
+
+// SF32 release packages: check one before upload, unzip a downloaded one
+ipcMain.handle('inspect-sf32-package', handleInspectSf32Package);
+ipcMain.handle('extract-sf32-package', handleExtractSf32Package);
 
 // Handle get app version
 ipcMain.handle('get-app-version', () => app.getVersion());

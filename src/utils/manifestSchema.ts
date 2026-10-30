@@ -16,6 +16,8 @@
  * All functions are pure and side-effect free.
  */
 
+import type { Sf32PackageInfo } from './sf32.ts';
+
 /** Legacy flat firmware entry (manifest schema v1). */
 export interface LegacyFirmware {
   supported_product_ids: string[];
@@ -44,6 +46,10 @@ export interface LegacyFirmware {
   author_email?: string;
   image_url?: string;
   image_urls?: string[];
+  /** Non-ESP32 target chip, e.g. "SF32LB52". Absent for ESP32 firmware. */
+  chip?: string;
+  /** SF32 release package: the images inside the zip and their flash addresses. */
+  sf32_package?: Sf32PackageInfo;
 }
 
 /**

@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, ChevronRight, Layers, Github, Save, Trash2, Zap, Microscope, User, Pencil, X, Share2, Check, Hash, Upload } from 'lucide-react';
+import { Search, ExternalLink, Download, FileCode, Cpu, RefreshCw, ChevronDown, ChevronRight, Layers, Github, Save, Trash2, Zap, Microscope, User, Pencil, X, Share2, Check, Hash, Upload, BookOpen } from 'lucide-react';
 import BurnerModal from './BurnerModal';
+import Sf32GuideModal from './Sf32GuideModal';
+import { isSf32Firmware } from '../utils/sf32';
 import ProductManager from './ProductManager';
 import ShareCodeRedeemModal from './ShareCodeRedeemModal';
 import { CommentsProvider, CommentsActions, CommentsPreview, type CurrentUser } from './CommentsPanel';
@@ -207,6 +209,8 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
   // Burner Modal State
   const [burnerModalOpen, setBurnerModalOpen] = useState(false);
   const [fileToBurn, setFileToBurn] = useState<DownloadedFile | null>(null);
+  // SF32 packages are flashed by the user; this opens their flashing guide
+  const [sf32Guide, setSf32Guide] = useState<{ fw: Firmware; file: DownloadedFile } | null>(null);
 
   // Admin firmware management state
   const [adminMode, setAdminMode] = useState(false);
@@ -654,11 +658,20 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
 
   const handleBurnClick = (fw: Firmware) => {
       const task = tasks[firmwareCacheKey(fw)];
-      if (task?.file) {
+      if (task?.file && isSf32Firmware(fw)) {
+          setSf32Guide({ fw, file: task.file });
+      } else if (task?.file) {
           setFileToBurn(task.file);
           setBurnerModalOpen(true);
       }
   };
+
+  // SF32 packages open a flashing guide instead of the flasher
+  const renderBurnLabel = (fw: Firmware) => isSf32Firmware(fw) ? (
+      <><BookOpen size={18} className="mr-2" />{t('sf32.guide_button')}</>
+  ) : (
+      <><Zap size={18} className="mr-2" />{t('firmwareCenter.burn')}</>
+  );
 
   // Show a non-blocking toast notification (avoids Windows alert() focus bug)
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -1099,6 +1112,16 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
               onClose={() => setBurnerModalOpen(false)}
           />
       )}
+      {sf32Guide && sf32Guide.fw.sf32_package && (
+          <Sf32GuideModal
+              firmwareName={sf32Guide.fw.name}
+              sourceCodeUrl={sf32Guide.fw.source_code_url}
+              pkg={sf32Guide.fw.sf32_package}
+              file={sf32Guide.file}
+              onSaveAs={() => handleSaveAs(sf32Guide.fw)}
+              onClose={() => setSf32Guide(null)}
+          />
+      )}
       {/* Product Manager Modal */}
       {showProductManager && token && (
           <ProductManager
@@ -1214,8 +1237,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                 ) : isDownloaded ? (
                   <div className="flex items-center gap-2">
                     <button onClick={() => { setShareCodeFirmware(null); handleBurnClick(fw); }} className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg flex items-center shadow-lg shadow-emerald-900/20 transition-all active:scale-95">
-                      <Zap size={18} className="mr-2" />
-                      {t('firmwareCenter.burn')}
+                      {renderBurnLabel(fw)}
                     </button>
                     <button onClick={() => handleSaveAs(fw)} className="p-2.5 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-lg transition-colors" title={t('firmwareCenter.save_as')}>
                       <Save size={18} />
@@ -1621,8 +1643,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                     onClick={() => handleBurnClick(fw)}
                                     className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-theme flex items-center shadow-lg shadow-emerald-900/20 transition-all active:scale-95"
                                   >
-                                    <Zap size={18} className="mr-2" />
-                                    {t('firmwareCenter.burn')}
+                                    {renderBurnLabel(fw)}
                                   </button>
                                 ) : (
                                   <button
@@ -1948,7 +1969,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                                     >
                                                         <Save size={18} />
                                                     </button>
-                                                    {onNavigateToAnalyzer && task?.file && (
+                                                    {onNavigateToAnalyzer && task?.file && !isSf32Firmware(fw) && (
                                                         <button
                                                             onClick={() => onNavigateToAnalyzer(task.file!.path, task.file!.fileName)}
                                                             className="p-2 text-ink/55 hover:text-primary hover:bg-ink/10 rounded-theme transition-colors"
@@ -1961,8 +1982,7 @@ const FirmwareCommunity: React.FC<FirmwareCommunityProps> = ({ isAdmin, token, c
                                                         onClick={() => handleBurnClick(fw)}
                                                         className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-theme flex items-center shadow-lg shadow-emerald-900/20 transition-all active:scale-95"
                                                     >
-                                                        <Zap size={18} className="mr-2" />
-                                                        {t('firmwareCenter.burn')}
+                                                        {renderBurnLabel(fw)}
                                                     </button>
                                                 </div>
                                             ) : task?.error ? (

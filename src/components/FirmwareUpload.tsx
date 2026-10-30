@@ -5,6 +5,7 @@ import FullWindowDropZone from './FullWindowDropZone';
 import ShareCodeModal from './ShareCodeModal';
 import { SeriesApi } from './series/api';
 import type { FirmwareSeries } from './series/types';
+import type { Sf32PackageInfo } from '../utils/sf32';
 
 interface UploadPrefillData {
   name: string;
@@ -52,6 +53,8 @@ interface UploadRecord {
     source_code_url: string;
     author_name: string;
     firmware_type: string[];
+    chip?: string;
+    sf32_package?: Sf32PackageInfo;
   };
   uploaded_at: string;
   reviewed_at: string | null;
@@ -75,6 +78,8 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin, userEma
 
   // Upload form state
   const [file, setFile] = useState<File | null>(null);
+  // Set when the chosen file is an SF32 release .zip (checked locally before upload)
+  const [sf32Info, setSf32Info] = useState<Sf32PackageInfo | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [uploadMessage, setUploadMessage] = useState('');
@@ -225,19 +230,37 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin, userEma
   };
 
   const applyFile = async (selectedFile: File) => {
-    if (!selectedFile.name.toLowerCase().endsWith('.bin')) {
+    const lower = selectedFile.name.toLowerCase();
+    if (!lower.endsWith('.bin') && !lower.endsWith('.zip')) {
       setUploadStatus('error');
-      setUploadMessage('Only .bin files are allowed');
+      setUploadMessage(t('upload.only_bin_or_zip'));
       setFile(null);
+      setSf32Info(null);
       return;
     }
-    setFile(selectedFile);
     setUploadStatus('idle');
     setUploadMessage('');
     setDuplicateWarning(null);
+
+    // A .zip is an SF32 release package: check its three images before uploading
+    let info: Sf32PackageInfo | null = null;
+    if (lower.endsWith('.zip')) {
+      const result = await window.ipcRenderer.invoke('inspect-sf32-package', await selectedFile.arrayBuffer());
+      if (!result?.success) {
+        setUploadStatus('error');
+        setUploadMessage(`${t('upload.sf32_invalid')}: ${result?.error || ''}`);
+        setFile(null);
+        setSf32Info(null);
+        return;
+      }
+      info = result.info;
+    }
+    setFile(selectedFile);
+    setSf32Info(info);
+
     // Auto-fill name from filename if empty
     if (!name) {
-      const baseName = selectedFile.name.replace(/\.bin$/i, '').replace(/[_-]/g, ' ');
+      const baseName = selectedFile.name.replace(/\.(bin|zip)$/i, '').replace(/-install$/i, '').replace(/[_-]/g, ' ');
       setName(baseName);
     }
 
@@ -275,7 +298,7 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin, userEma
   };
 
   const handleDrop = (files: FileList) => {
-    const f = Array.from(files).find(x => x.name.toLowerCase().endsWith('.bin'));
+    const f = Array.from(files).find(x => /\.(bin|zip)$/i.test(x.name));
     if (f) applyFile(f);
   };
 
@@ -300,7 +323,7 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin, userEma
     if (authorLink) formData.append('author_link', authorLink);
     if (authorEmail) formData.append('author_email', authorEmail);
     formData.append('firmware_type', firmwareTypes.join(','));
-    formData.append('flash_path', flashPath);
+    if (!sf32Info) formData.append('flash_path', flashPath);
     if (seriesIds.length > 0) {
       formData.append('series_ids', seriesIds.join(','));
     }
@@ -322,6 +345,7 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin, userEma
         setUploadMessage(data.message || 'Upload successful!');
         // Reset form
         setFile(null);
+        setSf32Info(null);
         setImageFiles([]);
         setImagePreviews([]);
         setName('');
@@ -509,7 +533,7 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin, userEma
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <FullWindowDropZone active={!uploading && activeTab === 'upload'} accept=".bin" onDrop={handleDrop} hintKey="common.drop_firmware" />
+      <FullWindowDropZone active={!uploading && activeTab === 'upload'} accept=".bin,.zip" onDrop={handleDrop} hintKey="common.drop_firmware" />
 
       {/* Tab Bar */}
       <div className="flex border-b border-slate-200 dark:border-zinc-700 px-6 pt-4 shrink-0">
@@ -566,7 +590,7 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin, userEma
                 {t('upload.firmware_file')} <span className="text-red-400">*</span>
               </label>
               <div className="relative group">
-                <input type="file" accept=".bin" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" disabled={uploading} />
+                <input type="file" accept=".bin,.zip" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" disabled={uploading} />
                 <div className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
                   file ? 'border-primary/50 bg-primary/5' : 'border-slate-300 dark:border-zinc-600 hover:border-slate-400 dark:hover:border-zinc-500'
                 }`}>
@@ -603,6 +627,34 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin, userEma
                       products: duplicateWarning.supported_product_ids.join(', '),
                     })}
                   </p>
+                </div>
+              )}
+              {!file && (
+                <p className="mt-2 text-xs text-slate-500">{t('upload.file_types_hint')}</p>
+              )}
+              {sf32Info && (
+                <div className="mt-3 p-3 rounded-lg bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-800">
+                  <p className="text-sm font-medium text-sky-800 dark:text-sky-300 flex items-center gap-1.5">
+                    <CheckCircle size={14} />
+                    {t('upload.sf32_detected')}
+                    {sf32Info.installer && (
+                      <span className="ml-1 px-1.5 py-0.5 rounded bg-sky-100 dark:bg-sky-800/50 text-[10px] font-semibold">
+                        {t('upload.sf32_has_installer')}
+                      </span>
+                    )}
+                  </p>
+                  <table className="mt-2 w-full text-xs font-mono text-slate-600 dark:text-slate-400">
+                    <tbody>
+                      {sf32Info.images.map(img => (
+                        <tr key={img.role}>
+                          <td className="pr-3 py-0.5">{img.addr}</td>
+                          <td className="pr-3 py-0.5 break-all">{img.path}</td>
+                          <td className="py-0.5 text-right whitespace-nowrap">{formatSize(img.size)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p className="mt-2 text-xs text-sky-700 dark:text-sky-400">{t('upload.sf32_note')}</p>
                 </div>
               )}
             </div>
@@ -816,11 +868,14 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin, userEma
                 <input type="text" value={releaseName} onChange={e => setReleaseName(e.target.value)} placeholder="Initial Release"
                   className="w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50" />
               </div>
+              {/* SF32 packages carry their own addresses (shown with the file above) */}
+              {!sf32Info && (
               <div>
                 <label className="block text-slate-600 dark:text-slate-400 mb-1.5 text-sm font-medium">{t('upload.flash_address')}</label>
                 <input type="text" value={flashPath} onChange={e => setFlashPath(e.target.value)} placeholder="0x0"
                   className="w-full px-3 py-2 rounded-lg bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50" />
               </div>
+              )}
             </div>
 
             {/* Cover Images (optional, multiple) */}
@@ -1031,6 +1086,11 @@ const FirmwareUpload: React.FC<FirmwareUploadProps> = ({ token, isAdmin, userEma
                       <div className="font-medium text-slate-900 dark:text-white text-sm">{u.firmware.name}</div>
                       <div className="text-xs text-slate-500 space-y-0.5">
                         <p>File: {u.firmware.filename} · {formatSize(u.firmware.size)} → {formatSize(u.firmware.compressed_size)} ZIP</p>
+                        {u.firmware.sf32_package && (
+                          <p className="font-mono text-[10px]">
+                            {u.firmware.chip}{u.firmware.sf32_package.installer ? ' · installer' : ''}: {u.firmware.sf32_package.images.map(i => `${i.path}@${i.addr}`).join('  ')}
+                          </p>
+                        )}
                         <p>Product: {u.firmware.product_id} · Source: {u.firmware.source}</p>
                         <p>Author: {u.firmware.author_name} · Tags: {u.firmware.firmware_type?.join(', ') || '-'}</p>
                         {u.firmware.release_tag && <p>Version: {u.firmware.release_tag}</p>}
